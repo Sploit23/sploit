@@ -1,0 +1,35 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "plan": { "model": "opencode/big-pickle" },
+    "build": { "model": "groq/openai/gpt-oss-120b" }
+  },
+  "plugin": [
+    "C:\\Users\\Hp\\.config\\sploit\\node_modules\\superpowers"
+  ],
+  "skills": {
+    "paths": [
+      "~/.config/sploit/node_modules/superpowers/skills"
+    ]
+  },
+  "mcp": {
+    "graphify": {
+      "type": "local",
+      "command": [
+        "C:\\Users\\Hp\\Desktop\\sploit\\venv\\Scripts\\graphify-mcp.exe",
+        "--graph",
+        "graphify-out/graph.json"
+      ],
+      "timeout": 30000
+    },
+    "context7": {
+      "type": "local",
+      "command": [
+        "C:\\Program Files\\nodejs\\npx.cmd",
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "timeout": 30000
+    }
+  }
+}

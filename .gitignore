@@ -1,0 +1,38 @@
+# Sploit - binario (build)
+sploit.exe
+
+# Ambiente Python (Graphify)
+venv/
+.venv/
+
+# Graphify
+graphify-out/
+
+# Segredos (nunca commitar)
+APIKEY.txt
+key.txt
+.sploit.conf.yml
+
+# Claude Code (config local, não compartilhar)
+.claude/settings.local.json
+
+# Node / Bun (opencode-src)
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.turbo/
+**/*.tsbuildinfo
+.bun-tag-*
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
