@@ -42,7 +42,7 @@ def queue_add(titulo, evidencia, verificacao):
     while any(it.get("id") == f"melh-{n}" for it in items):
         n += 1
     iid = f"melh-{n}"
-    if any(it.get("titulo") == titulo and it.get("status") == "proposto" for it in items):
+    if any(it.get("titulo") == titulo for it in items):
         return None
     items.append(
         {
