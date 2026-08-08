@@ -130,18 +130,19 @@ Princípios:
   sidebar/footer/mcp e autocomplete ("Nenhum item correspondente"). Typecheck do `tui`
   OK (0 erros). Textos OpenCode Zen/Go mantidos (links funcionais para pegar chaves
   de modelos grátis). Ainda não gerado build (próximo passo).
+- 2026-08-08: **Iteração 2 validada** ✔ — build + self-restart OK (binário novo
+  10:36:06, PID 19732 rodando com as traduções). Usuário confirmou visualmente:
+  "ficou muito bom". Commits: `815535f` (sploit-src), `fee2ef3` (raiz).
 
 ## Próximo passo
 
-Iteração 2 em andamento — diferencial de identidade escolhido: **idioma PT-BR
-completo na TUI** (feito). Próximos passos:
-1. **Gerar build + self-restart** para o binário entrar com as traduções (rodar
-   `scripts/build-sploit.ps1`; se falhar por arquivo em uso, é esperado — o
-   `self-restart.ps1` faz a troca após encerrar o processo).
-2. Confirmar visualmente as traduções na TUI (home, sessão, permissões, diálogos).
-3. Avaliar se há mais 1-2 diferenciais de identidade concretos (ex.: tool cards/
-   preview, comando `/linguagem`, marca na tela inicial) ou encerrar a Iteração 2.
-4. Atualizar este estado ao concluir.
+Iteração 2 em andamento — **diferencial de identidade implementado e validado**:
+idioma PT-BR completo na TUI. Próximos passos:
+1. Decidir se há mais diferenciais de identidade concretos nesta iteração (ex.:
+   tool cards/preview, comando `/linguagem`, marca na tela inicial) **ou** encerrar
+   a Iteração 2 e partir para a Iteração 3 (economia de tokens: medir contexto,
+   compactação, tools certas).
+2. Atualizar este estado ao concluir.
 
 ## Verificação
 
@@ -165,6 +166,9 @@ completo na TUI** (feito). Próximos passos:
   permissões, diálogos, menus, placeholders e toasts; commit `815535f` no sploit-src;
   build OK (`0.1.0-sploit`, smoke passou, `.bak` criado); cópia para `sploit.exe`
   falhou por arquivo em uso (esperado — troca via self-restart pendente) ✔
+- **Iteração 2 validada no binário**: self-restart OK — `sploit.exe` novo (10:36:06,
+  143.5 MB), processo atual PID 19732 (10:36:40) rodando com as traduções; usuário
+  confirmou visualmente ("ficou muito bom") ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
