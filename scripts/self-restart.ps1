@@ -64,8 +64,14 @@ Write-Host "Binario novo: $newExe"
 # ---------------------------------------------------------------------------
 if (-not $SkipSmoke) {
     Write-Host "[1/4] Smoke test do binario novo (sploit doctor)..."
+    # PowerShell 5.1 trata a saída do binário no stderr como NativeCommandError.
+    # Com $ErrorActionPreference = "Stop" isso aborta o script mesmo com exit 0.
+    # Temporariamente volta para "Continue" durante o doctor.
+    $oldEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     & $newExe doctor *> $smokeLog
     $doctorExit = $LASTEXITCODE
+    $ErrorActionPreference = $oldEap
     if ($doctorExit -ne 0) {
         Write-Host "[ABORTADO] O binario novo falhou no smoke test (exit $doctorExit)." -ForegroundColor Red
         Write-Host "O Sploit atual continua rodando intacto. Veja $smokeLog" -ForegroundColor Yellow

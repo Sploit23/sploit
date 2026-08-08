@@ -60,11 +60,23 @@ Princípios:
     sobrescrever `sploit.exe` **em uso** pelo processo atual (IOException). O
     `self-restart.ps1` agora detecta o binário novo no `dist/`, roda o smoke test nele,
     encerra o processo, copia por cima e só então relança (rollback continua válido).
+  - Segundo bug real corrigido: o `self-restart.ps1` falhava ao rodar `sploit doctor`
+    porque o PowerShell 5.1 trata a saída do binário no stderr como
+    `NativeCommandError` e, com `$ErrorActionPreference = "Stop"`, abortava o script.
+    Fix: `$ErrorActionPreference = "Continue"` temporário durante o doctor.
+  - Terceiro bug real corrigido: edições de texto removeram o **BOM UTF-8** do
+    `self-restart.ps1`; sem BOM, o PowerShell 5.1 lê o arquivo como ANSI e os acentos
+    corrompem o parsing (`Expressão ausente após operador unário '--'`). Fix:
+    re-salvar o script com `[UTF8Encoding]::new($true)` (regra: todo .ps1 do repo
+    precisa de BOM; conferir com os 3 primeiros bytes `EF BB BF` após editar).
   - Typecheck do `tui` OK. `opencode` tem 2 erros **pré-existentes** em
     `src/plugin/index.ts` (pacote duplicado `@opencode-ai/plugin@1.18.11` no
     `node_modules` vs `packages/plugin`; não relacionados a esta mudança).
   - Build OK (`0.1.0-sploit`, smoke test interno passou), `sploit.exe.bak` criado.
-  - Commits: `f6e7427` (sploit-src, dicas PT-BR) + `280ba16` (raiz, fix self-restart).
+  - Reinício OK via `scripts/self-restart.ps1`: PID 756 (09:18) → PID 4760 (09:54),
+    `sploit.exe` atualizado (09:46:59), conversa retomada com `--continue`.
+  - Commits: `f6e7427` (sploit-src, dicas PT-BR), `280ba16` (raiz, fix self-restart
+    cópia pós-kill), `91af5a4` (raiz, BOM) e pendente commit do fix NativeCommandError.
 
 ## Próximo passo
 
@@ -87,8 +99,12 @@ Após o `scripts/self-restart.ps1` (que relança com `--continue`):
   para `sploit.exe` falhou por arquivo em uso — esperado, o `self-restart.ps1` agora
   faz a troca após encerrar o processo) ✔
 - Backup: `sploit.exe.bak` criado (known-good) ✔
-- **Pendente de validação empírica**: reiniciar via `self-restart.ps1` e verificar
-  dicas em PT-BR + injeção do estado.
+- **Validação empírica do ciclo**: `self-restart.ps1` rodado com sucesso — PID antigo
+  756 (09:18) encerrado, binário novo copiado para `sploit.exe` (09:46:59), processo
+  novo relançado com `--continue` (PID 4760, 09:54), conversa retomada ✔
+- Dicas em PT-BR: o binário novo está rodando; confirmar visualmente na home ✔ (pendente
+  de confirmação visual do usuário)
+- Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
 
