@@ -3,6 +3,9 @@ sploit.exe
 sploit.exe.bak
 logs/
 
+# Download antigo do repositório (duplicado, pode remover)
+sploit-master.zip
+
 # Ambiente Python (Graphify)
 venv/
 .venv/
