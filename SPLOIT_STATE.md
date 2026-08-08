@@ -115,16 +115,20 @@ Princípios:
   - Acessível via MCP (`graphify_graph_stats` retorna os mesmos números).
   - Para perguntas focadas, usar `graphify query` (subgrafo escopado) em vez de grep;
     `GRAPH_REPORT.md` só para visão geral de arquitetura.
+- 2026-08-08: **Iteração 1 concluída** ✔ — binário atualizado com o typecheck-clean
+  via `self-restart.ps1`: smoke OK (10:21:00), `sploit.exe` trocado (10:15:47, 143.5 MB),
+  processo novo PID 2576 (10:21:02), conversa retomada com `--continue`. Usuário
+  confirmou e pediu para seguir para a Iteração 2.
 
 ## Próximo passo
 
-Iteração 1 — **base sólida** (typecheck-clean ✔, Graphify indexado ✔):
-1. **Atualizar o binário** com o typecheck-clean (build novo está no `dist/`):
-   rodar `scripts/self-restart.ps1` (ou `/atualizar`) para trocar `sploit.exe`.
-2. **Confirmar visualmente** as dicas PT-BR na home (usuário confirma).
-
-Depois disso, Iteração 2 (diferenciais de identidade) com pesquisa na internet:
-filtrar novidades que sirvam à identidade do Sploit, sem perseguir hype.
+Iteração 1 ✔ concluída. **Iteração 2 — diferenciais de identidade**:
+1. **Pesquisa na internet**: investigar novidades/referências (TUI, marca, UX de
+   ferramentas de codificação, extensões de terminal) e filtrar o que serve à
+   identidade do Sploit — sem perseguir hype.
+2. **Definir e implementar 1-3 diferenciais concretos** que distanciem o Sploit do
+   fork opencode (TUI/marca/UX/idioma/diferenciais exclusivos).
+3. Verificar: typecheck + build + self-restart; atualizar estado.
 
 ## Verificação
 
@@ -140,8 +144,10 @@ filtrar novidades que sirvam à identidade do Sploit, sem perseguir hype.
 - **Validação empírica do ciclo**: `self-restart.ps1` rodado com sucesso — PID antigo
   756 (09:18) encerrado, binário novo copiado para `sploit.exe` (09:46:59), processo
   novo relançado com `--continue` (PID 4760, 09:54), conversa retomada ✔
-- Dicas em PT-BR: o binário novo está rodando; confirmar visualmente na home ✔ (pendente
-  de confirmação visual do usuário)
+- **Validação do typecheck-clean no binário**: `self-restart.ps1` rodado com sucesso —
+  smoke OK (10:21:00), `sploit.exe` = build typecheck-clean (10:15:47, 143.5 MB),
+  PID 2576 (10:21:02), conversa retomada ✔
+- Dicas em PT-BR: confirmadas visualmente pelo usuário na home ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
