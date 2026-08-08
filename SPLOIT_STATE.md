@@ -37,8 +37,8 @@ Princípios:
 - [x] Validar config e commitar checkpoint inicial
 - [x] Criar ciclo de auto-atualização seguro (build com backup + smoke test + rollback + /atualizar)
 - [x] Validar empiricamente o ciclo (reiniciar via self-restart.ps1 em uma mudança real)
-- [ ] Iteração 1: base sólida — typecheck-clean, Graphify indexado, dicas PT-BR confirmadas
-- [ ] Iteração 2: diferenciais de identidade (TUI/marca/UX próprios, longe do fork)
+- [x] Iteração 1: base sólida — typecheck-clean, Graphify indexado, dicas PT-BR confirmadas
+- [x] Iteração 2: diferenciais de identidade (TUI 100% PT-BR — traduções validadas no binário)
 - [ ] Iteração 3: economia de tokens (medir contexto, compactação, tools certas)
 
 ## Progresso
@@ -136,13 +136,21 @@ Princípios:
 
 ## Próximo passo
 
-Iteração 2 em andamento — **diferencial de identidade implementado e validado**:
-idioma PT-BR completo na TUI. Próximos passos:
-1. Decidir se há mais diferenciais de identidade concretos nesta iteração (ex.:
-   tool cards/preview, comando `/linguagem`, marca na tela inicial) **ou** encerrar
-   a Iteração 2 e partir para a Iteração 3 (economia de tokens: medir contexto,
-   compactação, tools certas).
-2. Atualizar este estado ao concluir.
+Iteração 3 — **economia de tokens** (medição concluída):
+- **Diagnóstico da sessão atual** (08-08): 1,93M tokens de entrada acumulados, 31,8M
+  cache read, 395 turnos; contexto efetivo no pico ~98k; média de apenas ~4,9k tokens
+  novos por turno (prompt caching funciona bem); compactação ativa (9 eventos hoje,
+  5 parts de compaction). Ferramenta de medição: scripts Python em
+  `%TEMP%\sploit\tokens*.py` contra `~\.local\share\sploit\opencode-sploit.db`.
+- **Maior alvo de economia**: custo fixo por turno ≈ 8,2k tokens de instruções —
+  `SPLOIT_STATE.md` (3.344/turno, injetado via `sploit.json` `instructions`) +
+  AGENTS.md raiz/sploit-src/opencode/global (4.916/turno).
+- Próximos passos:
+  1. Decidir otimizações: (a) compactar `SPLOIT_STATE.md` (podar seção Verificação
+     histórica); (b) flag para injetar estado só quando há `# Próximo passo` pendente;
+     (c) garantir tools não despejam contexto (grep/read com limits).
+  2. Implementar a(s) escolhida(s), typecheck + build, validar.
+  3. Atualizar este estado ao concluir cada sub-passo.
 
 ## Verificação
 
