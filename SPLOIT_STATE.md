@@ -109,15 +109,19 @@ Princípios:
     (sploit-src): `feat: shim @opencode-ai/plugin no workspace para deduplicar tipos`.
   - Build OK (`0.1.0-sploit`, smoke passou, `.bak` criado); cópia para `sploit.exe`
     falhou por arquivo em uso (esperado — troca via self-restart).
+- 2026-08-08: **Graphify indexado** ✔ (Iteração 1, item 2):
+  - `venv\Scripts\graphify.exe update "."` → **28737 nós, 55500 arestas, 2415
+    comunidades** (grafo local em `graphify-out/`, ~34.5 MB, ignorado pelo git).
+  - Acessível via MCP (`graphify_graph_stats` retorna os mesmos números).
+  - Para perguntas focadas, usar `graphify query` (subgrafo escopado) em vez de grep;
+    `GRAPH_REPORT.md` só para visão geral de arquitetura.
 
 ## Próximo passo
 
-Iteração 1 — **base sólida** (typecheck-clean ✔):
-1. **Graphify indexado**: rodar `/graphify .` (a última tentativa falhou porque
-   `graphify-out/graph.json` não existe). É o pilar de economia de tokens.
-2. **Atualizar o binário** com o typecheck-clean (build novo está no `dist/`):
+Iteração 1 — **base sólida** (typecheck-clean ✔, Graphify indexado ✔):
+1. **Atualizar o binário** com o typecheck-clean (build novo está no `dist/`):
    rodar `scripts/self-restart.ps1` (ou `/atualizar`) para trocar `sploit.exe`.
-3. **Confirmar visualmente** as dicas PT-BR na home (usuário confirma).
+2. **Confirmar visualmente** as dicas PT-BR na home (usuário confirma).
 
 Depois disso, Iteração 2 (diferenciais de identidade) com pesquisa na internet:
 filtrar novidades que sirvam à identidade do Sploit, sem perseguir hype.
