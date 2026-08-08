@@ -27,7 +27,7 @@ Princípios:
 - [x] Ciclo de auto-atualização seguro (build com backup + smoke test + rollback + /atualizar)
 - [x] Iteração 1: base sólida (typecheck-clean + Graphify + dicas PT-BR)
 - [x] Iteração 2: TUI 100% PT-BR (traduções validadas no binário)
-- [ ] Iteração 3: economia de tokens (medir contexto, compactação, tools certas)
+- [x] Iteração 3: economia de tokens (poda do estado -55%, diagnóstico, disciplina de tools)
 
 ## Progresso
 
@@ -51,20 +51,29 @@ Princípios:
   toasts, menus da sessão, placeholders, which-key, diff-viewer, sidebar/mcp,
   autocomplete). Textos OpenCode Zen/Go mantidos (links funcionais para keys grátis).
   Commit `815535f`. Validado no binário (10:36:06, PID 19732), usuário aprovou.
-- **Iteração 3** (em curso): diagnóstico da sessão — 1,93M tokens de entrada, 31,8M
+- **Iteração 3** ✔ (concluída): diagnóstico da sessão — 1,93M tokens de entrada, 31,8M
   cache read, 395 turnos, pico ~98k contexto, ~4,9k tokens novos/turno (caching OK),
-  compactação ativa (9 eventos). Custo fixo por turno ≈ 8,2k tokens de instruções:
-  SPLOIT_STATE.md (3.344) + AGENTS.md raiz/sploit-src/opencode/global (4.916).
-  Medição: `%TEMP%\sploit\tokens*.py` contra `~\.local\share\sploit\opencode-sploit.db`.
+  compactação ativa (9 eventos). Custo fixo por turno ≈ 8,2k tokens de instruções.
+  Poda do SPLOIT_STATE.md: 3.344 → ~1.500 tokens/turno (-55%), commit `bda293d`.
+  Flag de injeção condicional descartada (custo/benefício ruim). Disciplina de contexto
+  adotada (Graphify antes de grep; read com limits). Medição: `%TEMP%\sploit\tokens*.py`
+  contra `~\.local\share\sploit\opencode-sploit.db`.
 
 ## Próximo passo
 
-Iteração 3 — economia de tokens (medição concluída; aguardando decisão de otimização).
-Candidatas:
-  1. **Podar SPLOIT_STATE.md** (feito nesta sessão — este texto é a versão enxuta).
-  2. Flag para injetar estado só quando há `# Próximo passo` pendente.
-  3. Garantir tools não despejam contexto (grep/read com limits).
-Decidir a próxima, implementar, typecheck + build + validar, atualizar este estado.
+Iteração 3 **concluída** — decisão (Sploit):
+- **Poda do SPLOIT_STATE.md** (feita): 3.344 → ~1.500 tokens/turno (-55%). Commit `bda293d`.
+- **Flag de injeção condicional**: NÃO implementada — custo/benefício ruim (mudança
+  invasiva no motor para ganho marginal, já que quase sempre há `# Próximo passo`
+  pendente). Registrar como possível futura.
+- **Disciplina de contexto** (adotada, sem build): consultar Graphify antes de grep em
+  base grande; `read` com offsets/limits; evitar despejar tool output no contexto.
+- Restart limpo executado (estado 100% commitado antes).
+
+Próximos passos (após restart):
+  1. Confirmar que a sessão nova carrega o estado enxuto e segue fluida.
+  2. Avaliar nova iteração (identidade, confiabilidade ou usabilidade).
+  3. Manter a regra 2: este arquivo custa tokens/turno — podar periodicamente.
 
 ## Verificação
 
