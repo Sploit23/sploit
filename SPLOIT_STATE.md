@@ -150,6 +150,15 @@ Princípios:
   newString are identical` era rotulado HARNESS, mas é disciplina do agente (o motor
   edit.ts:75-77 já protege). `classify_error` agora reconhece "identical"/"no changes
   to apply" como AGENTE. Commit `f778d27` (raiz).
+- **Bug do relaunch com prompt longo (melh-10)** ✔: o self-restart de 20:04
+  (PID 4356→724) falhou: o binário novo morreu logo após o relaunch e o rollback
+  automático restituiu o `.bak` (PID 12908, binário antigo 19:33). Causa raiz: o
+  `Start-Process -ArgumentList` do PS 5.1 concatena o array com espaços SEM
+  re-quotar — um `-ResumePrompt` com espaços/parênteses virava posicionais inválidos
+  para o yargs, matando o binário. O melh-7 passou porque o prompt era a palavra
+  única "continue". Fix: `relaunch.ps1` embute aspas no argumento
+  (`"`"$ResumePrompt`""`), validado isoladamente com argtest (prompt longo chegou
+  como um único argumento). Commit `99f1a37` (raiz).
 
 ## Próximo passo
 
@@ -161,9 +170,11 @@ rollback → melhoria ativa no binário. O diagnóstico é auto-classificante (H
 AGENTE) e o restart agora retoma o trabalho sozinho (melh-7).
 
 **Próximo passo**:
-1. Reindexar o Graphify (novos scripts/comandos/FILA e mudanças no motor — melh-6 a melh-9).
-2. Avaliar melh-3 (pico de contexto 132k) como próximo candidato de harness.
-3. Rodar `/diagnostico` para medir a sessão e ver se as lições do harness reduziram falhas.
+1. Rodar o self-restart com o fix do relaunch (melh-10): o restart de 20:04 falhou
+   porque o `-ResumePrompt` longo quebrava no PS 5.1; agora com aspas embutidas.
+2. Após o restart, reindexar o Graphify (novos scripts/comandos/FILA e mudanças no motor — melh-6 a melh-9).
+3. Avaliar melh-3 (pico de contexto 132k) como próximo candidato de harness.
+4. Rodar `/diagnostico` para medir a sessão e ver se as lições do harness reduziram falhas.
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
@@ -205,6 +216,10 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   (inclui "reports an actionable error"), build smoke `0.1.0-sploit` OK (backup
   criado; cópia aguardando self-restart), commit `fd91e8a` (motor) + raiz,
   classificação validada: `classify_error("edit", "No changes to apply...")` → AGENTE ✔
+- Bug do relaunch com prompt longo (melh-10): self-restart 20:04 falhou
+  (PID 724 morreu, rollback → PID 12908 binário antigo), causa raiz = `-ArgumentList`
+  do PS 5.1 sem re-quoting; fix `relaunch.ps1` com aspas embutidas validado
+  isoladamente (argtest: prompt longo chegou como 1 argumento), commit `99f1a37` ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
