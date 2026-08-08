@@ -86,7 +86,24 @@ Princípios:
   `scripts/sploit-web.ps1` sobe `sploit web` com senha (`sploit-web.secret`,
   gitignored) + mdns; testado: 401 sem senha, 200 com senha, acessível em
   `http://192.168.100.174:4096` (IP do PC), UI mobile. Decisão registrada
-  (`DECISOES.md`). Fase 2 = bot Telegram (próximo passo).
+  (`DECISOES.md`). **Causa raiz da Home vazia encontrada e bloqueio do
+  "Open Project" corrigido** (detalhe abaixo). Fase 2 = bot Telegram.
+- **Debug da UI web (fase 1, conclusão)**: a UI servida é a cloud
+  (`app.opencode.ai`) — o build usa `--skip-embed-web-ui` e `packages/app` só
+  tem node_modules. A UI detecta protocolo v1 (`/global/health` healthy→v1) e o
+  wrapper `a3e` sobrescreve `session`/`project`/`vcs`/`file` para o SDK v1 —
+  `/project`, `/session`, `/file`, `/find/file` funcionam. **Causa raiz da Home
+  vazia**: (1) a Home lê `project.list()` do **localStorage do browser** (popula
+  só ao abrir projeto via "Open Project"); (2) o dialog "Open Project" chamava
+  `file.find` do SDK v1 → `GET /find?query=` → servidor espera `pattern` → 400 →
+  dialog vazio → impossível abrir projeto → Home sempre vazia. **Fix**: proxy
+  reescreve `/find` (com `query`) → `/find/file` (rota certa do servidor).
+- **Compactação com consciência de grafo** ✔ (motor, iterado): o prompt de
+  compactação agora recebe as âncoras do grafo Graphify — top-15 nós code por
+  degree de `graphify-out/graph.json` do diretório da sessão (cache por
+  diretório+mtime, `fs/promises`+`Effect`, cross-runtime Node/Bun; ausência do
+  grafo não quebra). `Input.directory` novo; `llm.ts` passa
+  `session.location.directory` nas 2 invocações. Commit pendente.
 
 ## Próximo passo
 
@@ -94,13 +111,30 @@ Iteração 6 em curso — acesso remoto. Fase 1 (rede local) **feita e testada**
 `scripts/sploit-web.ps1` — servidor web com senha (sploit-web.secret, gitignored),
 mdns, teste 401/200 validado. Falta teste manual no celular do usuário.
 
-Fase 2 (próxima): **bot Telegram** — acesso de qualquer lugar. Requisitos:
+**Último passo (concluído)**: **compactação com consciência de grafo** (motor) —
+`packages/core/src/session/compaction.ts` agora injeta as âncoras do grafo
+Graphify (top-15 nós code por degree de `graphify-out/graph.json` do diretório da
+sessão) no prompt de sumarização. Cache por diretório+mtime, `fs/promises`+`Effect`
+(cross-runtime Node/Bun, ausência não quebra). `Input.directory` novo; `llm.ts`
+passa `session.location.directory` nas 2 invocações (auto e overflow). Typecheck
+core+monorepo OK, teste novo (anchors no prompt) + 2 existentes passam, build
+smoke `0.1.0-sploit` OK. Commit ainda pendente.
+
+**Próximo passo (validar no binário)**: 
+1. Commit do motor (`sploit: feat: compactação injeta âncoras do grafo no prompt`).
+2. `scripts/self-restart.ps1` para ativar no binário (a cópia do exe falha em uso —
+   esperado, a troca é do self-restart).
+3. Rodar uma sessão longa e conferir no resumo compactado se arquivos/símbolos
+   centrais sobrevivem (ex.: sploit-src/packages/core/src/session/compaction.ts).
+4. Depois: voltar ao teste manual da fase 1 no celular (Open Project + Home).
+
+Fase 2 (depois): **bot Telegram** — acesso de qualquer lugar. Requisitos:
   - bot do BotFather (token) + PC ligado
   - script Python (venv) com polling (`sploit run --attach` no servidor local,
     sem expor porta pública)
   - comandos: `/novo`, `/sessao`, texto livre
 Candidatos depois: validar relaunch desanexado em restart real; medir baseline
-com `/saude`; compactação com consciência de grafo (motor, exige typecheck+build).
+com `/saude`.
 
 ## Verificação
 
@@ -119,6 +153,11 @@ com `/saude`; compactação com consciência de grafo (motor, exige typecheck+bu
   IP da rede OK, UI mobile) ✔
 - relaunch desanexado testado isoladamente (PID antigo 999999 → relançou `--continue` e
   verificou sobrevivência; processo de teste removido) ✔
+- Debug UI web: causa raiz da Home vazia identificada (localStorage + `/find` 400) e
+  fix no proxy validado (`/find?query=` → 200 lista; `/api/session` e `/file` OK) ✔
+- Compactação com consciência de grafo: typecheck core+monorepo OK, teste novo
+  (anchors no prompt) + 2 existentes passam, build smoke `0.1.0-sploit` OK ✔
+  (commit e ativação no binário pendentes)
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas

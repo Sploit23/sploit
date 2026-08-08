@@ -88,3 +88,15 @@
 - **Alternativas rejeitadas**: bot Telegram (fase 2, demanda mais trabalho);
   construir servidor proprio (reinventar o que ja existe).
 - **Status**: ativa
+
+## [2026-08-08] Compactacao com consciencia de grafo (motor)
+- **Decisao**: a compactacao do contexto injeta as ancoras do grafo Graphify
+  (top-15 nos code por centralidade/degree de ``graphify-out/graph.json``) no
+  prompt de sumarizacao, com fallback silencioso se o grafo nao existir.
+- **Motivo**: o resumo da compactacao e o que resta entre sessoes longas; com as
+  ancoras o modelo preserva os arquivos/simbolos centrais do projeto mesmo depois
+  de podar o historico — diferencial que so o Sploit tem (grafo proprio).
+- **Alternativas rejeitadas**: depender do CLI ``graphify god-nodes`` (acoplamento
+  com venv/path externo); gerar ``anchors.json`` na indexacao (artefato extra que
+  pode ficar desatualizado); ``Bun.file`` no core (o core roda em Node e Bun).
+- **Status**: ativa
