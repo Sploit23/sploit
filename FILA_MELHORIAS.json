@@ -25,5 +25,14 @@
     "verificacao": "Investigar o que o turno carregou e podar fontes de contexto antes",
     "commit": null,
     "criado": "2026-08-08 18:53"
+  },
+  {
+    "id": "melh-4",
+    "status": "feito",
+    "titulo": "Prompt do shell alerta contra servidor/daemon síncrono (lição dos 3 aborts)",
+    "evidencia": "3 aborts do bash em sploit-web.ps1: agente rodou servidor síncrono via tool e estourou timeout de 120s. O harness não ensinava isso.",
+    "verificacao": "Próximo /diagnostico sem novo abort por timeout; agente usa -Detached/background",
+    "commit": "2055266",
+    "criado": "2026-08-08 19:10"
   }
 ]

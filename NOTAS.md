@@ -99,3 +99,24 @@
   o ciclo ponta-a-ponta num restart real.
 - **Referencias**: scripts/{diagnostico,fila}.py, FILA_MELHORIAS.json,
   .sploit/command/{diagnostico,melhorar}.md, DECISOES.md
+
+## [2026-08-08] Primeiro ciclo de auto-melhoria ponta-a-ponta (melh-4)
+- **Contexto**: os 3 candidatos iniciais da fila (melh-1 bash, melh-2 edit, melh-3
+  pico) eram sintomas de DISCIPLINA DO AGENTE, nao defeitos do harness — negados apos
+  investigacao (o motor ja normaliza CRLF em edit core:44 e legacy:130; o abort do
+  bash foi o agente rodar servidor sincrono via tool e estourar o timeout de 120s).
+  Aprendizado: o diagnostico classifica por taxa, mas a causa real precisa de leitura
+  humana/agente.
+- **Feito (melh-4)**: a licao foi gravada no proprio harness — o prompt das 3 shells
+  (bash/powershell/cmd) em `packages/opencode/src/tool/shell/prompt.ts` ganhou a regra
+  "NEVER run a server, watcher, or daemon synchronously in this tool; use
+  -Detached/Start-Process/start /b". Com isso o agente futuro nao repete o abort.
+- **Verificado**: typecheck do opencode OK (exit 0); build smoke `0.1.0-sploit` OK
+  (backup sploit.exe.bak criado; copia do exe falhou em uso — esperado); self-restart
+  real validado (relaunch.log 19:08:27: PID 3956 -> 32, binario trocado do dist/,
+  relancado --continue, [OK] vivo). Nesta sessao, o prompt com a regra ja esta ativo.
+- **Commits**: sploit-src `2055266` (feat(opencode): shell alerta contra servidor
+  sincrono), raiz `8458257` (diagnostico + fila + comandos + memoria + melh-4).
+- **Pendente**: reindexar Graphify; proximos candidatos via /diagnostico --fila.
+- **Referencias**: sploit-src/packages/opencode/src/tool/shell/prompt.ts,
+  scripts/{diagnostico,fila}.py, FILA_MELHORIAS.json, logs/relaunch.log

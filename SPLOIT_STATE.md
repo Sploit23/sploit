@@ -116,26 +116,31 @@ Princípios:
 - **`/melhorar` + fila** ✔ (scripts/fila.py + FILA_MELHORIAS.json): gestão de
   candidatos de auto-melhoria (novo/ver/negar/fazer/feito/reverter, evidência +
   verificação); aprovado → ciclo seguro implementa.
+- **Primeiro ciclo ponta-a-ponta (melh-4)** ✔: os 3 candidatos iniciais eram
+  disciplina do agente, não defeitos do harness (edit já normaliza CRLF; abort do
+  bash = agente rodou servidor síncrono e estourou timeout). A lição foi gravada no
+  próprio harness: prompt das 3 shells alerta "NEVER run a server/daemon
+  synchronously; use -Detached/Start-Process/start /b". Typecheck OK, build smoke OK,
+  self-restart real validado (PID 3956→32, relaunch.log 19:08), prompt ativo nesta
+  sessão. Commits: `2055266` (motor) + `8458257` (raiz).
 
 ## Próximo passo
 
-**Novo diferencial — "o agente que melhora o próprio arnês"** (Iteração 7).
+**Novo diferencial — "o agente que melhora o próprio arnês"** (Iteração 7) — **em curso**.
 
-`/diagnostico` (scripts/diagnostico.py, cruza DB+grafo) e `/melhorar` (scripts/fila.py
-+ FILA_MELHORIAS.json) prontos e testados. O diagnóstico detectou na sessão atual:
-bash 3x abortado em scripts/sploit-web.ps1, edit com oldString divergindo (autocrlf),
-server.ts (degree 259) tocado, pico 132k. 3 candidatos já na fila.
+O primeiro ciclo ponta-a-ponta foi validado (melh-4): diagnóstico → fila → aprovação →
+typecheck → build → commit → self-restart com rollback → prompt novo ativo no binário.
+O relançamento desanexado foi validado em restart real (PID 3956→32).
 
 **Próximo passo**:
-1. Rodar `/melhorar`, escolher UM candidato com o usuário e implementar o ciclo
-   ponta-a-ponta (fazer → implementar → validar → feito <commit>).
-2. Validar o relaunch desanexado num restart real (candidato melh-1 envolve rebuild
-   de scripts? não — config; para motor, self-restart).
-3. Depois: teste manual da fase 1 no celular (Open Project + Home) continua valendo
-   (web pausada).
+1. Reindexar o Graphify (novos scripts/comandos/FILA — mudanças de código).
+2. Rodar `/diagnostico --fila` de novo e avaliar os candidatos com o usuário; a lição
+   do melh-4 (candidatos da fila eram disciplina do agente, não bugs) deve virar
+   critério do próprio diagnóstico: distinguir "defeito do harness" de "erro do agente".
+3. Teste manual da fase 1 no celular (Open Project + Home) continua valendo (web pausada).
 
-Fase 2 (depois, só se usuário pedir): bot Telegram. Candidatos futuros: medir
-baseline com /saude.
+Fase 2 (depois, só se usuário pedir): bot Telegram. Candidatos futuros: medir baseline
+com /saude.
 
 ## Verificação
 
@@ -161,6 +166,9 @@ baseline com /saude.
   commit `6815955` + raiz `023ad1c`, ativado no binário via self-restart ✔
 - `/diagnostico` rodado em 2 sessões (sploit e MaxxPrint) com saída real; fila
   gerada (3 candidatos) e ciclo completo testado (fazer/negar/feito) ✔
+- Ciclo ponta-a-ponta melh-4: typecheck opencode OK, build smoke `0.1.0-sploit` OK,
+  self-restart real (PID 3956→32, relaunch.log 19:08:27, binário trocado do dist/),
+  prompt do shell com a regra anti-servidor-síncrono ativo nesta sessão ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
