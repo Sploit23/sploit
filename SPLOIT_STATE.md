@@ -233,6 +233,9 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
 - **melh-3 negado** (disciplina, não harness): pico 132k = read 2,3 MB em 264 chamadas
   + bash 1,68 MB; lição já no read.txt. Graphify reindexado: 28816 nós, 55590 arestas,
   2466 comunidades ✔
+- **`/diagnostico` pós-fix (validação melh-8)**: única falha de grep da sessão foi às
+  19:26:47 (pré-fix); **0 falhas de ferramenta após 19:55** (trecho pós-restart limpo:
+  reindex, diagnostico, fila, commits). melh-8 ativo e funcionando ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
