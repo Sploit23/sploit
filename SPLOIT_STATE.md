@@ -88,16 +88,35 @@ Princípios:
     `sploit.exe` atualizado (09:46:59), conversa retomada com `--continue`.
   - Commits: `f6e7427` (sploit-src, dicas PT-BR), `280ba16` (raiz, fix self-restart
     cópia pós-kill), `91af5a4` (raiz, BOM) e pendente commit do fix NativeCommandError.
+- 2026-08-08: **Typecheck-clean do monorepo inteiro** ✔ (Iteração 1, item 1):
+  - Resolvidos os 2 erros pré-existentes em `src/plugin/index.ts:75-76` (`TS2322`,
+    causados por `opencode-gitlab-auth@2.1.0` e `opencode-poe-auth@0.0.1` resolvendo
+    `@opencode-ai/plugin@1.18.11` npm duplicado no `.bun` vs workspace
+    `@sploit-ai/plugin@1.18.13`).
+  - Estratégia que funcionou: shim de workspace `packages/plugin-legacy/` com nome
+    `@opencode-ai/plugin` (version 1.18.13, exports `.`/`./tool`/`./tui`/
+    `./v2/effect`/`./v2/promise` re-exportando de `@sploit-ai/plugin`) + `overrides`
+    no `sploit-src/package.json` (`"@opencode-ai/plugin": "workspace:packages/plugin-legacy"`).
+  - Tentativas que NÃO funcionaram: `paths` no tsconfig do opencode (tsgo não aplica
+    a imports dentro de node_modules) e junction criado pelo bun apontando para
+    `packages/plugin` (o bun resolvia pelo nome antigo sem o overrides).
+  - `bun install` deduplicou (removidas cópias `opencode-gitlab-auth/@opencode-ai/plugin`
+    e `@gitlab/opencode-gitlab-auth/@opencode-ai/plugin` do lockfile); lockfile
+    re-registrado com `@opencode-ai/plugin → workspace:packages/plugin-legacy`.
+  - tsconfig do shim precisa de `lib: ["ESNext", "DOM", "DOM.Iterable"]` (por
+    `HeadersInit`/`BodyInit` no sdk/js).
+  - `bun run typecheck` no sploit-src inteiro: **0 erros** ✔. Commit `9093011`
+    (sploit-src): `feat: shim @opencode-ai/plugin no workspace para deduplicar tipos`.
+  - Build OK (`0.1.0-sploit`, smoke passou, `.bak` criado); cópia para `sploit.exe`
+    falhou por arquivo em uso (esperado — troca via self-restart).
 
 ## Próximo passo
 
-Ciclo de melhoria validado ✔. Iteração 1 — **base sólida**:
-1. **Typecheck-clean**: investigar e resolver os 2 erros pré-existentes em
-   `sploit-src/packages/opencode/src/plugin/index.ts` (pacote duplicado
-   `@opencode-ai/plugin@1.18.11` no `node_modules` vs `packages/plugin`). Prioridade
-   alta: sem typecheck-clean não dá para dizer que a base é sólida.
-2. **Graphify indexado**: rodar `/graphify .` (a última tentativa falhou porque
+Iteração 1 — **base sólida** (typecheck-clean ✔):
+1. **Graphify indexado**: rodar `/graphify .` (a última tentativa falhou porque
    `graphify-out/graph.json` não existe). É o pilar de economia de tokens.
+2. **Atualizar o binário** com o typecheck-clean (build novo está no `dist/`):
+   rodar `scripts/self-restart.ps1` (ou `/atualizar`) para trocar `sploit.exe`.
 3. **Confirmar visualmente** as dicas PT-BR na home (usuário confirma).
 
 Depois disso, Iteração 2 (diferenciais de identidade) com pesquisa na internet:
@@ -107,9 +126,9 @@ filtrar novidades que sirvam à identidade do Sploit, sem perseguir hype.
 
 - JSON do `sploit.json` válido: `Get-Content sploit.json -Raw | ConvertFrom-Json` ✔
 - Typecheck `tui`: `bun run typecheck` OK (0 erros) ✔
-- Typecheck `opencode`: 2 erros **pré-existentes** em `src/plugin/index.ts` (pacote
-  duplicado `@opencode-ai/plugin@1.18.11` no node_modules vs `packages/plugin`);
-  confirmado via `git stash` que existem sem a mudança de dicas. Pendente tratar.
+- Typecheck do monorepo inteiro (`bun run typecheck` em `sploit-src/`): **0 erros** ✔
+  (shim `packages/plugin-legacy` + overrides; fix nos 2 erros pré-existentes de
+  `src/plugin/index.ts`)
 - Build: `scripts/build-sploit.ps1` OK (smoke interno `0.1.0-sploit` passou; a cópia
   para `sploit.exe` falhou por arquivo em uso — esperado, o `self-restart.ps1` agora
   faz a troca após encerrar o processo) ✔
@@ -133,7 +152,9 @@ filtrar novidades que sirvam à identidade do Sploit, sem perseguir hype.
   `self-restart.ps1` (passo 2.5), que roda o smoke test no binário novo do `dist/`,
   encerra o processo e então copia.
 - **Erros pré-existentes de typecheck em `opencode`**: `src/plugin/index.ts:75-76`
-  quebram por um pacote `@opencode-ai/plugin@1.18.11` duplicado no `node_modules` (o
-  workspace usa `@sploit-ai/plugin`). Não são causados por mudanças de dicas; exigem
-  deduplicar o pacote antes de considerar `opencode` typecheck-clean.
+  RESOLVIDOS via shim `packages/plugin-legacy` (nome `@opencode-ai/plugin`) + overrides
+  no `package.json` raiz do sploit-src. Se voltarem a aparecer, checar se o lockfile
+  voltou a registrar `opencode-gitlab-auth/@opencode-ai/plugin@1.18.11` do npm.
+- **tsgo não aplica `paths` a imports dentro de node_modules**: para redirecionar um
+  pacote npm duplicado, o caminho é shim de workspace + overrides (não tsconfig).
 - Sempre atualizar `# Próximo passo` antes de encerrar sessão. **Nunca terminar sem ele preenchido.**
