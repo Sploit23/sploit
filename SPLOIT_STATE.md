@@ -26,6 +26,8 @@ Princípios:
 - [x] Criar comando `/retomar` (.sploit/command/retomar.md)
 - [x] Atualizar AGENTS.md global com regra de leitura do estado
 - [x] Validar config e commitar checkpoint inicial
+- [x] Criar ciclo de auto-atualização seguro (build com backup + smoke test + rollback + /atualizar)
+- [ ] Validar empiricamente o ciclo (reiniciar via self-restart.ps1 em uma mudança real)
 - [ ] Iteração 1 de melhorias (definir com análise do motor)
 
 ## Progresso
@@ -41,14 +43,23 @@ Princípios:
   - `.sploit/command/retomar.md` → comando `/retomar`.
   - `~/.config/sploit/AGENTS.md` → regra de leitura do estado no início da sessão.
   - Commit: `d0fd696` `sploit: feat: sistema de memoria de auto-melhoria (SPLOIT_STATE.md + /retomar)`.
+- 2026-08-08: Criado o ciclo de auto-atualização seguro (respondendo ao risco "se eu
+  errar o código e reiniciar, nunca mais abre"):
+  - `scripts/build-sploit.ps1` agora gera `sploit.exe.bak` (known-good) antes de
+    sobrescrever o binário.
+  - `scripts/self-restart.ps1`: smoke test (`sploit doctor`) ANTES de matar o processo
+    atual; relança `sploit --continue`; se o binário novo morrer no boot, restaura o
+    `.bak` e relança com o antigo. O Sploit nunca fica sem abrir.
+  - `.sploit/command/atualizar.md` → comando `/atualizar` (ciclo com aprovação do usuário).
+  - `.gitignore` → `sploit.exe.bak` e `logs/`.
 
 ## Próximo passo
 
-Iniciar a **Iteração 1 de melhorias** — analisar o motor (`sploit-src/`) com o Graphify
-(`/graphify .` para reindexar) e escolher o primeiro alvo de melhoria de alto valor.
-Candidatos iniciais: identidade/TUI (logo, tema, mensagens PT-BR), desempenho de startup,
-qualidade do fluxo de edição/verificação, ou corrigir o erro "Failed to fetch models.dev"
-(investigar rede do usuário). Definir o alvo com o usuário antes de executar.
+Validar o ciclo de auto-atualização end-to-end numa mudança real (ex.: pequena
+melhoria de identidade/TUI), usando `/atualizar`: tipo → typecheck → build (gera
+`sploit.exe.bak`) → smoke test (`sploit doctor`) → commit → `scripts/self-restart.ps1`
+(relança com `--continue`). Confirmar na sessão nova que o binário mudou e que o
+rollback existe (`sploit.exe.bak`) em caso de falha no boot.
 
 ## Verificação
 
@@ -56,6 +67,8 @@ qualidade do fluxo de edição/verificação, ou corrigir o erro "Failed to fetc
 - Sem mudanças em `sploit-src` nesta iteração → sem build necessário. ✔
 - Para conferir injeção: reabrir o Sploit e ver o estado no contexto (Instruções do arquivo).
   **Pendente de validação empírica após reiniciar o Sploit.**
+- `scripts/self-restart.ps1` testável de forma segura: o smoke test roda o binário
+  atual sem tocar no processo em execução.
 
 ## Armadilhas
 

@@ -1,5 +1,7 @@
 # Sploit - binario (build)
 sploit.exe
+sploit.exe.bak
+logs/
 
 # Ambiente Python (Graphify)
 venv/

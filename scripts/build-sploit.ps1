@@ -14,6 +14,12 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "build falhou (exit $LASTEXITCODE)"
     }
+    # Backup do binário atual (known-good) antes de sobrescrever.
+    # O self-restart.ps1 usa esse backup para rollback automático.
+    if (Test-Path "$root\sploit.exe") {
+        Copy-Item "$root\sploit.exe" "$root\sploit.exe.bak" -Force
+        Write-Host "backup criado: sploit.exe.bak"
+    }
     Copy-Item "dist\opencode-windows-x64\bin\opencode.exe" "$root\sploit.exe" -Force
     Write-Host "sploit.exe atualizado"
 }
