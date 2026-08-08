@@ -34,5 +34,23 @@
     "verificacao": "Próximo /diagnostico sem novo abort por timeout; agente usa -Detached/background",
     "commit": "2055266",
     "criado": "2026-08-08 19:10"
+  },
+  {
+    "id": "melh-5",
+    "status": "negado",
+    "titulo": "Gravar licao no harness: falhas de edit sao disciplina do agente (3x)",
+    "evidencia": "edit falhou 3x (1%) por erro do AGENTE (nao do motor). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\sploit-src\\packages\\tui\\src\\ui\\dialog-tutorial.tsx. Ex.: abort por rodar servidor sincrono, oldString errado.",
+    "verificacao": "Verificar no prompt do shell se a regra foi gravada e a falha nao repete",
+    "commit": null,
+    "criado": "2026-08-08 19:18"
+  },
+  {
+    "id": "melh-6",
+    "status": "feito",
+    "titulo": "Gravar licao no harness: falhas de edit sao disciplina do agente (3x)",
+    "evidencia": "edit falhou 3x (1%) por erro do AGENTE (nao do motor). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\sploit-src\\packages\\tui\\src\\ui\\dialog-tutorial.tsx. Licao sugerida: If the file changed since your last Read (another edit, write, or agent modified it), re-read it before editing. A stale oldString copied from old output is the most common edit failure.",
+    "verificacao": "Gravar a licao em sploit-src\\packages\\opencode\\src\\tool\\edit.txt e confirmar que a falha nao repete",
+    "commit": "pendente",
+    "criado": "2026-08-08 19:19"
   }
 ]

@@ -315,8 +315,28 @@ def main():
         print("   Nenhuma compactacao nesta sessao.")
     print()
 
-    # ---- 5. resumo de custo
-    print("5) RESUMO")
+    # ---- 5. causa raiz das falhas
+    print("5) CAUSA RAIZ DAS FALHAS")
+    if err_samples:
+        for tool, fp, err in err_samples[:10]:
+            kind = classify_error(tool, err)
+            tag = "HARNESS" if kind == "HARNESS" else "AGENTE"
+            print(f"   [{tag}] {tool} {fp}: {err[:90]}")
+        harness_n = sum(1 for t, _, e in err_samples if classify_error(t, e) == "HARNESS")
+        agent_n = sum(1 for t, _, e in err_samples if classify_error(t, e) == "AGENTE")
+        print()
+        print(f"   {harness_n} defeito(s) do HARNESS (motor) | {agent_n} erro(s) do AGENTE (disciplina).")
+        if agent_n and not harness_n:
+            print("   -> Nenhum defeito do motor: as falhas sao disciplina do agente.")
+            print("   -> Se a licao nao estiver gravada no prompt do harness, o --fila propoe gravar.")
+        if harness_n:
+            print("   -> Defeitos do motor: investigar no sploit-src antes de decidir.")
+    else:
+        print("   Nenhuma falha nesta sessao.")
+    print()
+
+    # ---- 6. resumo de custo
+    print("6) RESUMO")
     print(f"   Tokens: in={fmt(ti)} out={fmt(to)} cache_read={fmt(tc)} cache_write={fmt(tw)}")
     print(f"   Custo: US$ {est:.4f}{est_note}")
     print(f"   Turnos de assistente: {len(turns)}")
@@ -335,22 +355,54 @@ def main():
 
 
 def add_candidates(tool_err, tool_cnt, err_samples, central, turns, top_degree):
-    """Propoe candidatos de melhoria a partir dos sinais do diagnostico."""
+    """Propoe candidatos de melhoria a partir dos sinais do diagnostico.
+
+    Cada falha e classificada por CAUSA RAIZ:
+      - HARNESS: defeito do motor (vale candidato de motor/self-restart).
+      - AGENTE:  erro de disciplina do agente (o remedio e a licao no prompt do
+                 harness, nao um bug). Se a licao ja esta gravada no prompt.ts,
+                 nao gera candidato de motor — so reporta.
+    """
     added = []
     for tool, n in tool_err.most_common(5):
         rate = 100.0 * n / max(1, tool_cnt[tool])
         files = [fp for t, fp, _ in err_samples if t == tool and fp and fp != "?"]
         target = files[0] if files else "(arquivo desconhecido)"
         repeated = n >= 2 and files
-        if rate >= 20 or repeated:
+        if not (rate >= 20 or repeated):
+            continue
+
+        kinds = [classify_error(t, e) for t, _, e in err_samples if t == tool]
+        if kinds:
+            worst = "HARNESS" if any(k == "HARNESS" for k in kinds) else "AGENTE"
+        else:
+            worst = "HARNESS"
+
+        if worst == "AGENTE":
+            licao_ativa = lesson_graved(tool)
+            if licao_ativa:
+                print(f"  [INFO] {tool}: falha e de disciplina do agente; a licao ja esta no harness -> sem candidato.")
+                continue
+            p = tool_prompt_path(tool)
+            target_file = p.relative_to(Path.cwd()) if p and p.is_relative_to(Path.cwd()) else (p or "?")
             iid = queue_add(
-                titulo=f"Reduzir falhas de {tool} ({n}x, {rate:.0f}% das chamadas)",
-                evidencia=f"{tool} falhou {n} vez(es) em {tool_cnt[tool]} chamadas ({rate:.0f}%). "
-                          f"Ultima: {target}.",
-                verificacao="Rodar /diagnostico novamente e confirmar que a taxa de falha caiu",
+                titulo=f"Gravar licao no harness: falhas de {tool} sao disciplina do agente ({n}x)",
+                evidencia=f"{tool} falhou {n}x ({rate:.0f}%) por erro do AGENTE (nao do motor). "
+                          f"Ultima: {target}. Licao sugerida: {lesson_suggestion(tool)}",
+                verificacao=f"Gravar a licao em {target_file} e confirmar que a falha nao repete",
             )
             if iid:
                 added.append(iid)
+            continue
+
+        iid = queue_add(
+            titulo=f"Defeito possivel do harness: {tool} falhou {n}x ({rate:.0f}%)",
+            evidencia=f"{tool} falhou {n} vez(es) em {tool_cnt[tool]} chamadas ({rate:.0f}%). "
+                      f"Ultima: {target}. Causa raiz: HARNESS (investigar no motor).",
+            verificacao="Investigar no sploit-src e corrigir; rodar /diagnostico e confirmar queda",
+        )
+        if iid:
+            added.append(iid)
 
     if central and top_degree:
         p, n, deg = top_degree
@@ -385,6 +437,60 @@ def add_candidates(tool_err, tool_cnt, err_samples, central, turns, top_degree):
     else:
         print()
         print("Nenhum candidato novo (ja existem propostos na fila).")
+
+
+def classify_error(tool, err):
+    """Classifica a causa raiz de um erro: HARNESS (motor) ou AGENTE (disciplina)."""
+    e = err.lower()
+    if "tool execution aborted" in e:
+        return "AGENTE"
+    if "could not find oldstring" in e:
+        return "AGENTE"
+    if "multiple exact matches" in e:
+        return "AGENTE"
+    if "status code" in e or "non 2xx" in e or "404" in e or "403" in e:
+        return "AGENTE"
+    if "timed out" in e or "timeout" in e:
+        return "AGENTE"
+    if "command not found" in e or "not recognized" in e or "não é reconhecido" in e:
+        return "AGENTE"
+    return "HARNESS"
+
+
+def tool_prompt_path(tool):
+    """Prompt do harness onde a licao de disciplina desta ferramenta deve viver."""
+    root = Path(__file__).resolve().parent.parent / "sploit-src" / "packages" / "opencode" / "src" / "tool"
+    if tool == "bash":
+        return root / "shell" / "prompt.ts"
+    if tool == "edit":
+        return root / "edit.txt"
+    return None
+
+
+def lesson_graved(tool):
+    """True se o harness ja grava a licao de disciplina para esta ferramenta."""
+    p = tool_prompt_path(tool)
+    if p is None or not p.exists():
+        return False
+    text = p.read_text(encoding="utf-8", errors="ignore")
+    if tool == "bash":
+        return "synchronously in this tool" in text
+    if tool == "edit":
+        return "re-read the file" in text or "re-read" in text or "re-read it" in text
+    return True
+
+
+def lesson_suggestion(tool):
+    """Texto exato da licao a gravar no prompt da ferramenta."""
+    if tool == "bash":
+        return ("If an edit or command targets a file that changed since you last read it (e.g. another "
+                "agent edited it, or a previous write touched it), re-read the file first. Stale oldString "
+                "is the most common edit failure.")
+    if tool == "edit":
+        return ("If the file changed since your last Read (another edit, write, or agent modified it), "
+                "re-read it before editing. A stale oldString copied from old output is the most common "
+                "edit failure.")
+    return ""
 
 
 if __name__ == "__main__":
