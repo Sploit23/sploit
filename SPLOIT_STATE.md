@@ -20,13 +20,13 @@ Princípios:
 
 - [x] Definir estratégia de memória persistente (SPLOIT_STATE.md + instructions + /retomar)
 - [x] Configurar modelos (plan/build = big-pickle; small_model = groq/gpt-oss-120b)
-- [ ] Criar SPLOIT_STATE.md com o ciclo de checkpoint
-- [ ] Adicionar `instructions` no sploit.json (injeção automática do estado)
-- [ ] Adicionar protocolo de auto-melhoria no AGENTS.md raiz
-- [ ] Criar comando `/retomar` (.sploit/command/retomar.md)
-- [ ] Atualizar AGENTS.md global com regra de leitura do estado
-- [ ] Validar config e commitar checkpoint inicial
-- [ ] Iteração 1 de melhorias (definir em nova sessão com base na análise do motor)
+- [x] Criar SPLOIT_STATE.md com o ciclo de checkpoint
+- [x] Adicionar `instructions` no sploit.json (injeção automática do estado)
+- [x] Adicionar protocolo de auto-melhoria no AGENTS.md raiz
+- [x] Criar comando `/retomar` (.sploit/command/retomar.md)
+- [x] Atualizar AGENTS.md global com regra de leitura do estado
+- [x] Validar config e commitar checkpoint inicial
+- [ ] Iteração 1 de melhorias (definir com análise do motor)
 
 ## Progresso
 
@@ -34,22 +34,28 @@ Princípios:
 - 2026-08-08: Diagnóstico do Groq: API funciona (chave OK, modelo existe), mas o tier
   `on_demand` tem limite de 8.000 TPM e o contexto da sessão estourava (42k–78k).
   Ajustado: `small_model: groq/openai/gpt-oss-120b` para tarefas pequenas.
-- 2026-08-08: Iniciando implementação do sistema de memória (este arquivo).
+- 2026-08-08: Implementado o sistema de memória completo:
+  - `SPLOIT_STATE.md` criado (memória viva, injetado via `instructions`).
+  - `sploit.json` → `"instructions": ["SPLOIT_STATE.md"]`.
+  - `AGENTS.md` raiz → seção "Auto-melhoria (protocolo obrigatório)".
+  - `.sploit/command/retomar.md` → comando `/retomar`.
+  - `~/.config/sploit/AGENTS.md` → regra de leitura do estado no início da sessão.
+  - Commit: `d0fd696` `sploit: feat: sistema de memoria de auto-melhoria (SPLOIT_STATE.md + /retomar)`.
 
 ## Próximo passo
 
-Criar `SPLOIT_STATE.md` (este arquivo) completo e seguir a ordem do plano:
-1. `sploit.json` → adicionar `"instructions": ["SPLOIT_STATE.md"]`.
-2. `AGENTS.md` raiz → seção "Auto-melhoria" com o protocolo de checkpoint.
-3. `.sploit/command/retomar.md` → comando `/retomar`.
-4. `~/.config/sploit/AGENTS.md` → regra de leitura do estado.
-5. Validar JSON e commit: `sploit: feat: sistema de memória de auto-melhoria`.
+Iniciar a **Iteração 1 de melhorias** — analisar o motor (`sploit-src/`) com o Graphify
+(`/graphify .` para reindexar) e escolher o primeiro alvo de melhoria de alto valor.
+Candidatos iniciais: identidade/TUI (logo, tema, mensagens PT-BR), desempenho de startup,
+qualidade do fluxo de edição/verificação, ou corrigir o erro "Failed to fetch models.dev"
+(investigar rede do usuário). Definir o alvo com o usuário antes de executar.
 
 ## Verificação
 
-- JSON do `sploit.json` válido: `Get-Content sploit.json -Raw | ConvertFrom-Json`
-- Sem mudanças em `sploit-src` nesta iteração → sem build necessário.
+- JSON do `sploit.json` válido: `Get-Content sploit.json -Raw | ConvertFrom-Json` ✔
+- Sem mudanças em `sploit-src` nesta iteração → sem build necessário. ✔
 - Para conferir injeção: reabrir o Sploit e ver o estado no contexto (Instruções do arquivo).
+  **Pendente de validação empírica após reiniciar o Sploit.**
 
 ## Armadilhas
 
