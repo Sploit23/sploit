@@ -1,12 +1,15 @@
 # self-restart.ps1 — Reinício seguro do Sploit com rollback automático.
 #
 # Ciclo de auto-melhoria:
-#   1. build-sploit.ps1 recompila sploit.exe e cria sploit.exe.bak (known-good).
+#   1. build-sploit.ps1 recompila o binário (dist/opencode-windows-x64) e cria
+#      sploit.exe.bak (known-good). Quando o Sploit está em execução, o build
+#      NÃO consegue sobrescrever sploit.exe (arquivo em uso) — a troca fica
+#      para este script (passo 2.5), depois do processo ser encerrado.
 #   2. Este script faz um SMOKE TEST do binário novo (sploit doctor) ANTES de
 #      tocar no processo atual. Se o binário novo não abrir/config falhar, ele
 #      aborta e o Sploit atual continua rodando intacto.
-#   3. Se o smoke test passa: mata o processo atual e relança `sploit --continue`
-#      numa janela nova, usando o binário novo.
+#   3. Se o smoke test passa: mata o processo atual, troca o binário (se o
+#      dist for mais novo) e relança `sploit --continue` numa janela nova.
 #   4. Após o relaunch, verifica se o processo novo sobreviveu alguns segundos.
 #      Se morreu (erro em runtime que o doctor não pega), restaura o backup
 #      sploit.exe.bak e relança com o binário antigo — nunca fica "sem abrir".
@@ -29,6 +32,11 @@ $logDir = "$root\logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $smokeLog = "$logDir\smoke-test.log"
 
+# O binário recém-compilado pelo build-sploit.ps1. Quando o Sploit está em
+# execução, o build não consegue sobrescrever sploit.exe (arquivo em uso) —
+# por isso a troca é feita AQUI, depois do processo ser encerrado.
+$distExe = "$root\sploit-src\packages\opencode\dist\opencode-windows-x64\bin\opencode.exe"
+
 Write-Host ""
 Write-Host "=== self-restart: ciclo de auto-melhoria do Sploit ==="
 
@@ -37,12 +45,26 @@ if (-not (Test-Path $exePath)) {
     exit 1
 }
 
+# Decide qual binário é o "novo": o do dist (build recente) se existir e for
+# mais novo que o sploit.exe corrente. O smoke test roda sobre esse binário.
+$newExe = $exePath
+$needsCopy = $false
+if (Test-Path $distExe) {
+    $distTime = (Get-Item $distExe).LastWriteTime
+    $exeTime = (Get-Item $exePath).LastWriteTime
+    if ($distTime -gt $exeTime) {
+        $newExe = $distExe
+        $needsCopy = $true
+    }
+}
+Write-Host "Binario novo: $newExe"
+
 # ---------------------------------------------------------------------------
 # 1. SMOKE TEST do binário novo (antes de matar qualquer coisa)
 # ---------------------------------------------------------------------------
 if (-not $SkipSmoke) {
     Write-Host "[1/4] Smoke test do binario novo (sploit doctor)..."
-    & $exePath doctor *> $smokeLog
+    & $newExe doctor *> $smokeLog
     $doctorExit = $LASTEXITCODE
     if ($doctorExit -ne 0) {
         Write-Host "[ABORTADO] O binario novo falhou no smoke test (exit $doctorExit)." -ForegroundColor Red
@@ -66,6 +88,15 @@ if ($current) {
     Write-Host "      processo(s) encerrado(s): $($current.Id -join ', ')"
 } else {
     Write-Host "      nenhum processo sploit ativo."
+}
+
+# ---------------------------------------------------------------------------
+# 2.5 Troca o binário (só agora que o arquivo está livre)
+# ---------------------------------------------------------------------------
+if ($needsCopy) {
+    Write-Host "[2.5/4] Copiando binario novo para sploit.exe..."
+    Copy-Item $distExe $exePath -Force
+    Write-Host "      sploit.exe atualizado."
 }
 
 # ---------------------------------------------------------------------------
