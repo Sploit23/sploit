@@ -171,19 +171,25 @@ Princípios:
 
 ## Próximo passo
 
-**Novo diferencial — "o agente que melhora o próprio arnês"** (Iteração 7) — **em curso**.
+**Mudança de direção (usuário)** — **Iteração 7 (em curso)**.
 
-Cinco ciclos ponta-a-ponta validados (melh-4, melh-6, melh-7, melh-8 e melh-9):
-diagnóstico → fila → aprovação → typecheck → build → commit → self-restart com
-rollback → melhoria ativa no binário. O diagnóstico é auto-classificante (HARNESS vs
-AGENTE) e o restart agora retoma o trabalho sozinho (melh-7).
+O usuário rejeitou a profusão de comandos slash: "quanto mais /alguma coisa, mais ele se perde".
+Nova filosofia de design: **auto-melhoria invisível** — lição se grava sozinha, aprovação vira
+pergunta em linguagem natural, slash fica só para intenção do usuário (`/status`, `/ajuda`).
+
+**Feito nesta sessão** (commit `3b3e2d8`):
+- `APRENDIZADO.md` — memória coletiva de lições (viaja no git; lida como instruction em
+  toda sessão via `sploit.json`; o PC2 que der `git pull` já nasce sabendo o que o PC1 aprendeu).
+- `diagnostico.py` grava lições automaticamente (sem slash) quando a falha é disciplina
+  e a lição já está no harness. Dedup por marcador `- **L-edit —` (cabeçalho, não menção solta).
+- `AGENTS.md` atualizado: nunca exigir slash do usuário; perguntar "posso aplicar?" em PT-BR.
 
 **Próximo passo**:
-1. Sessão concluída (melh-8/9/10/11 validados e commitados; melh-3 negado com evidência).
+1. **Reiniciar o Sploit** (config não é hot-reloaded) para o APRENDIZADO.md entrar no contexto.
 2. Na próxima sessão, rodar `/diagnostico` (com o fix de dedup do melh-11) para ver
    se as lições do harness (edit, read) e o melh-8 (grep acionável) reduziram falhas reais.
-3. Próximos candidatos da fila (todos negados/feitos até agora): avaliar se novos
-   defeitos HARNESS surgem no diagnóstico.
+3. Testar o fluxo multi-PC: PC2 faz `git pull` e confere se APRENDIZADO.md aparece nas instructions.
+4. Avaliar se novos defeitos HARNESS surgem no diagnóstico.
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
