@@ -13,6 +13,9 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
 - `NOTAS.md` — memória temporal de trabalho (o quê/histórico por sessão). Registrar
   com `/resumo`; indexada no Graphify para retomar contexto por referência.
 - `venv/` — ambiente Python usado pelo Graphify (não commitar).
+- `scripts/sploit-web.ps1` — servidor web do Sploit acessível pela rede local
+  (celular), com senha em `sploit-web.secret` (gitignored). Subir com
+  `.\scripts\sploit-web.ps1`; encerrar com `-Stop`.
 
 ## Auto-melhoria (protocolo obrigatório)
 

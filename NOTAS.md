@@ -15,3 +15,13 @@
 - **Pendente**: validar relaunch desanexado em restart real com mudanca de binario.
 - **Referencias**: DECISOES.md, scripts/saude.py, scripts/relaunch.ps1,
   .sploit/command/{saude,planejar,decisao,resumo}.md, SPLOIT_STATE.md
+
+
+## [2026-08-08] Acesso remoto - fase 1 (rede local)
+- **Feito**: scripts/sploit-web.ps1 sobe sploit web com senha (sploit-web.secret,
+  gitignored, gerada na 1a execucao) + mdns. Testado: 401 sem senha, 200 com senha,
+  acessivel em http://192.168.100.174:4096 (IP do PC), UI mobile (viewport).
+- **Verificado**: servidor de teste subiu (PID 18000) e foi encerrado; senha
+  atual: OxZsBnyrfNUeKdcA (viva em sploit-web.secret).
+- **Pendente**: teste manual no celular do usuario; fase 2 = bot Telegram.
+- **Referencias**: scripts/sploit-web.ps1, DECISOES.md, .gitignore

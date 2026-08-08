@@ -30,6 +30,7 @@ Princípios:
 - [x] Iteração 3: economia de tokens (poda do estado -55%, diagnóstico, disciplina de tools)
 - [x] Iteração 4: identidade (marca PT-BR no rodapé — validada no binário PID 17976)
 - [x] Iteração 5: diferenciais funcionais (`/saude`, `/planejar`, `/decisao`, `/resumo`)
+- [ ] Iteração 6: acesso remoto (fase 1 rede local feita; fase 2 Telegram)
 
 ## Progresso
 
@@ -81,18 +82,25 @@ Princípios:
   2427 comunidades) + AGENTS.md aponta para consultá-lo antes de decisões.
   `/resumo` + `NOTAS.md` (memória temporal indexada no grafo; continuidade por
   referência — reindexado: 28761 nós, 55521 arestas, 2421 comunidades).
+- **Iteração 6** (em curso): acesso remoto — fase 1 (rede local) feita:
+  `scripts/sploit-web.ps1` sobe `sploit web` com senha (`sploit-web.secret`,
+  gitignored) + mdns; testado: 401 sem senha, 200 com senha, acessível em
+  `http://192.168.100.174:4096` (IP do PC), UI mobile. Decisão registrada
+  (`DECISOES.md`). Fase 2 = bot Telegram (próximo passo).
 
 ## Próximo passo
 
-Iteração 5 **concluída** — 4 diferenciais funcionais ativos no binário (PID 3240):
-`/saude`, `/planejar`, `/decisao`, `/resumo`. Memória de trabalho indexada no grafo
-(DECISOES.md + NOTAS.md). Bug do restart corrigido (relaunch desanexado).
+Iteração 6 em curso — acesso remoto. Fase 1 (rede local) **feita e testada**:
+`scripts/sploit-web.ps1` — servidor web com senha (sploit-web.secret, gitignored),
+mdns, teste 401/200 validado. Falta teste manual no celular do usuário.
 
-Iteração 6 (próxima) — candidatos, em ordem de valor:
-  1. Validar o relaunch desanexado num restart real com mudança de binário.
-  2. Medir o impacto das Iterações 4-5 com `/saude` (nova baseline de custo/tokens).
-  3. Compactação com consciência de grafo (mudança no motor — exige typecheck+build;
-     avaliar com `/planejar` antes de tocar em `sploit-src/`).
+Fase 2 (próxima): **bot Telegram** — acesso de qualquer lugar. Requisitos:
+  - bot do BotFather (token) + PC ligado
+  - script Python (venv) com polling (`sploit run --attach` no servidor local,
+    sem expor porta pública)
+  - comandos: `/novo`, `/sessao`, texto livre
+Candidatos depois: validar relaunch desanexado em restart real; medir baseline
+com `/saude`; compactação com consciência de grafo (motor, exige typecheck+build).
 
 ## Verificação
 
@@ -107,6 +115,8 @@ Iteração 6 (próxima) — candidatos, em ordem de valor:
 - Iteração 5: `/saude` rodado com saída real (474 turnos, 92,4% cache, pico 144k, US$ 24,18) ✔
 - Graphify reindexado com DECISOES.md (28756 nós, 55518 arestas, 2427 comunidades) ✔
 - `/resumo` + NOTAS.md indexado no grafo (28761 nós, 55521 arestas, 2421 comunidades) ✔
+- Acesso remoto fase 1: servidor web com senha testado (401 sem senha, 200 com senha,
+  IP da rede OK, UI mobile) ✔
 - relaunch desanexado testado isoladamente (PID antigo 999999 → relançou `--continue` e
   verificou sobrevivência; processo de teste removido) ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔

@@ -75,3 +75,16 @@
 - **Alternativas rejeitadas**: manter so no SPLOIT_STATE.md (fonte unica = ponto de falha
   e custo de contexto).
 - **Status**: ativa
+
+
+## [2026-08-08] Acesso remoto via servidor web nativo (rede local)
+- **Decisao**: acessar o Sploit pelo celular na rede local usando sploit web
+  (embutido no binario), protegido por OPENCODE_SERVER_PASSWORD; script
+  scripts/sploit-web.ps1 sobe o servidor com senha aleatoria persistida em
+  sploit-web.secret (gitignored).
+- **Motivo**: o usuario precisa sair da frente do PC; a infraestrutura ja existe
+  no binario (web + mdns + hostname 0.0.0.0), sem tocar no motor. Teste real:
+  401 sem senha, 200 com senha, acessivel via IP da rede e mobile-friendly.
+- **Alternativas rejeitadas**: bot Telegram (fase 2, demanda mais trabalho);
+  construir servidor proprio (reinventar o que ja existe).
+- **Status**: ativa

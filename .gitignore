@@ -18,6 +18,9 @@ APIKEY.txt
 key.txt
 .sploit.conf.yml
 
+# Senha do servidor web (sploit-web.ps1)
+sploit-web.secret
+
 # Claude Code (config local, não compartilhar)
 .claude/settings.local.json
 
