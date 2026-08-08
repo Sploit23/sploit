@@ -1,8 +1,10 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": ["SPLOIT_STATE.md"],
+  "small_model": "groq/openai/gpt-oss-120b",
   "agent": {
     "plan": { "model": "opencode/big-pickle" },
-    "build": { "model": "groq/openai/gpt-oss-120b" }
+    "build": { "model": "opencode/big-pickle" }
   },
   "plugin": [
     "C:\\Users\\Hp\\.config\\sploit\\node_modules\\superpowers"
