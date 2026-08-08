@@ -8,6 +8,9 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
 - `sploit.exe` — binário compilado (build; não commitar). Gerado por `scripts/build-sploit.ps1`.
 - `sploit.json` — config do projeto (MCP do Graphify + instructions).
 - `SPLOIT_STATE.md` — memória viva de auto-melhoria (lida em toda sessão).
+- `APRENDIZADO.md` — memória coletiva de lições (lida em toda sessão; viaja no git
+  para todas as instâncias do Sploit). Alimentada AUTOMATICAMENTE pelo diagnóstico,
+  sem comando do usuário.
 - `DECISOES.md` — memória de decisões de arquitetura (o porquê). Consultar antes
   de decisões relevantes; registrar com `/decisao`.
 - `NOTAS.md` — memória temporal de trabalho (o quê/histórico por sessão). Registrar
@@ -19,6 +22,11 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
 
 ## Auto-melhoria (protocolo obrigatório)
 
+- **Auto-melhoria é invisível ao usuário**: nunca pedir comando slash para o usuário
+  aprovar lições — quando uma falha de disciplina ocorre e a lição já está no harness,
+  o diagnóstico grava automaticamente em `APRENDIZADO.md`. Se uma melhoria de motor
+  for descoberta, pergunte em linguagem natural ("posso aplicar?") em vez de exigir
+  `/melhorar`. Slash fica para intenção do usuário (ex.: `/status`, `/ajuda`).
 - **Início de sessão**: leia `SPLOIT_STATE.md`. Se houver `# Próximo passo`, continue de lá — não recomece do zero.
 - **Conclusão de passo**: atualize `SPLOIT_STATE.md` (Progresso + Próximo passo) **antes** de encerrar/reiniciar. Nunca terminar uma sessão com o estado desatualizado.
 - **Decisões**: antes de decisões relevantes, consulte `DECISOES.md`; ao decidir, registre com `/decisao`.

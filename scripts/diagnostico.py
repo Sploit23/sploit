@@ -25,6 +25,44 @@ from pathlib import Path
 DB = Path.home() / ".local" / "share" / "sploit" / "opencode-sploit.db"
 GRAPH = Path(__file__).resolve().parent.parent / "graphify-out" / "graph.json"
 QUEUE = Path(__file__).resolve().parent.parent / "FILA_MELHORIAS.json"
+LESSONS = Path(__file__).resolve().parent.parent / "APRENDIZADO.md"
+
+# Mapa ferramenta -> lição destilada (id, texto) para APRENDIZADO.md.
+# Nomeadas L-bash/L-edit/L-read para colidir com as secoes do arquivo.
+LESSON_BY_TOOL = {
+    "bash": (
+        "L-bash",
+        "- **L-bash — Nunca rodar servidor/daemon de forma síncrona** (origem: aborts por timeout).\n"
+        "  Servidor na tool de shell trava ate o timeout. Usar `Start-Process`/`-Detached`/`start /b`.\n",
+    ),
+    "edit": (
+        "L-edit",
+        "- **L-edit — Reler o arquivo antes de editar** (origem: oldString obsoleto).\n"
+        "  Se o arquivo mudou desde a ultima leitura, reler antes de editar.\n",
+    ),
+}
+
+
+def sync_lessons(tool_err, err_samples):
+    """Grava automaticamente no APRENDIZADO.md as licoes de disciplina cuja falha
+    foi observada nesta sessao e a licao do harness ja existe (lesson_graved).
+    Nenhum comando do usuario: a melhoria acontece em silencio."""
+    if not LESSONS.exists():
+        return 0
+    text = LESSONS.read_text(encoding="utf-8")
+    added = 0
+    for tool, n in tool_err.most_common(5):
+        entry = LESSON_BY_TOOL.get(tool)
+        if not entry:
+            continue
+        kinds = [classify_error(t, e) for t, _, e in err_samples if t == tool]
+        if kinds and all(k == "AGENTE" for k in kinds) and lesson_graved(tool):
+            marker = f"- **{entry[0]} —"  # cabeçalho da lição no arquivo (evita colidir com menções soltas)
+            if marker not in text and entry[1] not in text:
+                LESSONS.write_text(text.rstrip() + "\n\n" + entry[1], encoding="utf-8")
+                added += 1
+                text = LESSONS.read_text(encoding="utf-8")
+    return added
 
 
 def load_queue():
@@ -349,6 +387,10 @@ def main():
 
     if "--fila" in sys.argv:
         add_candidates(tool_err, tool_cnt, err_samples, central, turns, top_degree)
+    else:
+        added_lessons = sync_lessons(tool_err, err_samples)
+        if added_lessons:
+            print(f"   [OK] {added_lessons} licao(ns) gravada(s) automaticamente em APRENDIZADO.md")
 
     db.close()
     return 0

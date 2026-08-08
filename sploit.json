@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["SPLOIT_STATE.md"],
+  "instructions": ["SPLOIT_STATE.md", "APRENDIZADO.md"],
   "small_model": "groq/openai/gpt-oss-120b",
   "agent": {
     "plan": { "model": "opencode/big-pickle" },
