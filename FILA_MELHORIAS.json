@@ -1,0 +1,29 @@
+[
+  {
+    "id": "melh-1",
+    "status": "negado",
+    "titulo": "Reduzir falhas de bash (3x, 1% das chamadas)",
+    "evidencia": "bash falhou 3 vez(es) em 412 chamadas (1%). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\scripts\\sploit-web.ps1.",
+    "verificacao": "Rodar /diagnostico novamente e confirmar que a taxa de falha caiu",
+    "commit": null,
+    "criado": "2026-08-08 18:53"
+  },
+  {
+    "id": "melh-2",
+    "status": "negado",
+    "titulo": "Reduzir falhas de edit (2x, 1% das chamadas)",
+    "evidencia": "edit falhou 2 vez(es) em 196 chamadas (1%). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\sploit-src\\packages\\tui\\src\\ui\\dialog-tutorial.tsx.",
+    "verificacao": "Rodar /diagnostico novamente e confirmar que a taxa de falha caiu",
+    "commit": null,
+    "criado": "2026-08-08 18:53"
+  },
+  {
+    "id": "melh-3",
+    "status": "proposto",
+    "titulo": "Turno com pico de contexto (132.054 tokens de entrada)",
+    "evidencia": "Pico de entrada de 132.054 tokens num turno. Contexto caro e risco de compactacao.",
+    "verificacao": "Investigar o que o turno carregou e podar fontes de contexto antes",
+    "commit": null,
+    "criado": "2026-08-08 18:53"
+  }
+]

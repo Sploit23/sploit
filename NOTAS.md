@@ -77,3 +77,25 @@
 - **Referencias**: sploit-src/packages/core/src/session/compaction.ts,
   sploit-src/packages/core/src/session/runner/llm.ts,
   sploit-src/packages/core/test/session-compaction.test.ts
+
+## [2026-08-08] Diferencial de mercado — diagnostico do harness + fila de auto-melhoria
+- **Direcao**: usuario rejeitou features de "agente de dev comum" (Telegram, validacao
+  de compactacao, telemetria) — quer algo que ninguem tem. Pesquisa 2026: a batalha e
+  o HARNESS (mesmo modelo: 59% scaffold uniforme vs 93% harness proprio); nenhum
+  produto deixa o harness evoluir com o uso. O Sploit ja tem o trio que ninguem tem:
+  memoria viva + grafo do proprio codigo + ciclo seguro de auto-atualizacao
+  (build+backup+smoke+rollback). Proposta: "o agente que melhora o proprio arnes".
+- **Feito**: `/diagnostico` (scripts/diagnostico.py) cruza DB + grafo e aponta onde o
+  arnes sofre: falhas por ferramenta (com arquivo envolvido), arquivos centrais do
+  grafo tocados (degree), turnos mais caros (com tools usadas), compactacoes e
+  ancoras. `--fila` propoe candidatos em FILA_MELHORIAS.json. `/melhorar`
+  (scripts/fila.py) gerencia a fila: novo/ver/negar/fazer/feito/reverter, com
+  evidencia + verificacao por candidato e ciclo seguro para implementar.
+- **Verificado**: diagnostico rodou em 2 sessoes (sploit: bash 3x abortado em
+  sploit-web.ps1, edit oldString divergiu, server.ts degree 259 tocado 1x, pico
+  132k com 11 bash; MaxxPrint: webfetch 40% falha 404). Fila gerada (3 candidatos),
+  ciclo completo testado (fazer/negar/feito). Sem rebuild: scripts/config.
+- **Pendente**: usuario implementar o 1o candidato aprovado via /melhorar e validar
+  o ciclo ponta-a-ponta num restart real.
+- **Referencias**: scripts/{diagnostico,fila}.py, FILA_MELHORIAS.json,
+  .sploit/command/{diagnostico,melhorar}.md, DECISOES.md

@@ -103,38 +103,39 @@ Princípios:
   degree de `graphify-out/graph.json` do diretório da sessão (cache por
   diretório+mtime, `fs/promises`+`Effect`, cross-runtime Node/Bun; ausência do
   grafo não quebra). `Input.directory` novo; `llm.ts` passa
-  `session.location.directory` nas 2 invocações. Commit pendente.
+  `session.location.directory` nas 2 invocações. Commit `6815955` + raiz `023ad1c`.
+- **Mudança de direção (usuário)**: rejeitou features de "agente de dev comum"
+  (Telegram, validação de compactação, telemetria). Pesquisa 2026: a batalha é o
+  **harness** (mesmo modelo: 59% scaffold uniforme vs 93% harness próprio); nenhum
+  produto deixa o harness evoluir com o uso. Sploit já tem o trio único: memória
+  viva + grafo do próprio código + ciclo seguro de auto-atualização. Novo
+  diferencial: **"o agente que melhora o próprio arnês"**.
+- **`/diagnostico`** ✔ (scripts/diagnostico.py): cruza DB + grafo — falhas por
+  ferramenta (com arquivo), arquivos centrais tocados (degree), turnos mais caros
+  (com tools), compactações/âncoras. `--fila` propõe candidatos.
+- **`/melhorar` + fila** ✔ (scripts/fila.py + FILA_MELHORIAS.json): gestão de
+  candidatos de auto-melhoria (novo/ver/negar/fazer/feito/reverter, evidência +
+  verificação); aprovado → ciclo seguro implementa.
 
 ## Próximo passo
 
-Iteração 6 em curso — acesso remoto. Fase 1 (rede local) **feita e testada**:
-`scripts/sploit-web.ps1` — servidor web com senha (sploit-web.secret, gitignored),
-mdns, teste 401/200 validado. Falta teste manual no celular do usuário.
+**Novo diferencial — "o agente que melhora o próprio arnês"** (Iteração 7).
 
-**Último passo (concluído)**: **compactação com consciência de grafo** (motor) —
-`packages/core/src/session/compaction.ts` agora injeta as âncoras do grafo
-Graphify (top-15 nós code por degree de `graphify-out/graph.json` do diretório da
-sessão) no prompt de sumarização. Cache por diretório+mtime, `fs/promises`+`Effect`
-(cross-runtime Node/Bun, ausência não quebra). `Input.directory` novo; `llm.ts`
-passa `session.location.directory` nas 2 invocações (auto e overflow). Typecheck
-core+monorepo OK, teste novo (anchors no prompt) + 2 existentes passam, build
-smoke `0.1.0-sploit` OK. Commit ainda pendente.
+`/diagnostico` (scripts/diagnostico.py, cruza DB+grafo) e `/melhorar` (scripts/fila.py
++ FILA_MELHORIAS.json) prontos e testados. O diagnóstico detectou na sessão atual:
+bash 3x abortado em scripts/sploit-web.ps1, edit com oldString divergindo (autocrlf),
+server.ts (degree 259) tocado, pico 132k. 3 candidatos já na fila.
 
-**Próximo passo (validar no binário)**: 
-1. Commit do motor (`sploit: feat: compactação injeta âncoras do grafo no prompt`).
-2. `scripts/self-restart.ps1` para ativar no binário (a cópia do exe falha em uso —
-   esperado, a troca é do self-restart).
-3. Rodar uma sessão longa e conferir no resumo compactado se arquivos/símbolos
-   centrais sobrevivem (ex.: sploit-src/packages/core/src/session/compaction.ts).
-4. Depois: voltar ao teste manual da fase 1 no celular (Open Project + Home).
+**Próximo passo**:
+1. Rodar `/melhorar`, escolher UM candidato com o usuário e implementar o ciclo
+   ponta-a-ponta (fazer → implementar → validar → feito <commit>).
+2. Validar o relaunch desanexado num restart real (candidato melh-1 envolve rebuild
+   de scripts? não — config; para motor, self-restart).
+3. Depois: teste manual da fase 1 no celular (Open Project + Home) continua valendo
+   (web pausada).
 
-Fase 2 (depois): **bot Telegram** — acesso de qualquer lugar. Requisitos:
-  - bot do BotFather (token) + PC ligado
-  - script Python (venv) com polling (`sploit run --attach` no servidor local,
-    sem expor porta pública)
-  - comandos: `/novo`, `/sessao`, texto livre
-Candidatos depois: validar relaunch desanexado em restart real; medir baseline
-com `/saude`.
+Fase 2 (depois, só se usuário pedir): bot Telegram. Candidatos futuros: medir
+baseline com /saude.
 
 ## Verificação
 
@@ -156,8 +157,10 @@ com `/saude`.
 - Debug UI web: causa raiz da Home vazia identificada (localStorage + `/find` 400) e
   fix no proxy validado (`/find?query=` → 200 lista; `/api/session` e `/file` OK) ✔
 - Compactação com consciência de grafo: typecheck core+monorepo OK, teste novo
-  (anchors no prompt) + 2 existentes passam, build smoke `0.1.0-sploit` OK ✔
-  (commit e ativação no binário pendentes)
+  (anchors no prompt) + 2 existentes passam, build smoke `0.1.0-sploit` OK,
+  commit `6815955` + raiz `023ad1c`, ativado no binário via self-restart ✔
+- `/diagnostico` rodado em 2 sessões (sploit e MaxxPrint) com saída real; fila
+  gerada (3 candidatos) e ciclo completo testado (fazer/negar/feito) ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
