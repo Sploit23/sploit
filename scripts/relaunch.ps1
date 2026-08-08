@@ -7,18 +7,21 @@
 #
 # Uso:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File relaunch.ps1 `
-#       -OldPid <pid do processo atual> -Root <caminho raiz> [-NeedsCopy]
+#       -OldPid <pid do processo atual> -Root <caminho raiz> [-NeedsCopy] [-ResumePrompt "texto"]
 #
 # Fluxo:
 #   1. Aguarda o processo antigo (OldPid) sair de cena (poll a cada 500ms, máx 60s).
 #   2. Se -NeedsCopy, copia o binário novo do dist/ para sploit.exe.
 #   3. Relança `sploit.exe --continue` em janela nova (console visível para a TUI).
+#      Se -ResumePrompt for informado, o prompt é enviado junto (--prompt) para o
+#      agente retomar o trabalho automaticamente em vez de esperar input.
 #   4. Verifica sobrevivência e escreve o resultado em logs/relaunch.log.
 
 param(
     [Parameter(Mandatory = $true)][int]$OldPid,
     [Parameter(Mandatory = $true)][string]$Root,
-    [switch]$NeedsCopy
+    [switch]$NeedsCopy,
+    [string]$ResumePrompt = ""
 )
 
 $ErrorActionPreference = "Continue"
@@ -58,7 +61,13 @@ if ($NeedsCopy) {
 }
 
 # --- 3. Relança em janela nova ----------------------------------------------
-$p = Start-Process -FilePath $exePath -ArgumentList "--continue" -WorkingDirectory $Root -PassThru
+$argsList = @("--continue")
+if ($ResumePrompt) {
+    $argsList += "--prompt"
+    $argsList += $ResumePrompt
+    Log "Prompt de retomada enviado: $ResumePrompt"
+}
+$p = Start-Process -FilePath $exePath -ArgumentList $argsList -WorkingDirectory $Root -PassThru
 Log "Relancado sploit.exe --continue (PID $($p.Id))."
 Start-Sleep -Seconds 8
 
@@ -73,7 +82,7 @@ $bakPath = "$Root\sploit.exe.bak"
 if (Test-Path $bakPath) {
     Copy-Item $bakPath $exePath -Force
     Log "[ROLLBACK] sploit.exe.bak restaurado."
-    $p2 = Start-Process -FilePath $exePath -ArgumentList "--continue" -WorkingDirectory $Root -PassThru
+    $p2 = Start-Process -FilePath $exePath -ArgumentList $argsList -WorkingDirectory $Root -PassThru
     Log "[ROLLBACK] Relancado com binario antigo (PID $($p2.Id))."
     exit 2
 }

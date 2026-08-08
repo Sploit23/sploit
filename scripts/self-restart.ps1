@@ -17,11 +17,14 @@
 # Uso:
 #   .\scripts\self-restart.ps1            # smoke test + reinício
 #   .\scripts\self-restart.ps1 -SkipSmoke # pula o doctor (ex.: já testado)
+#   .\scripts\self-restart.ps1 -ResumePrompt "continue o trabalho"
+#                                        # relança e envia o prompt automaticamente
 #
 # Para retomar a conversa: `sploit --continue`.
 
 param(
-    [switch]$SkipSmoke
+    [switch]$SkipSmoke,
+    [string]$ResumePrompt = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -97,6 +100,7 @@ if ($current) {
     $oldPid = $current[0].Id
     $relaunchArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$relauncher`" -OldPid $oldPid -Root `"$root`""
     if ($needsCopy) { $relaunchArgs += " -NeedsCopy" }
+    if ($ResumePrompt) { $relaunchArgs += " -ResumePrompt `"$ResumePrompt`"" }
     Start-Process powershell.exe -ArgumentList $relaunchArgs -WindowStyle Hidden
     Write-Host "      relauncher desanexado disparado (espera o PID $oldPid sair e relanca --continue)."
     Start-Sleep -Seconds 1
