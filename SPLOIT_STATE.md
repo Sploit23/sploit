@@ -1,199 +1,98 @@
 # SPLOIT_STATE.md — Memória de Auto-Melhoria
 
-> Este arquivo é a memória viva do Sploit. É lido automaticamente em toda sessão
-> (via `instructions` no `sploit.json`). **REGRA DE OURO:** antes de encerrar qualquer
-> sessão de auto-melhoria, atualize `# Próximo passo` e `# Progresso`. Quem acordar
-> amanhã precisa saber exatamente onde parou.
+> Memória viva do Sploit, lida em toda sessão (via `instructions` no `sploit.json`).
+> **REGRA DE OURO:** antes de encerrar sessão, atualize `# Próximo passo` e `# Progresso`.
+> **REGRA 2:** este arquivo custa ~3k tokens/turno — mantenha-o enxuto. Detalhes
+> históricos vão para o Graphify (`graphify-out/`), não para cá.
 
 ## Missão
 
-Transformar o Sploit em uma das melhores ferramentas de codificação do mercado —
-rápida, confiável, com identidade própria forte e reconhecimento mundial. O
-objetivo real: a pessoa dizer *"não consigo mais programar sem o Sploit"*.
+Transformar o Sploit em ferramenta de codificação indispensável — rápida, confiável,
+com identidade própria forte ("não consigo mais programar sem o Sploit").
 
 Princípios:
-- **Básico bem feito > quantidade de recursos.** Cada mudança deve ter propósito
-  claro e elevar qualidade/confiabilidade — nunca "quanto mais, melhor".
-- **Economia de tokens é estratégica.** Tudo que reduz contexto desperdiçado
-  (memória, grafo, compactação, ferramentas certas) é prioridade alta.
-- **Identidade e distanciamento do fork.** A cada iteração, o Sploit deve se
-  parecer menos com o opencode e mais consigo mesmo (TUI, idioma, UX, marca,
-  diferenciais exclusivos).
-- Verificável: typecheck/build/test antes de considerar um passo concluído.
-- Pequenos commits atômicos; nunca quebrar a árvore do repo raiz.
-- A memória é a fundação: SPLOIT_STATE.md é a fonte da verdade entre sessões.
-- Pesquisar novidades na internet com parcimônia: observar, filtrar, e só
-  adotar o que serve à identidade — sem perseguir hype.
+- **Básico bem feito > quantidade de recursos**; mudanças com propósito claro.
+- **Economia de tokens é estratégica** (memória, grafo, compactação, tools certas).
+- **Identidade própria**: cada iteração deve afastar o Sploit do fork opencode
+  (TUI, idioma, UX, marca, diferenciais).
+- Verificável: typecheck/build/test antes de concluir passo.
+- Pequenos commits atômicos (`sploit: <tipo>: <descrição>`, PT-BR); nunca quebrar o raiz.
+- Memória é a fundação: SPLOIT_STATE.md é a fonte da verdade entre sessões.
+- Pesquisar novidades com parcimônia: observar, filtrar, adotar só o que serve.
 
 ## Plano
 
-- [x] Definir estratégia de memória persistente (SPLOIT_STATE.md + instructions + /retomar)
-- [x] Configurar modelos (plan/build = big-pickle; small_model = groq/gpt-oss-120b)
-- [x] Criar SPLOIT_STATE.md com o ciclo de checkpoint
-- [x] Adicionar `instructions` no sploit.json (injeção automática do estado)
-- [x] Adicionar protocolo de auto-melhoria no AGENTS.md raiz
-- [x] Criar comando `/retomar` (.sploit/command/retomar.md)
-- [x] Atualizar AGENTS.md global com regra de leitura do estado
-- [x] Validar config e commitar checkpoint inicial
-- [x] Criar ciclo de auto-atualização seguro (build com backup + smoke test + rollback + /atualizar)
-- [x] Validar empiricamente o ciclo (reiniciar via self-restart.ps1 em uma mudança real)
-- [x] Iteração 1: base sólida — typecheck-clean, Graphify indexado, dicas PT-BR confirmadas
-- [x] Iteração 2: diferenciais de identidade (TUI 100% PT-BR — traduções validadas no binário)
+- [x] Memória persistente (SPLOIT_STATE.md + instructions + /retomar)
+- [x] Modelos (plan/build = big-pickle; small_model = groq/gpt-oss-120b)
+- [x] Ciclo de auto-atualização seguro (build com backup + smoke test + rollback + /atualizar)
+- [x] Iteração 1: base sólida (typecheck-clean + Graphify + dicas PT-BR)
+- [x] Iteração 2: TUI 100% PT-BR (traduções validadas no binário)
 - [ ] Iteração 3: economia de tokens (medir contexto, compactação, tools certas)
 
 ## Progresso
 
-- 2026-08-08: Desenhada e aprovada a estratégia de memória de auto-melhoria.
-- 2026-08-08: Diagnóstico do Groq: API funciona (chave OK, modelo existe), mas o tier
-  `on_demand` tem limite de 8.000 TPM e o contexto da sessão estourava (42k–78k).
-  Ajustado: `small_model: groq/openai/gpt-oss-120b` para tarefas pequenas.
-- 2026-08-08: Implementado o sistema de memória completo:
-  - `SPLOIT_STATE.md` criado (memória viva, injetado via `instructions`).
-  - `sploit.json` → `"instructions": ["SPLOIT_STATE.md"]`.
-  - `AGENTS.md` raiz → seção "Auto-melhoria (protocolo obrigatório)".
-  - `.sploit/command/retomar.md` → comando `/retomar`.
-  - `~/.config/sploit/AGENTS.md` → regra de leitura do estado no início da sessão.
-  - Commit: `d0fd696` `sploit: feat: sistema de memoria de auto-melhoria (SPLOIT_STATE.md + /retomar)`.
-- 2026-08-08: Criado o ciclo de auto-atualização seguro (respondendo ao risco "se eu
-  errar o código e reiniciar, nunca mais abre"):
-  - `scripts/build-sploit.ps1` agora gera `sploit.exe.bak` (known-good) antes de
-    sobrescrever o binário.
-  - `scripts/self-restart.ps1`: smoke test (`sploit doctor`) ANTES de matar o processo
-    atual; relança `sploit --continue`; se o binário novo morrer no boot, restaura o
-    `.bak` e relança com o antigo. O Sploit nunca fica sem abrir.
-  - `.sploit/command/atualizar.md` → comando `/atualizar` (ciclo com aprovação do usuário).
-  - `.gitignore` → `sploit.exe.bak` e `logs/`.
-- 2026-08-08: **Validado o ciclo `/atualizar` end-to-end** com mudança real de identidade:
-  - Traduzidas as dicas da TUI (`packages/tui/src/feature-plugins/home/tips-view.tsx`)
-    para PT-BR (cumpre promessa do README "dicas em PT-BR") e adicionadas dicas
-    exclusivas de auto-melhoria (`/retomar`, `/atualizar`, `SPLOIT_STATE.md`, `graphify`).
-  - Descoberta e corrigida falha real no ciclo: o `build-sploit.ps1` tentava
-    sobrescrever `sploit.exe` **em uso** pelo processo atual (IOException). O
-    `self-restart.ps1` agora detecta o binário novo no `dist/`, roda o smoke test nele,
-    encerra o processo, copia por cima e só então relança (rollback continua válido).
-  - Segundo bug real corrigido: o `self-restart.ps1` falhava ao rodar `sploit doctor`
-    porque o PowerShell 5.1 trata a saída do binário no stderr como
-    `NativeCommandError` e, com `$ErrorActionPreference = "Stop"`, abortava o script.
-    Fix: `$ErrorActionPreference = "Continue"` temporário durante o doctor.
-  - Terceiro bug real corrigido: edições de texto removeram o **BOM UTF-8** do
-    `self-restart.ps1`; sem BOM, o PowerShell 5.1 lê o arquivo como ANSI e os acentos
-    corrompem o parsing (`Expressão ausente após operador unário '--'`). Fix:
-    re-salvar o script com `[UTF8Encoding]::new($true)` (regra: todo .ps1 do repo
-    precisa de BOM; conferir com os 3 primeiros bytes `EF BB BF` após editar).
-  - Typecheck do `tui` OK. `opencode` tem 2 erros **pré-existentes** em
-    `src/plugin/index.ts` (pacote duplicado `@opencode-ai/plugin@1.18.11` no
-    `node_modules` vs `packages/plugin`; não relacionados a esta mudança).
-  - Build OK (`0.1.0-sploit`, smoke test interno passou), `sploit.exe.bak` criado.
-  - Reinício OK via `scripts/self-restart.ps1`: PID 756 (09:18) → PID 4760 (09:54),
-    `sploit.exe` atualizado (09:46:59), conversa retomada com `--continue`.
-  - Commits: `f6e7427` (sploit-src, dicas PT-BR), `280ba16` (raiz, fix self-restart
-    cópia pós-kill), `91af5a4` (raiz, BOM) e pendente commit do fix NativeCommandError.
-- 2026-08-08: **Typecheck-clean do monorepo inteiro** ✔ (Iteração 1, item 1):
-  - Resolvidos os 2 erros pré-existentes em `src/plugin/index.ts:75-76` (`TS2322`,
-    causados por `opencode-gitlab-auth@2.1.0` e `opencode-poe-auth@0.0.1` resolvendo
-    `@opencode-ai/plugin@1.18.11` npm duplicado no `.bun` vs workspace
-    `@sploit-ai/plugin@1.18.13`).
-  - Estratégia que funcionou: shim de workspace `packages/plugin-legacy/` com nome
-    `@opencode-ai/plugin` (version 1.18.13, exports `.`/`./tool`/`./tui`/
-    `./v2/effect`/`./v2/promise` re-exportando de `@sploit-ai/plugin`) + `overrides`
-    no `sploit-src/package.json` (`"@opencode-ai/plugin": "workspace:packages/plugin-legacy"`).
-  - Tentativas que NÃO funcionaram: `paths` no tsconfig do opencode (tsgo não aplica
-    a imports dentro de node_modules) e junction criado pelo bun apontando para
-    `packages/plugin` (o bun resolvia pelo nome antigo sem o overrides).
-  - `bun install` deduplicou (removidas cópias `opencode-gitlab-auth/@opencode-ai/plugin`
-    e `@gitlab/opencode-gitlab-auth/@opencode-ai/plugin` do lockfile); lockfile
-    re-registrado com `@opencode-ai/plugin → workspace:packages/plugin-legacy`.
-  - tsconfig do shim precisa de `lib: ["ESNext", "DOM", "DOM.Iterable"]` (por
-    `HeadersInit`/`BodyInit` no sdk/js).
-  - `bun run typecheck` no sploit-src inteiro: **0 erros** ✔. Commit `9093011`
-    (sploit-src): `feat: shim @opencode-ai/plugin no workspace para deduplicar tipos`.
-  - Build OK (`0.1.0-sploit`, smoke passou, `.bak` criado); cópia para `sploit.exe`
-    falhou por arquivo em uso (esperado — troca via self-restart).
-- 2026-08-08: **Graphify indexado** ✔ (Iteração 1, item 2):
-  - `venv\Scripts\graphify.exe update "."` → **28737 nós, 55500 arestas, 2415
-    comunidades** (grafo local em `graphify-out/`, ~34.5 MB, ignorado pelo git).
-  - Acessível via MCP (`graphify_graph_stats` retorna os mesmos números).
-  - Para perguntas focadas, usar `graphify query` (subgrafo escopado) em vez de grep;
-    `GRAPH_REPORT.md` só para visão geral de arquitetura.
-- 2026-08-08: **Iteração 1 concluída** ✔ — binário atualizado com o typecheck-clean
-  via `self-restart.ps1`: smoke OK (10:21:00), `sploit.exe` trocado (10:15:47, 143.5 MB),
-  processo novo PID 2576 (10:21:02), conversa retomada com `--continue`. Usuário
-  confirmou e pediu para seguir para a Iteração 2.
-- 2026-08-08: **Iteração 2 — TUI em PT-BR** (commit `815535f` no sploit-src): traduzidos
-  165 trechos em 23 arquivos do `packages/tui/src` — permissões (`permission.tsx`),
-  diálogos (message, subagent, fork, timeline, tutorial, retry-action, provider,
-  delete-failed, model, status, select, export-options), toasts (conectar provedor,
-  sessão excluída, criação de sessão, sem mensagens do assistente), menus/comandos da
-  sessão ("Ir para mensagem", "Desfazer mensagem anterior", "Próxima/Sessão filha
-  anterior"), placeholders do prompt ("Execute um comando -"/"Digite sua mensagem -"),
-  which-key ("Sem atalhos alcançáveis"), diff-viewer (descs + "Sem arquivos"),
-  sidebar/footer/mcp e autocomplete ("Nenhum item correspondente"). Typecheck do `tui`
-  OK (0 erros). Textos OpenCode Zen/Go mantidos (links funcionais para pegar chaves
-  de modelos grátis). Ainda não gerado build (próximo passo).
-- 2026-08-08: **Iteração 2 validada** ✔ — build + self-restart OK (binário novo
-  10:36:06, PID 19732 rodando com as traduções). Usuário confirmou visualmente:
-  "ficou muito bom". Commits: `815535f` (sploit-src), `fee2ef3` (raiz).
+- **Memória** (d0fd696): SPLOIT_STATE.md + `instructions` no sploit.json + AGENTS.md
+  raiz ("Auto-melhoria") + `/retomar` + AGENTS.md global (ler estado no início).
+- **Ciclo seguro de auto-atualização**: `build-sploit.ps1` gera `sploit.exe.bak`
+  (known-good); `self-restart.ps1` roda `sploit doctor` antes de matar o processo,
+  relança `--continue`, restaura `.bak` se o binário novo morrer; `/atualizar`.
+  Bugs corrigidos: cópia pós-kill (arquivo em uso), `NativeCommandError` do PS 5.1
+  no doctor (`$ErrorActionPreference="Continue"` temporário), BOM UTF-8 obrigatório
+  em .ps1 (senão acentos corrompem o parse).
+- **Iteração 1** ✔: typecheck-clean do monorepo via shim `packages/plugin-legacy`
+  (nome `@opencode-ai/plugin` → re-exporta `@sploit-ai/plugin`, exports
+  `.`/`./tool`/`./tui`/`./v2/effect`/`./v2/promise`) + `overrides` no package.json
+  do sploit-src (`"@opencode-ai/plugin": "workspace:packages/plugin-legacy"`). NÃO
+  funciona: `paths` no tsconfig (tsgo ignora node_modules) e junction do bun. tsconfig
+  do shim precisa `lib: ["ESNext","DOM","DOM.Iterable"]`. Commit `9093011`. Graphify
+  indexado: 28737 nós, 55500 arestas, 2415 comunidades (`graphify-out/`, gitignored).
+  Validado no binário via self-restart (PID 2576).
+- **Iteração 2** ✔: TUI 100% PT-BR — 165 trechos em 23 arquivos (permissões, diálogos,
+  toasts, menus da sessão, placeholders, which-key, diff-viewer, sidebar/mcp,
+  autocomplete). Textos OpenCode Zen/Go mantidos (links funcionais para keys grátis).
+  Commit `815535f`. Validado no binário (10:36:06, PID 19732), usuário aprovou.
+- **Iteração 3** (em curso): diagnóstico da sessão — 1,93M tokens de entrada, 31,8M
+  cache read, 395 turnos, pico ~98k contexto, ~4,9k tokens novos/turno (caching OK),
+  compactação ativa (9 eventos). Custo fixo por turno ≈ 8,2k tokens de instruções:
+  SPLOIT_STATE.md (3.344) + AGENTS.md raiz/sploit-src/opencode/global (4.916).
+  Medição: `%TEMP%\sploit\tokens*.py` contra `~\.local\share\sploit\opencode-sploit.db`.
 
 ## Próximo passo
 
-Iteração 3 — **economia de tokens** (medição concluída):
-- **Diagnóstico da sessão atual** (08-08): 1,93M tokens de entrada acumulados, 31,8M
-  cache read, 395 turnos; contexto efetivo no pico ~98k; média de apenas ~4,9k tokens
-  novos por turno (prompt caching funciona bem); compactação ativa (9 eventos hoje,
-  5 parts de compaction). Ferramenta de medição: scripts Python em
-  `%TEMP%\sploit\tokens*.py` contra `~\.local\share\sploit\opencode-sploit.db`.
-- **Maior alvo de economia**: custo fixo por turno ≈ 8,2k tokens de instruções —
-  `SPLOIT_STATE.md` (3.344/turno, injetado via `sploit.json` `instructions`) +
-  AGENTS.md raiz/sploit-src/opencode/global (4.916/turno).
-- Próximos passos:
-  1. Decidir otimizações: (a) compactar `SPLOIT_STATE.md` (podar seção Verificação
-     histórica); (b) flag para injetar estado só quando há `# Próximo passo` pendente;
-     (c) garantir tools não despejam contexto (grep/read com limits).
-  2. Implementar a(s) escolhida(s), typecheck + build, validar.
-  3. Atualizar este estado ao concluir cada sub-passo.
+Iteração 3 — economia de tokens (medição concluída; aguardando decisão de otimização).
+Candidatas:
+  1. **Podar SPLOIT_STATE.md** (feito nesta sessão — este texto é a versão enxuta).
+  2. Flag para injetar estado só quando há `# Próximo passo` pendente.
+  3. Garantir tools não despejam contexto (grep/read com limits).
+Decidir a próxima, implementar, typecheck + build + validar, atualizar este estado.
 
 ## Verificação
 
-- JSON do `sploit.json` válido: `Get-Content sploit.json -Raw | ConvertFrom-Json` ✔
-- Typecheck `tui`: `bun run typecheck` OK (0 erros) ✔
-- Typecheck do monorepo inteiro (`bun run typecheck` em `sploit-src/`): **0 erros** ✔
-  (shim `packages/plugin-legacy` + overrides; fix nos 2 erros pré-existentes de
-  `src/plugin/index.ts`)
-- Build: `scripts/build-sploit.ps1` OK (smoke interno `0.1.0-sploit` passou; a cópia
-  para `sploit.exe` falhou por arquivo em uso — esperado, o `self-restart.ps1` agora
-  faz a troca após encerrar o processo) ✔
-- Backup: `sploit.exe.bak` criado (known-good) ✔
-- **Validação empírica do ciclo**: `self-restart.ps1` rodado com sucesso — PID antigo
-  756 (09:18) encerrado, binário novo copiado para `sploit.exe` (09:46:59), processo
-  novo relançado com `--continue` (PID 4760, 09:54), conversa retomada ✔
-- **Validação do typecheck-clean no binário**: `self-restart.ps1` rodado com sucesso —
-  smoke OK (10:21:00), `sploit.exe` = build typecheck-clean (10:15:47, 143.5 MB),
-  PID 2576 (10:21:02), conversa retomada ✔
-- Dicas em PT-BR: confirmadas visualmente pelo usuário na home ✔
-- **Iteração 2 — TUI PT-BR**: typecheck do `tui` OK (0 erros) após traduções de
-  permissões, diálogos, menus, placeholders e toasts; commit `815535f` no sploit-src;
-  build OK (`0.1.0-sploit`, smoke passou, `.bak` criado); cópia para `sploit.exe`
-  falhou por arquivo em uso (esperado — troca via self-restart pendente) ✔
-- **Iteração 2 validada no binário**: self-restart OK — `sploit.exe` novo (10:36:06,
-  143.5 MB), processo atual PID 19732 (10:36:40) rodando com as traduções; usuário
-  confirmou visualmente ("ficou muito bom") ✔
+- Typecheck monorepo: **0 erros** (shim plugin-legacy + overrides) ✔
+- Typecheck `tui`: OK (0 erros) após traduções PT-BR ✔
+- Build: `scripts/build-sploit.ps1` OK (smoke `0.1.0-sploit`; cópia falha por arquivo
+  em uso — esperado, a troca é do `self-restart.ps1`) ✔
+- self-restart validado 2x (Iterações 1 e 2): smoke OK, `.bak` criado, conversa
+  retomada com `--continue` ✔
+- Iteração 2 validada no binário (PID 19732); usuário confirmou ("ficou muito bom") ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
 
 - Config do Sploit **não é hot-reloaded**: qualquer mudança exige reiniciar.
-- Windows/PowerShell 5.1: não usar `&&` como separador em comandos multi-etapa.
-- `bun install` em `sploit-src/` falha sem Visual Studio Build Tools (tree-sitter). Não re-adicionar os três pacotes a `trustedDependencies`.
+- Windows/PowerShell 5.1: não usar `&&`; todo `.ps1` do repo precisa de BOM UTF-8
+  (3 primeiros bytes `EF BB BF`) — conferir após editar.
+- `bun install` em `sploit-src/` falha sem Visual Studio Build Tools (tree-sitter).
+  Não re-adicionar os 3 pacotes a `trustedDependencies`.
 - Groq free: limite 8k TPM. Só usar em tarefas pequenas (title/small).
-- Erro "Failed to fetch models.dev" no log é só o catálogo de modelos offline; não afeta o modelo configurado. Pendente investigar (rede do usuário funciona).
-- **Build enquanto o Sploit roda**: `build-sploit.ps1` não consegue sobrescrever
-  `sploit.exe` em uso (IOException). Isso é esperado — a troca é responsabilidade do
-  `self-restart.ps1` (passo 2.5), que roda o smoke test no binário novo do `dist/`,
-  encerra o processo e então copia.
-- **Erros pré-existentes de typecheck em `opencode`**: `src/plugin/index.ts:75-76`
-  RESOLVIDOS via shim `packages/plugin-legacy` (nome `@opencode-ai/plugin`) + overrides
-  no `package.json` raiz do sploit-src. Se voltarem a aparecer, checar se o lockfile
-  voltou a registrar `opencode-gitlab-auth/@opencode-ai/plugin@1.18.11` do npm.
-- **tsgo não aplica `paths` a imports dentro de node_modules**: para redirecionar um
-  pacote npm duplicado, o caminho é shim de workspace + overrides (não tsconfig).
-- Sempre atualizar `# Próximo passo` antes de encerrar sessão. **Nunca terminar sem ele preenchido.**
+- Erro "Failed to fetch models.dev" no log: só o catálogo de modelos offline; não
+  afeta o modelo configurado.
+- **Build enquanto o Sploit roda**: `build-sploit.ps1` não sobrescreve `sploit.exe`
+  em uso (IOException esperado). A troca é do `self-restart.ps1` (smoke no `dist/`,
+  encerra o processo, copia, relança).
+- **Typecheck do opencode**: erros em `src/plugin/index.ts` RESOLVIDOS via shim
+  plugin-legacy + overrides. Se voltarem, checar se o lockfile re-registrou
+  `opencode-gitlab-auth/@opencode-ai/plugin@1.18.11` do npm.
+- **tsgo não aplica `paths` a imports dentro de node_modules**: redirecionar pacote
+  npm duplicado exige shim de workspace + overrides.
+- Sempre atualizar `# Próximo passo` antes de encerrar sessão. Nunca terminar sem ele.
