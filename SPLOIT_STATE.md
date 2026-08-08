@@ -165,6 +165,9 @@ Princípios:
   em 264 chamadas (arquivos de 27-66 KB lidos inteiros repetidamente) + bash 1,68 MB
   em 550 chamadas. A lição já está no harness (`read.txt` linhas 5-8: offset/limit e
   grep para arquivos grandes).
+- **`--fila` sem duplicatas (melh-11)** ✔: o diagnóstico recriava candidatos negados
+  (o pico de contexto virou melh-10 duplicado do melh-3). Fix: dedup por título em
+  `queue_add` (era `status == "proposto"`, agora qualquer status). Commit `3501773`.
 
 ## Próximo passo
 
@@ -176,10 +179,9 @@ rollback → melhoria ativa no binário. O diagnóstico é auto-classificante (H
 AGENTE) e o restart agora retoma o trabalho sozinho (melh-7).
 
 **Próximo passo**:
-1. Concluir a sessão: commitar FILA_MELHORIAS.json (melh-3 negado, melh-9 com commit)
-   + SPLOIT_STATE.md atualizado, reindexar Graphify se necessário.
-2. Rodar `/diagnostico` na próxima sessão para ver se as lições do harness (edit, read)
-   e o melh-8 (grep acionável) reduziram falhas reais.
+1. Sessão concluída (melh-8/9/10/11 validados e commitados; melh-3 negado com evidência).
+2. Na próxima sessão, rodar `/diagnostico` (com o fix de dedup do melh-11) para ver
+   se as lições do harness (edit, read) e o melh-8 (grep acionável) reduziram falhas reais.
 3. Próximos candidatos da fila (todos negados/feitos até agora): avaliar se novos
    defeitos HARNESS surgem no diagnóstico.
 
