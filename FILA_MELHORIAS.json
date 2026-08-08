@@ -1,83 +1,83 @@
 [
-  {
-    "id": "melh-1",
-    "status": "negado",
-    "titulo": "Reduzir falhas de bash (3x, 1% das chamadas)",
-    "evidencia": "bash falhou 3 vez(es) em 412 chamadas (1%). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\scripts\\sploit-web.ps1.",
-    "verificacao": "Rodar /diagnostico novamente e confirmar que a taxa de falha caiu",
-    "commit": null,
-    "criado": "2026-08-08 18:53"
-  },
-  {
-    "id": "melh-2",
-    "status": "negado",
-    "titulo": "Reduzir falhas de edit (2x, 1% das chamadas)",
-    "evidencia": "edit falhou 2 vez(es) em 196 chamadas (1%). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\sploit-src\\packages\\tui\\src\\ui\\dialog-tutorial.tsx.",
-    "verificacao": "Rodar /diagnostico novamente e confirmar que a taxa de falha caiu",
-    "commit": null,
-    "criado": "2026-08-08 18:53"
-  },
-  {
-    "id": "melh-3",
-    "status": "proposto",
-    "titulo": "Turno com pico de contexto (132.054 tokens de entrada)",
-    "evidencia": "Pico de entrada de 132.054 tokens num turno. Contexto caro e risco de compactacao.",
-    "verificacao": "Investigar o que o turno carregou e podar fontes de contexto antes",
-    "commit": null,
-    "criado": "2026-08-08 18:53"
-  },
-  {
-    "id": "melh-4",
-    "status": "feito",
-    "titulo": "Prompt do shell alerta contra servidor/daemon síncrono (lição dos 3 aborts)",
-    "evidencia": "3 aborts do bash em sploit-web.ps1: agente rodou servidor síncrono via tool e estourou timeout de 120s. O harness não ensinava isso.",
-    "verificacao": "Próximo /diagnostico sem novo abort por timeout; agente usa -Detached/background",
-    "commit": "2055266",
-    "criado": "2026-08-08 19:10"
-  },
-  {
-    "id": "melh-5",
-    "status": "negado",
-    "titulo": "Gravar licao no harness: falhas de edit sao disciplina do agente (3x)",
-    "evidencia": "edit falhou 3x (1%) por erro do AGENTE (nao do motor). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\sploit-src\\packages\\tui\\src\\ui\\dialog-tutorial.tsx. Ex.: abort por rodar servidor sincrono, oldString errado.",
-    "verificacao": "Verificar no prompt do shell se a regra foi gravada e a falha nao repete",
-    "commit": null,
-    "criado": "2026-08-08 19:18"
-  },
-  {
-    "id": "melh-6",
-    "status": "feito",
-    "titulo": "Gravar licao no harness: falhas de edit sao disciplina do agente (3x)",
-    "evidencia": "edit falhou 3x (1%) por erro do AGENTE (nao do motor). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\sploit-src\\packages\\tui\\src\\ui\\dialog-tutorial.tsx. Licao sugerida: If the file changed since your last Read (another edit, write, or agent modified it), re-read it before editing. A stale oldString copied from old output is the most common edit failure.",
-    "verificacao": "Gravar a licao em sploit-src\\packages\\opencode\\src\\tool\\edit.txt e confirmar que a falha nao repete",
-    "commit": "875b409",
-    "criado": "2026-08-08 19:19"
-  },
-  {
-    "id": "melh-7",
-    "status": "feito",
-    "titulo": "Retomada automatica apos restart: relaunch envia --prompt e o TUI auto-submete Antes: self-restart relancava --continue sem prompt e o agente voltava esperando input. Agora: relaunch.ps1 -ResumePrompt + app.tsx passa prompt na navegacao + session/index.tsx auto-submete quando sync/model prontos typecheck tui+opencode OK, relaunch real PID 18192->4356, prompt 'continue' enviado e auto-submetido pelo binario novo",
-    "evidencia": "# Evidencia\n\nPor que este candidato existe?",
-    "verificacao": "# Verificacao\n\nComo provar que ficou melhor?",
-    "commit": "51ed96e (tui) + 9933c75 (scripts)",
-    "criado": "2026-08-08 19:34"
-  },
-  {
-    "id": "melh-8",
-    "status": "feito",
-    "titulo": "Grep com path inexistente devolvia 'ripgrep execution failed' (mensagem opaca que engolia a causa). Agora: grep.ts valida o cwd e da 'Path not found: <path>' acionavel; ripgrep.ts preserva a mensagem da causa (PlatformError tem .message) em vez de descartar.",
-    "evidencia": "grep pattern='prompt' path='.../opencode/src/tui/layer.ts' (path inexistente) -> erro opaco 'ripgrep execution failed'. Causa: rg sai com code 2 e stderr util, mas ripgrep.ts:146-150 trocava falha nao-Error por 'ripgrep execution failed' sem o cause; orDie vira die e o agente ve so a mensagem opaca.",
-    "verificacao": "Teste novo test/tool/grep.test.ts 'reports an actionable error when the path does not exist' + ripgrep.test.ts existentes; typecheck opencode+core OK",
-    "commit": null,
-    "criado": "2026-08-08 20:10"
-  },
-  {
-    "id": "melh-9",
-    "status": "feito",
-    "titulo": "Calibrar classify_error do /diagnostico: 'No changes to apply: oldString and newString are identical' era rotulado HARNESS mas e disciplina do agente (o motor edit.ts:75-77 ja protege). Agora reconhecida como AGENTE.",
-    "evidencia": "Diagnostico da sessao rotulou o edit identical como HARNESS (falso positivo): a protecao ja existe no motor, o erro e do agente que passou oldString==newString.",
-    "verificacao": "python -c 'from diagnostico import classify_error; classify_error(\"edit\", \"No changes to apply...\")' -> AGENTE",
-    "commit": null,
-    "criado": "2026-08-08 20:10"
-  }
+ {
+  "id": "melh-1",
+  "status": "negado",
+  "titulo": "Reduzir falhas de bash (3x, 1% das chamadas)",
+  "evidencia": "bash falhou 3 vez(es) em 412 chamadas (1%). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\scripts\\sploit-web.ps1.",
+  "verificacao": "Rodar /diagnostico novamente e confirmar que a taxa de falha caiu",
+  "commit": null,
+  "criado": "2026-08-08 18:53"
+ },
+ {
+  "id": "melh-2",
+  "status": "negado",
+  "titulo": "Reduzir falhas de edit (2x, 1% das chamadas)",
+  "evidencia": "edit falhou 2 vez(es) em 196 chamadas (1%). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\sploit-src\\packages\\tui\\src\\ui\\dialog-tutorial.tsx.",
+  "verificacao": "Rodar /diagnostico novamente e confirmar que a taxa de falha caiu",
+  "commit": null,
+  "criado": "2026-08-08 18:53"
+ },
+ {
+  "id": "melh-3",
+  "status": "negado",
+  "titulo": "Turno com pico de contexto (132.054 tokens de entrada)",
+  "evidencia": "Pico de 132.054 tokens num turno (11 bash + 4 read + 4 edit + 4 grep) numa sessao de 1276 turnos. Causa raiz: disciplina do agente — read acumulou 2,3 MB em 264 chamadas (arquivos de 27-66 KB lidos inteiros repetidamente) + bash 1,68 MB em 550 chamadas. O harness ja ensina a licao: read.txt linhas 5-8 (offset/limit e usar grep para arquivos grandes). Nao e defeito do motor.",
+  "verificacao": "Investigar o que o turno carregou e podar fontes de contexto antes",
+  "commit": null,
+  "criado": "2026-08-08 18:53"
+ },
+ {
+  "id": "melh-4",
+  "status": "feito",
+  "titulo": "Prompt do shell alerta contra servidor/daemon síncrono (lição dos 3 aborts)",
+  "evidencia": "3 aborts do bash em sploit-web.ps1: agente rodou servidor síncrono via tool e estourou timeout de 120s. O harness não ensinava isso.",
+  "verificacao": "Próximo /diagnostico sem novo abort por timeout; agente usa -Detached/background",
+  "commit": "2055266",
+  "criado": "2026-08-08 19:10"
+ },
+ {
+  "id": "melh-5",
+  "status": "negado",
+  "titulo": "Gravar licao no harness: falhas de edit sao disciplina do agente (3x)",
+  "evidencia": "edit falhou 3x (1%) por erro do AGENTE (nao do motor). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\sploit-src\\packages\\tui\\src\\ui\\dialog-tutorial.tsx. Ex.: abort por rodar servidor sincrono, oldString errado.",
+  "verificacao": "Verificar no prompt do shell se a regra foi gravada e a falha nao repete",
+  "commit": null,
+  "criado": "2026-08-08 19:18"
+ },
+ {
+  "id": "melh-6",
+  "status": "feito",
+  "titulo": "Gravar licao no harness: falhas de edit sao disciplina do agente (3x)",
+  "evidencia": "edit falhou 3x (1%) por erro do AGENTE (nao do motor). Ultima: C:\\Users\\Hp\\Desktop\\sploit\\sploit-src\\packages\\tui\\src\\ui\\dialog-tutorial.tsx. Licao sugerida: If the file changed since your last Read (another edit, write, or agent modified it), re-read it before editing. A stale oldString copied from old output is the most common edit failure.",
+  "verificacao": "Gravar a licao em sploit-src\\packages\\opencode\\src\\tool\\edit.txt e confirmar que a falha nao repete",
+  "commit": "875b409",
+  "criado": "2026-08-08 19:19"
+ },
+ {
+  "id": "melh-7",
+  "status": "feito",
+  "titulo": "Retomada automatica apos restart: relaunch envia --prompt e o TUI auto-submete Antes: self-restart relancava --continue sem prompt e o agente voltava esperando input. Agora: relaunch.ps1 -ResumePrompt + app.tsx passa prompt na navegacao + session/index.tsx auto-submete quando sync/model prontos typecheck tui+opencode OK, relaunch real PID 18192->4356, prompt 'continue' enviado e auto-submetido pelo binario novo",
+  "evidencia": "# Evidencia\n\nPor que este candidato existe?",
+  "verificacao": "# Verificacao\n\nComo provar que ficou melhor?",
+  "commit": "51ed96e (tui) + 9933c75 (scripts)",
+  "criado": "2026-08-08 19:34"
+ },
+ {
+  "id": "melh-8",
+  "status": "feito",
+  "titulo": "Grep com path inexistente devolvia 'ripgrep execution failed' (mensagem opaca que engolia a causa). Agora: grep.ts valida o cwd e da 'Path not found: <path>' acionavel; ripgrep.ts preserva a mensagem da causa (PlatformError tem .message) em vez de descartar.",
+  "evidencia": "grep pattern='prompt' path='.../opencode/src/tui/layer.ts' (path inexistente) -> erro opaco 'ripgrep execution failed'. Causa: rg sai com code 2 e stderr util, mas ripgrep.ts:146-150 trocava falha nao-Error por 'ripgrep execution failed' sem o cause; orDie vira die e o agente ve so a mensagem opaca.",
+  "verificacao": "Teste novo test/tool/grep.test.ts 'reports an actionable error when the path does not exist' + ripgrep.test.ts existentes; typecheck opencode+core OK",
+  "commit": null,
+  "criado": "2026-08-08 20:10"
+ },
+ {
+  "id": "melh-9",
+  "status": "feito",
+  "titulo": "Calibrar classify_error do /diagnostico: 'No changes to apply: oldString and newString are identical' era rotulado HARNESS mas e disciplina do agente (o motor edit.ts:75-77 ja protege). Agora reconhecida como AGENTE.",
+  "evidencia": "Diagnostico da sessao rotulou o edit identical como HARNESS (falso positivo): a protecao ja existe no motor, o erro e do agente que passou oldString==newString.",
+  "verificacao": "python -c 'from diagnostico import classify_error; classify_error(\"edit\", \"No changes to apply...\")' -> AGENTE",
+  "commit": "f778d27",
+  "criado": "2026-08-08 20:10"
+ }
 ]

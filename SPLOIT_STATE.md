@@ -158,7 +158,13 @@ Princípios:
   para o yargs, matando o binário. O melh-7 passou porque o prompt era a palavra
   única "continue". Fix: `relaunch.ps1` embute aspas no argumento
   (`"`"$ResumePrompt`""`), validado isoladamente com argtest (prompt longo chegou
-  como um único argumento). Commit `99f1a37` (raiz).
+  como um único argumento). Commit `99f1a37` (raiz). **Validado em restart real
+  (20:11): PID 12860 vivo com binário novo (19:48, melh-8 ativo).**
+- **melh-3 negado (disciplina, não harness)** ✔: pico de 132k num turno (11 bash +
+  4 read + 4 edit + 4 grep) em sessão de 1276 turnos. Causa: `read` acumulou 2,3 MB
+  em 264 chamadas (arquivos de 27-66 KB lidos inteiros repetidamente) + bash 1,68 MB
+  em 550 chamadas. A lição já está no harness (`read.txt` linhas 5-8: offset/limit e
+  grep para arquivos grandes).
 
 ## Próximo passo
 
@@ -170,11 +176,12 @@ rollback → melhoria ativa no binário. O diagnóstico é auto-classificante (H
 AGENTE) e o restart agora retoma o trabalho sozinho (melh-7).
 
 **Próximo passo**:
-1. Rodar o self-restart com o fix do relaunch (melh-10): o restart de 20:04 falhou
-   porque o `-ResumePrompt` longo quebrava no PS 5.1; agora com aspas embutidas.
-2. Após o restart, reindexar o Graphify (novos scripts/comandos/FILA e mudanças no motor — melh-6 a melh-9).
-3. Avaliar melh-3 (pico de contexto 132k) como próximo candidato de harness.
-4. Rodar `/diagnostico` para medir a sessão e ver se as lições do harness reduziram falhas.
+1. Concluir a sessão: commitar FILA_MELHORIAS.json (melh-3 negado, melh-9 com commit)
+   + SPLOIT_STATE.md atualizado, reindexar Graphify se necessário.
+2. Rodar `/diagnostico` na próxima sessão para ver se as lições do harness (edit, read)
+   e o melh-8 (grep acionável) reduziram falhas reais.
+3. Próximos candidatos da fila (todos negados/feitos até agora): avaliar se novos
+   defeitos HARNESS surgem no diagnóstico.
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
@@ -220,6 +227,12 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   (PID 724 morreu, rollback → PID 12908 binário antigo), causa raiz = `-ArgumentList`
   do PS 5.1 sem re-quoting; fix `relaunch.ps1` com aspas embutidas validado
   isoladamente (argtest: prompt longo chegou como 1 argumento), commit `99f1a37` ✔
+- **Restart real 20:11 (melh-10 ativo)**: self-restart com `-ResumePrompt` longo
+  (espaços + parênteses) — relaunch.log `[OK] Sploit novo vivo (PID 12860)`, binário
+  novo 19:48 (melh-8) no sploit.exe, sessão retomou e auto-submeteu o prompt ✔
+- **melh-3 negado** (disciplina, não harness): pico 132k = read 2,3 MB em 264 chamadas
+  + bash 1,68 MB; lição já no read.txt. Graphify reindexado: 28816 nós, 55590 arestas,
+  2466 comunidades ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
