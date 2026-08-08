@@ -28,6 +28,7 @@ Princípios:
 - [x] Iteração 1: base sólida (typecheck-clean + Graphify + dicas PT-BR)
 - [x] Iteração 2: TUI 100% PT-BR (traduções validadas no binário)
 - [x] Iteração 3: economia de tokens (poda do estado -55%, diagnóstico, disciplina de tools)
+- [ ] Iteração 4: identidade (marca PT-BR no rodapé — feito; avaliar próximos)
 
 ## Progresso
 
@@ -58,6 +59,11 @@ Princípios:
   Flag de injeção condicional descartada (custo/benefício ruim). Disciplina de contexto
   adotada (Graphify antes de grep; read com limits). Medição: `%TEMP%\sploit\tokens*.py`
   contra `~\.local\share\sploit\opencode-sploit.db`.
+- **Iteração 4** (em curso): identidade — marca do rodapé em PT-BR ("Criado por Flávio
+  Alex", "obrigado por usar o sploit ♥"), commit `d1cc754` no sploit-src, build OK
+  (smoke passou, `.bak` criado), troca via self-restart pendente. Graphify reindexado
+  após Iterações 2-3 (28737 nós, 55500 arestas). `sploit-master.zip` (download
+  duplicado, 83MB) adicionado ao `.gitignore`.
 
 ## Próximo passo
 
