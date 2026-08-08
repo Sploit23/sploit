@@ -446,6 +446,10 @@ def classify_error(tool, err):
         return "AGENTE"
     if "could not find oldstring" in e:
         return "AGENTE"
+    if "identical" in e and "oldstring" in e:
+        return "AGENTE"
+    if "no changes to apply" in e:
+        return "AGENTE"
     if "multiple exact matches" in e:
         return "AGENTE"
     if "status code" in e or "non 2xx" in e or "404" in e or "403" in e:

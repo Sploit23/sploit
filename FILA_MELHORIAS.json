@@ -61,5 +61,23 @@
     "verificacao": "# Verificacao\n\nComo provar que ficou melhor?",
     "commit": "51ed96e (tui) + 9933c75 (scripts)",
     "criado": "2026-08-08 19:34"
+  },
+  {
+    "id": "melh-8",
+    "status": "feito",
+    "titulo": "Grep com path inexistente devolvia 'ripgrep execution failed' (mensagem opaca que engolia a causa). Agora: grep.ts valida o cwd e da 'Path not found: <path>' acionavel; ripgrep.ts preserva a mensagem da causa (PlatformError tem .message) em vez de descartar.",
+    "evidencia": "grep pattern='prompt' path='.../opencode/src/tui/layer.ts' (path inexistente) -> erro opaco 'ripgrep execution failed'. Causa: rg sai com code 2 e stderr util, mas ripgrep.ts:146-150 trocava falha nao-Error por 'ripgrep execution failed' sem o cause; orDie vira die e o agente ve so a mensagem opaca.",
+    "verificacao": "Teste novo test/tool/grep.test.ts 'reports an actionable error when the path does not exist' + ripgrep.test.ts existentes; typecheck opencode+core OK",
+    "commit": null,
+    "criado": "2026-08-08 20:10"
+  },
+  {
+    "id": "melh-9",
+    "status": "feito",
+    "titulo": "Calibrar classify_error do /diagnostico: 'No changes to apply: oldString and newString are identical' era rotulado HARNESS mas e disciplina do agente (o motor edit.ts:75-77 ja protege). Agora reconhecida como AGENTE.",
+    "evidencia": "Diagnostico da sessao rotulou o edit identical como HARNESS (falso positivo): a protecao ja existe no motor, o erro e do agente que passou oldString==newString.",
+    "verificacao": "python -c 'from diagnostico import classify_error; classify_error(\"edit\", \"No changes to apply...\")' -> AGENTE",
+    "commit": null,
+    "criado": "2026-08-08 20:10"
   }
 ]
