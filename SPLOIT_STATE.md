@@ -123,24 +123,31 @@ Princípios:
   synchronously; use -Detached/Start-Process/start /b". Typecheck OK, build smoke OK,
   self-restart real validado (PID 3956→32, relaunch.log 19:08), prompt ativo nesta
   sessão. Commits: `2055266` (motor) + `8458257` (raiz).
+- **`/diagnostico` auto-classificante (melh-6)** ✔: `classify_error()` distingue
+  HARNESS (motor) de AGENTE (disciplina) por falha de ferramenta; `lesson_graved()`
+  detecta se a lição já está no prompt do harness (bash→`shell/prompt.ts`,
+  edit→`edit.txt`) e propõe o texto exato a gravar. Resultado real: 0 defeitos do
+  motor, 7 erros de disciplina do agente; bash e edit reconhecidos como lições já
+  gravadas → sem candidatos duplicados. Lição do edit gravada no prompt
+  (`edit.txt`: reler se o arquivo mudou antes de editar — oldString obsoleto é a
+  falha nº1). Commits: `875b409` (motor) + `e1bb64c` (raiz).
 
 ## Próximo passo
 
 **Novo diferencial — "o agente que melhora o próprio arnês"** (Iteração 7) — **em curso**.
 
-O primeiro ciclo ponta-a-ponta foi validado (melh-4): diagnóstico → fila → aprovação →
+Dois ciclos ponta-a-ponta validados (melh-4 e melh-6): diagnóstico → fila → aprovação →
 typecheck → build → commit → self-restart com rollback → prompt novo ativo no binário.
-O relançamento desanexado foi validado em restart real (PID 3956→32).
+O diagnóstico agora é auto-classificante: distingue defeito do harness de erro do agente
+e propõe a lição exata a gravar no prompt da ferramenta certa.
 
 **Próximo passo**:
 1. Reindexar o Graphify (novos scripts/comandos/FILA — mudanças de código).
-2. Rodar `/diagnostico --fila` de novo e avaliar os candidatos com o usuário; a lição
-   do melh-4 (candidatos da fila eram disciplina do agente, não bugs) deve virar
-   critério do próprio diagnóstico: distinguir "defeito do harness" de "erro do agente".
-3. Teste manual da fase 1 no celular (Open Project + Home) continua valendo (web pausada).
+2. Rodar o self-restart para ativar o melh-6 no binário (lição do edit.txt) — smoke OK,
+   falta a troca; validar relaunch.log e o prompt ativo na sessão nova.
+3. Avaliar melh-3 (pico de contexto 132k) como próximo candidato de harness.
 
-Fase 2 (depois, só se usuário pedir): bot Telegram. Candidatos futuros: medir baseline
-com /saude.
+Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
 ## Verificação
 
@@ -169,6 +176,9 @@ com /saude.
 - Ciclo ponta-a-ponta melh-4: typecheck opencode OK, build smoke `0.1.0-sploit` OK,
   self-restart real (PID 3956→32, relaunch.log 19:08:27, binário trocado do dist/),
   prompt do shell com a regra anti-servidor-síncrono ativo nesta sessão ✔
+- Ciclo ponta-a-ponta melh-6: typecheck opencode OK (0 erros), build smoke OK
+  (backup criado; cópia aguardando self-restart), commits `875b409` + `e1bb64c`,
+  diagnóstico validado: `--fila` reconhece lições de bash e edit como já gravadas ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
