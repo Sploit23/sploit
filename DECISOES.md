@@ -65,3 +65,13 @@
   por cópia direta.
 - **Alternativas rejeitadas**: sobrescrever `sploit.exe` direto (IOException em uso).
 - **Status**: ativa
+
+
+## [2026-08-08] Decisoes indexadas no grafo de conhecimento
+- **Decisao**: DECISOES.md participa do Graphify (reindexado) e e citado no AGENTS.md
+  como memoria a consultar antes de decisoes relevantes.
+- **Motivo**: decisao e o ativo mais valioso entre sessoes — indexar no grafo permite
+  retomar contexto por referencia (graphify query) em qualquer sessao futura.
+- **Alternativas rejeitadas**: manter so no SPLOIT_STATE.md (fonte unica = ponto de falha
+  e custo de contexto).
+- **Status**: ativa

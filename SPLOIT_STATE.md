@@ -77,6 +77,8 @@ Princípios:
   entrada, 38,2M cache read (92,4% eficiente), 474 turnos, pico 144k,
   6 compactações, custo estimado US$ 24,18. Comandos ativos no binário atual
   (PID 3240, config lida no boot). Bug do restart corrigido (relaunch desanexado).
+  Decisões indexadas no grafo: DECISOES.md reindexado (28756 nós, 55518 arestas,
+  2427 comunidades) + AGENTS.md aponta para consultá-lo antes de decisões.
 
 ## Próximo passo
 
@@ -87,8 +89,8 @@ prontos e ativos no binário atual (PID 3240). Decisão tomada com autonomia do 
   - Bug do restart corrigido: relançamento desanexado via `relaunch.ps1`
     (janela nova agora volta sozinha; validação pendente no próximo restart real).
 Próximos candidatos, em ordem de valor:
-  1. Continuar a cola de diferenciais (ex.: memória de decisões indexada no grafo
-     para retomar contexto entre sessões; compactação com consciência de grafo).
+  1. Continuar a cola de diferenciais (ex.: compactação com consciência de grafo;
+     retomar contexto entre sessões por referência ao grafo, não texto achatado).
   2. Rodar `/saude` periodicamente para medir impacto das mudanças na economia.
   3. Validar o relaunch desanexado num restart real com mudança de binário.
 
@@ -103,6 +105,7 @@ Próximos candidatos, em ordem de valor:
 - Iteração 2 validada no binário (PID 19732); usuário confirmou ("ficou muito bom") ✔
 - Iteração 4 validada no binário (PID 17976) — marca PT-BR no rodapé ✔
 - Iteração 5: `/saude` rodado com saída real (474 turnos, 92,4% cache, pico 144k, US$ 24,18) ✔
+- Graphify reindexado com DECISOES.md (28756 nós, 55518 arestas, 2427 comunidades) ✔
 - relaunch desanexado testado isoladamente (PID antigo 999999 → relançou `--continue` e
   verificou sobrevivência; processo de teste removido) ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔

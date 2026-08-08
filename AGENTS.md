@@ -8,12 +8,15 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
 - `sploit.exe` — binário compilado (build; não commitar). Gerado por `scripts/build-sploit.ps1`.
 - `sploit.json` — config do projeto (MCP do Graphify + instructions).
 - `SPLOIT_STATE.md` — memória viva de auto-melhoria (lida em toda sessão).
+- `DECISOES.md` — memória de decisões de arquitetura (o porquê). Consultar antes
+  de decisões relevantes; registrar com `/decisao`.
 - `venv/` — ambiente Python usado pelo Graphify (não commitar).
 
 ## Auto-melhoria (protocolo obrigatório)
 
 - **Início de sessão**: leia `SPLOIT_STATE.md`. Se houver `# Próximo passo`, continue de lá — não recomece do zero.
 - **Conclusão de passo**: atualize `SPLOIT_STATE.md` (Progresso + Próximo passo) **antes** de encerrar/reiniciar. Nunca terminar uma sessão com o estado desatualizado.
+- **Decisões**: antes de decisões relevantes, consulte `DECISOES.md`; ao decidir, registre com `/decisao`.
 - **Mudanças no motor**: rode `bun typecheck` (em `sploit-src/packages/opencode`) e `scripts/build-sploit.ps1` antes de reiniciar o binário; registre o resultado na seção `# Verificação`.
 - **Mudanças de config/skills/plugins**: lembre o usuário de reiniciar (config não é hot-reloaded).
 - **Escopo**: cada alteração em `sploit-src/` é um commit atômico em separado; nunca misturar com mudanças de config.
