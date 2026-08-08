@@ -8,13 +8,22 @@
 ## Missão
 
 Transformar o Sploit em uma das melhores ferramentas de codificação do mercado —
-rápida, confiável, com identidade própria forte e reconhecimento mundial.
+rápida, confiável, com identidade própria forte e reconhecimento mundial. O
+objetivo real: a pessoa dizer *"não consigo mais programar sem o Sploit"*.
 
 Princípios:
-- Qualidade acima de quantidade; cada mudança deve ter propósito claro.
+- **Básico bem feito > quantidade de recursos.** Cada mudança deve ter propósito
+  claro e elevar qualidade/confiabilidade — nunca "quanto mais, melhor".
+- **Economia de tokens é estratégica.** Tudo que reduz contexto desperdiçado
+  (memória, grafo, compactação, ferramentas certas) é prioridade alta.
+- **Identidade e distanciamento do fork.** A cada iteração, o Sploit deve se
+  parecer menos com o opencode e mais consigo mesmo (TUI, idioma, UX, marca,
+  diferenciais exclusivos).
 - Verificável: typecheck/build/test antes de considerar um passo concluído.
 - Pequenos commits atômicos; nunca quebrar a árvore do repo raiz.
 - A memória é a fundação: SPLOIT_STATE.md é a fonte da verdade entre sessões.
+- Pesquisar novidades na internet com parcimônia: observar, filtrar, e só
+  adotar o que serve à identidade — sem perseguir hype.
 
 ## Plano
 
@@ -27,8 +36,10 @@ Princípios:
 - [x] Atualizar AGENTS.md global com regra de leitura do estado
 - [x] Validar config e commitar checkpoint inicial
 - [x] Criar ciclo de auto-atualização seguro (build com backup + smoke test + rollback + /atualizar)
-- [ ] Validar empiricamente o ciclo (reiniciar via self-restart.ps1 em uma mudança real)
-- [ ] Iteração 1 de melhorias (definir com análise do motor)
+- [x] Validar empiricamente o ciclo (reiniciar via self-restart.ps1 em uma mudança real)
+- [ ] Iteração 1: base sólida — typecheck-clean, Graphify indexado, dicas PT-BR confirmadas
+- [ ] Iteração 2: diferenciais de identidade (TUI/marca/UX próprios, longe do fork)
+- [ ] Iteração 3: economia de tokens (medir contexto, compactação, tools certas)
 
 ## Progresso
 
@@ -80,13 +91,17 @@ Princípios:
 
 ## Próximo passo
 
-Após o `scripts/self-restart.ps1` (que relança com `--continue`):
-1. Confirmar que o binário novo está rodando (as dicas da home aparecem em PT-BR).
-2. Validar a injeção do `SPLOIT_STATE.md` no contexto (Instruções do arquivo) na sessão nova.
-3. Registrar o resultado (sucesso ou rollback) em `# Verificação`.
-4. Próxima iteração de melhorias: investigar os erros pré-existentes de typecheck em
-   `src/plugin/index.ts` (pacote duplicado `@opencode-ai/plugin` no node_modules) e/ou
-   reindexar o Graphify (`/graphify .`).
+Ciclo de melhoria validado ✔. Iteração 1 — **base sólida**:
+1. **Typecheck-clean**: investigar e resolver os 2 erros pré-existentes em
+   `sploit-src/packages/opencode/src/plugin/index.ts` (pacote duplicado
+   `@opencode-ai/plugin@1.18.11` no `node_modules` vs `packages/plugin`). Prioridade
+   alta: sem typecheck-clean não dá para dizer que a base é sólida.
+2. **Graphify indexado**: rodar `/graphify .` (a última tentativa falhou porque
+   `graphify-out/graph.json` não existe). É o pilar de economia de tokens.
+3. **Confirmar visualmente** as dicas PT-BR na home (usuário confirma).
+
+Depois disso, Iteração 2 (diferenciais de identidade) com pesquisa na internet:
+filtrar novidades que sirvam à identidade do Sploit, sem perseguir hype.
 
 ## Verificação
 
