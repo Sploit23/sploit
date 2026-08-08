@@ -138,18 +138,30 @@ Princípios:
   sync+model prontos (padrão da Home). Validado em restart real: PID 18192→4356,
   prompt "continue" enviado e auto-submetido pelo binário novo — a sessão atual
   retomou sozinha sem input do usuário. Commits: `51ed96e` (tui) + `9933c75` (raiz).
+- **Erro acionável do grep (melh-8)** ✔: diagnóstico com 2 defeitos HARNESS revelou
+  que grep com path inexistente devolvia `ripgrep execution failed` — mensagem opaca
+  que engolia a causa real (spawn falha com `PlatformError`, não `Error` JS, e o
+  `mapError` do ripgrep.ts:146-150 descartava a mensagem; `orDie` virava die). Fix:
+  `grep.ts` valida o `cwd` calculado e lança `Path not found: <path>` acionável;
+  `ripgrep.ts` preserva a mensagem da causa (`messageOf()`). Teste novo
+  (grep.test.ts "reports an actionable error") + 7 testes passam, typecheck
+  opencode+core OK, build smoke `0.1.0-sploit`. Commit `fd91e8a` (motor) + raiz.
+- **Falso positivo do diagnóstico (melh-9)** ✔: `No changes to apply: oldString and
+  newString are identical` era rotulado HARNESS, mas é disciplina do agente (o motor
+  edit.ts:75-77 já protege). `classify_error` agora reconhece "identical"/"no changes
+  to apply" como AGENTE. Commit `f778d27` (raiz).
 
 ## Próximo passo
 
 **Novo diferencial — "o agente que melhora o próprio arnês"** (Iteração 7) — **em curso**.
 
-Três ciclos ponta-a-ponta validados (melh-4, melh-6 e melh-7): diagnóstico → fila →
-aprovação → typecheck → build → commit → self-restart com rollback → prompt novo ativo
-no binário. O diagnóstico é auto-classificante (HARNESS vs AGENTE) e o restart agora
-retoma o trabalho sozinho (melh-7).
+Cinco ciclos ponta-a-ponta validados (melh-4, melh-6, melh-7, melh-8 e melh-9):
+diagnóstico → fila → aprovação → typecheck → build → commit → self-restart com
+rollback → melhoria ativa no binário. O diagnóstico é auto-classificante (HARNESS vs
+AGENTE) e o restart agora retoma o trabalho sozinho (melh-7).
 
 **Próximo passo**:
-1. Reindexar o Graphify (novos scripts/comandos/FILA e mudanças no motor — melh-6 e melh-7).
+1. Reindexar o Graphify (novos scripts/comandos/FILA e mudanças no motor — melh-6 a melh-9).
 2. Avaliar melh-3 (pico de contexto 132k) como próximo candidato de harness.
 3. Rodar `/diagnostico` para medir a sessão e ver se as lições do harness reduziram falhas.
 
@@ -189,6 +201,10 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   relaunch real PID 18192→4356 com `-ResumePrompt "continue"`, prompt enviado e
   auto-submetido pelo binário novo (sessão retomou sem input), commits `51ed96e`
   (tui) + `9933c75` (scripts) ✔
+- Ciclo ponta-a-ponta melh-8: typecheck opencode+core OK, 7 testes grep passam
+  (inclui "reports an actionable error"), build smoke `0.1.0-sploit` OK (backup
+  criado; cópia aguardando self-restart), commit `fd91e8a` (motor) + raiz,
+  classificação validada: `classify_error("edit", "No changes to apply...")` → AGENTE ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
