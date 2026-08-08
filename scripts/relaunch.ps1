@@ -61,10 +61,15 @@ if ($NeedsCopy) {
 }
 
 # --- 3. Relança em janela nova ----------------------------------------------
+# ATENÇÃO (bug 2026-08-08 20:04): Start-Process -ArgumentList com array em
+# PowerShell 5.1 concatena os elementos com espaço SEM re-quotar. Um prompt com
+# espaços/parênteses virava "--prompt continue o trabalho: reindexar (...)" e o
+# yargs interpretava os pedaços como posicionais inválidos -> o binário morria
+# logo após o relaunch. As aspas precisam estar embutidas no próprio argumento.
 $argsList = @("--continue")
 if ($ResumePrompt) {
     $argsList += "--prompt"
-    $argsList += $ResumePrompt
+    $argsList += "`"$ResumePrompt`""
     Log "Prompt de retomada enviado: $ResumePrompt"
 }
 $p = Start-Process -FilePath $exePath -ArgumentList $argsList -WorkingDirectory $Root -PassThru
