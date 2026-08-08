@@ -29,7 +29,7 @@ Princípios:
 - [x] Iteração 2: TUI 100% PT-BR (traduções validadas no binário)
 - [x] Iteração 3: economia de tokens (poda do estado -55%, diagnóstico, disciplina de tools)
 - [x] Iteração 4: identidade (marca PT-BR no rodapé — validada no binário PID 17976)
-- [ ] Iteração 5: diferenciais funcionais (`/saude`, `/planejar`, `/decisao`, `/resumo` — feitos; avaliar próximos)
+- [x] Iteração 5: diferenciais funcionais (`/saude`, `/planejar`, `/decisao`, `/resumo`)
 
 ## Progresso
 
@@ -84,17 +84,15 @@ Princípios:
 
 ## Próximo passo
 
-Iteração 5 em curso — diferenciais funcionais. `/saude`, `/planejar` e `/decisao`
-prontos e ativos no binário atual (PID 3240). Decisão tomada com autonomia do usuário:
-  - Custo estimado local no `/saude` (US$ 24,18 na sessão atual).
-  - `DECISOES.md` + `/decisao` como memória de decisões (o porquê).
-  - Bug do restart corrigido: relançamento desanexado via `relaunch.ps1`
-    (janela nova agora volta sozinha; validação pendente no próximo restart real).
-Próximos candidatos, em ordem de valor:
-  1. Continuar a cola de diferenciais (ex.: compactação com consciência de grafo;
-     retomar contexto entre sessões por referência ao grafo, não texto achatado).
-  2. Rodar `/saude` periodicamente para medir impacto das mudanças na economia.
-  3. Validar o relaunch desanexado num restart real com mudança de binário.
+Iteração 5 **concluída** — 4 diferenciais funcionais ativos no binário (PID 3240):
+`/saude`, `/planejar`, `/decisao`, `/resumo`. Memória de trabalho indexada no grafo
+(DECISOES.md + NOTAS.md). Bug do restart corrigido (relaunch desanexado).
+
+Iteração 6 (próxima) — candidatos, em ordem de valor:
+  1. Validar o relaunch desanexado num restart real com mudança de binário.
+  2. Medir o impacto das Iterações 4-5 com `/saude` (nova baseline de custo/tokens).
+  3. Compactação com consciência de grafo (mudança no motor — exige typecheck+build;
+     avaliar com `/planejar` antes de tocar em `sploit-src/`).
 
 ## Verificação
 
