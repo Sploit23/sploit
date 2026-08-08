@@ -10,6 +10,8 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
 - `SPLOIT_STATE.md` — memória viva de auto-melhoria (lida em toda sessão).
 - `DECISOES.md` — memória de decisões de arquitetura (o porquê). Consultar antes
   de decisões relevantes; registrar com `/decisao`.
+- `NOTAS.md` — memória temporal de trabalho (o quê/histórico por sessão). Registrar
+  com `/resumo`; indexada no Graphify para retomar contexto por referência.
 - `venv/` — ambiente Python usado pelo Graphify (não commitar).
 
 ## Auto-melhoria (protocolo obrigatório)

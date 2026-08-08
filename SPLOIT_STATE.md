@@ -29,7 +29,7 @@ Princípios:
 - [x] Iteração 2: TUI 100% PT-BR (traduções validadas no binário)
 - [x] Iteração 3: economia de tokens (poda do estado -55%, diagnóstico, disciplina de tools)
 - [x] Iteração 4: identidade (marca PT-BR no rodapé — validada no binário PID 17976)
-- [ ] Iteração 5: diferenciais funcionais (`/saude`, `/planejar`, `/decisao` — feitos; avaliar próximos)
+- [ ] Iteração 5: diferenciais funcionais (`/saude`, `/planejar`, `/decisao`, `/resumo` — feitos; avaliar próximos)
 
 ## Progresso
 
@@ -79,6 +79,8 @@ Princípios:
   (PID 3240, config lida no boot). Bug do restart corrigido (relaunch desanexado).
   Decisões indexadas no grafo: DECISOES.md reindexado (28756 nós, 55518 arestas,
   2427 comunidades) + AGENTS.md aponta para consultá-lo antes de decisões.
+  `/resumo` + `NOTAS.md` (memória temporal indexada no grafo; continuidade por
+  referência — reindexado: 28761 nós, 55521 arestas, 2421 comunidades).
 
 ## Próximo passo
 
@@ -106,6 +108,7 @@ Próximos candidatos, em ordem de valor:
 - Iteração 4 validada no binário (PID 17976) — marca PT-BR no rodapé ✔
 - Iteração 5: `/saude` rodado com saída real (474 turnos, 92,4% cache, pico 144k, US$ 24,18) ✔
 - Graphify reindexado com DECISOES.md (28756 nós, 55518 arestas, 2427 comunidades) ✔
+- `/resumo` + NOTAS.md indexado no grafo (28761 nós, 55521 arestas, 2421 comunidades) ✔
 - relaunch desanexado testado isoladamente (PID antigo 999999 → relançou `--continue` e
   verificou sobrevivência; processo de teste removido) ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
