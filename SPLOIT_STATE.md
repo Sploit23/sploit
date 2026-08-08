@@ -119,16 +119,29 @@ Princípios:
   via `self-restart.ps1`: smoke OK (10:21:00), `sploit.exe` trocado (10:15:47, 143.5 MB),
   processo novo PID 2576 (10:21:02), conversa retomada com `--continue`. Usuário
   confirmou e pediu para seguir para a Iteração 2.
+- 2026-08-08: **Iteração 2 — TUI em PT-BR** (commit `815535f` no sploit-src): traduzidos
+  165 trechos em 23 arquivos do `packages/tui/src` — permissões (`permission.tsx`),
+  diálogos (message, subagent, fork, timeline, tutorial, retry-action, provider,
+  delete-failed, model, status, select, export-options), toasts (conectar provedor,
+  sessão excluída, criação de sessão, sem mensagens do assistente), menus/comandos da
+  sessão ("Ir para mensagem", "Desfazer mensagem anterior", "Próxima/Sessão filha
+  anterior"), placeholders do prompt ("Execute um comando -"/"Digite sua mensagem -"),
+  which-key ("Sem atalhos alcançáveis"), diff-viewer (descs + "Sem arquivos"),
+  sidebar/footer/mcp e autocomplete ("Nenhum item correspondente"). Typecheck do `tui`
+  OK (0 erros). Textos OpenCode Zen/Go mantidos (links funcionais para pegar chaves
+  de modelos grátis). Ainda não gerado build (próximo passo).
 
 ## Próximo passo
 
-Iteração 1 ✔ concluída. **Iteração 2 — diferenciais de identidade**:
-1. **Pesquisa na internet**: investigar novidades/referências (TUI, marca, UX de
-   ferramentas de codificação, extensões de terminal) e filtrar o que serve à
-   identidade do Sploit — sem perseguir hype.
-2. **Definir e implementar 1-3 diferenciais concretos** que distanciem o Sploit do
-   fork opencode (TUI/marca/UX/idioma/diferenciais exclusivos).
-3. Verificar: typecheck + build + self-restart; atualizar estado.
+Iteração 2 em andamento — diferencial de identidade escolhido: **idioma PT-BR
+completo na TUI** (feito). Próximos passos:
+1. **Gerar build + self-restart** para o binário entrar com as traduções (rodar
+   `scripts/build-sploit.ps1`; se falhar por arquivo em uso, é esperado — o
+   `self-restart.ps1` faz a troca após encerrar o processo).
+2. Confirmar visualmente as traduções na TUI (home, sessão, permissões, diálogos).
+3. Avaliar se há mais 1-2 diferenciais de identidade concretos (ex.: tool cards/
+   preview, comando `/linguagem`, marca na tela inicial) ou encerrar a Iteração 2.
+4. Atualizar este estado ao concluir.
 
 ## Verificação
 
@@ -148,6 +161,10 @@ Iteração 1 ✔ concluída. **Iteração 2 — diferenciais de identidade**:
   smoke OK (10:21:00), `sploit.exe` = build typecheck-clean (10:15:47, 143.5 MB),
   PID 2576 (10:21:02), conversa retomada ✔
 - Dicas em PT-BR: confirmadas visualmente pelo usuário na home ✔
+- **Iteração 2 — TUI PT-BR**: typecheck do `tui` OK (0 erros) após traduções de
+  permissões, diálogos, menus, placeholders e toasts; commit `815535f` no sploit-src;
+  build OK (`0.1.0-sploit`, smoke passou, `.bak` criado); cópia para `sploit.exe`
+  falhou por arquivo em uso (esperado — troca via self-restart pendente) ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
