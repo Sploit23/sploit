@@ -1,4 +1,4 @@
-# self-restart.ps1 — Reinício seguro do Sploit com rollback automático.
+﻿# self-restart.ps1 — Reinício seguro do Sploit com rollback automático.
 #
 # Ciclo de auto-melhoria:
 #   1. build-sploit.ps1 recompila o binário (dist/opencode-windows-x64) e cria
