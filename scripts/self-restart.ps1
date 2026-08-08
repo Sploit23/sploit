@@ -89,6 +89,17 @@ if (-not $SkipSmoke) {
 Write-Host "[2/4] Encerrando processo atual do Sploit..."
 $current = Get-Process sploit -ErrorAction SilentlyContinue
 if ($current) {
+    # Dispara o relauncher desanexado ANTES de matar: ele roda em um processo
+    # PowerShell próprio, sobrevive à morte do console e garante o relaunch.
+    # Sem isso, o script e o console que o hospeda morrem junto com o Sploit,
+    # e a janela nova às vezes não volta (bug observado em 2026-08-08).
+    $relauncher = Join-Path $PSScriptRoot "relaunch.ps1"
+    $oldPid = $current[0].Id
+    $relaunchArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$relauncher`" -OldPid $oldPid -Root `"$root`""
+    if ($needsCopy) { $relaunchArgs += " -NeedsCopy" }
+    Start-Process powershell.exe -ArgumentList $relaunchArgs -WindowStyle Hidden
+    Write-Host "      relauncher desanexado disparado (espera o PID $oldPid sair e relanca --continue)."
+    Start-Sleep -Seconds 1
     $current | Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
     Write-Host "      processo(s) encerrado(s): $($current.Id -join ', ')"
@@ -97,42 +108,10 @@ if ($current) {
 }
 
 # ---------------------------------------------------------------------------
-# 2.5 Troca o binário (só agora que o arquivo está livre)
+# 3. Término — a troca e o relaunch agora acontecem no relauncher desanexado
 # ---------------------------------------------------------------------------
-if ($needsCopy) {
-    Write-Host "[2.5/4] Copiando binario novo para sploit.exe..."
-    Copy-Item $distExe $exePath -Force
-    Write-Host "      sploit.exe atualizado."
-}
-
-# ---------------------------------------------------------------------------
-# 3. Relança com --continue em uma janela nova
-# ---------------------------------------------------------------------------
-Write-Host "[3/4] Relancando sploit.exe (--continue) em janela nova..."
-$started = Start-Process -FilePath $exePath -ArgumentList "--continue" -WorkingDirectory $root -PassThru
-Start-Sleep -Seconds 8
-
-# ---------------------------------------------------------------------------
-# 4. Verifica sobrevivência; rollback se o processo novo morreu
-# ---------------------------------------------------------------------------
-$alive = Get-Process -Id $started.Id -ErrorAction SilentlyContinue
-if ($alive) {
-    Write-Host "[4/4] Sploit novo rodando (PID $($started.Id)). Sucesso!" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Se a janela nova nao apareceu, rode manualmente: sploit --continue"
-    exit 0
-}
-
-Write-Host "[4/4] O processo novo MORREU apos o relaunch." -ForegroundColor Red
-
-if (Test-Path $bakPath) {
-    Write-Host "[ROLLBACK] Restaurando sploit.exe.bak (known-good)..."
-    Copy-Item $bakPath $exePath -Force
-    Write-Host "[ROLLBACK] Relancando com o binario antigo..."
-    Start-Process -FilePath $exePath -ArgumentList "--continue" -WorkingDirectory $root
-    Write-Host "[ROLLBACK] Binario antigo restaurado e relancado. O Sploit volta a abrir." -ForegroundColor Green
-    exit 2
-}
-
-Write-Host "[FALHA] Nao ha backup (sploit.exe.bak) para rollback. Rode build-sploit.ps1 para regenerar." -ForegroundColor Red
-exit 1
+Write-Host "[3/4] Troca de binario e relancamento delegados ao relauncher (processo independente)."
+Write-Host ""
+Write-Host "Acompanhe: logs\relaunch.log"
+Write-Host "Se a janela nova nao aparecer em ~15s, rode manualmente: sploit --continue"
+exit 0

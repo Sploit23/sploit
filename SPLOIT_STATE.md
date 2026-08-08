@@ -40,7 +40,10 @@ Princípios:
   relança `--continue`, restaura `.bak` se o binário novo morrer; `/atualizar`.
   Bugs corrigidos: cópia pós-kill (arquivo em uso), `NativeCommandError` do PS 5.1
   no doctor (`$ErrorActionPreference="Continue"` temporário), BOM UTF-8 obrigatório
-  em .ps1 (senão acentos corrompem o parse).
+  em .ps1 (senão acentos corrompem o parse), **relançamento desanexado**
+  (`relaunch.ps1` — antes, matar o Sploit levava junto o console que hospedava o
+  comando e a janela nova às vezes não voltava; agora o relauncher roda num
+  processo PowerShell próprio, espera o PID antigo sair e relança sozinho).
 - **Iteração 1** ✔: typecheck-clean do monorepo via shim `packages/plugin-legacy`
   (nome `@opencode-ai/plugin` → re-exporta `@sploit-ai/plugin`, exports
   `.`/`./tool`/`./tui`/`./v2/effect`/`./v2/promise`) + `overrides` no package.json
@@ -65,26 +68,29 @@ Princípios:
   novo (11:03:42) validado no processo atual (PID 17976). Graphify reindexado
   após Iterações 2-3 (28737 nós, 55500 arestas). `sploit-master.zip` (download
   duplicado, 83MB) adicionado ao `.gitignore`.
-- **Iteração 5** (em curso): diferenciais funcionais — `/saude` (script
+- **Iteração 5** ✔ (em curso): diferenciais funcionais — `/saude` (script
   `scripts/saude.py` lê o DB e reporta tokens/custo/cache/compactações/contexto
   efetivo em PT-BR, com custo estimado local quando o provider não reporta),
   `/planejar` (mapeia impacto no grafo antes de editar; comunidades afetadas +
   plano de verificação) e `/decisao` (registra decisões de arquitetura em
   `DECISOES.md` — o porquê, não o quê). Diagnóstico real: 2,99M tokens de
   entrada, 38,2M cache read (92,4% eficiente), 474 turnos, pico 144k,
-  6 compactações, custo estimado US$ 24,18. Config não é hot-reloaded.
+  6 compactações, custo estimado US$ 24,18. Comandos ativos no binário atual
+  (PID 3240, config lida no boot). Bug do restart corrigido (relaunch desanexado).
 
 ## Próximo passo
 
 Iteração 5 em curso — diferenciais funcionais. `/saude`, `/planejar` e `/decisao`
-prontos e validados (saída real do DB acima). Decisão tomada com autonomia do usuário:
+prontos e ativos no binário atual (PID 3240). Decisão tomada com autonomia do usuário:
   - Custo estimado local no `/saude` (US$ 24,18 na sessão atual).
   - `DECISOES.md` + `/decisao` como memória de decisões (o porquê).
+  - Bug do restart corrigido: relançamento desanexado via `relaunch.ps1`
+    (janela nova agora volta sozinha; validação pendente no próximo restart real).
 Próximos candidatos, em ordem de valor:
-  1. Reiniciar o Sploit (config não é hot-reloaded) para ativar os 3 comandos.
-  2. Continuar a cola de diferenciais (ex.: memória de decisões indexada no grafo
-     para retomar contexto entre sessões).
-  3. Rodar `/saude` periodicamente para medir impacto das mudanças na economia.
+  1. Continuar a cola de diferenciais (ex.: memória de decisões indexada no grafo
+     para retomar contexto entre sessões; compactação com consciência de grafo).
+  2. Rodar `/saude` periodicamente para medir impacto das mudanças na economia.
+  3. Validar o relaunch desanexado num restart real com mudança de binário.
 
 ## Verificação
 
@@ -97,6 +103,8 @@ Próximos candidatos, em ordem de valor:
 - Iteração 2 validada no binário (PID 19732); usuário confirmou ("ficou muito bom") ✔
 - Iteração 4 validada no binário (PID 17976) — marca PT-BR no rodapé ✔
 - Iteração 5: `/saude` rodado com saída real (474 turnos, 92,4% cache, pico 144k, US$ 24,18) ✔
+- relaunch desanexado testado isoladamente (PID antigo 999999 → relançou `--continue` e
+  verificou sobrevivência; processo de teste removido) ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
