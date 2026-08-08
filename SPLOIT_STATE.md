@@ -28,7 +28,8 @@ Princípios:
 - [x] Iteração 1: base sólida (typecheck-clean + Graphify + dicas PT-BR)
 - [x] Iteração 2: TUI 100% PT-BR (traduções validadas no binário)
 - [x] Iteração 3: economia de tokens (poda do estado -55%, diagnóstico, disciplina de tools)
-- [ ] Iteração 4: identidade (marca PT-BR no rodapé — feito; avaliar próximos)
+- [x] Iteração 4: identidade (marca PT-BR no rodapé — validada no binário PID 17976)
+- [ ] Iteração 5: diferenciais funcionais (`/saude`, `/planejar` — feitos; avaliar próximos)
 
 ## Progresso
 
@@ -59,27 +60,26 @@ Princípios:
   Flag de injeção condicional descartada (custo/benefício ruim). Disciplina de contexto
   adotada (Graphify antes de grep; read com limits). Medição: `%TEMP%\sploit\tokens*.py`
   contra `~\.local\share\sploit\opencode-sploit.db`.
-- **Iteração 4** (em curso): identidade — marca do rodapé em PT-BR ("Criado por Flávio
-  Alex", "obrigado por usar o sploit ♥"), commit `d1cc754` no sploit-src, build OK
-  (smoke passou, `.bak` criado), troca via self-restart pendente. Graphify reindexado
+- **Iteração 4** ✔: identidade — marca do rodapé em PT-BR ("Criado por Flávio
+  Alex", "obrigado por usar o sploit ♥"), commit `d1cc754` no sploit-src; binário
+  novo (11:03:42) validado no processo atual (PID 17976). Graphify reindexado
   após Iterações 2-3 (28737 nós, 55500 arestas). `sploit-master.zip` (download
   duplicado, 83MB) adicionado ao `.gitignore`.
+- **Iteração 5** (em curso): diferenciais funcionais — `/saude` (script
+  `scripts/saude.py` lê o DB e reporta tokens/custo/cache/compactações/contexto
+  efetivo em PT-BR) e `/planejar` (mapeia impacto no grafo antes de editar;
+  comunidades afetadas + plano de verificação). Diagnóstico real: 2,85M tokens
+  de entrada, 37,5M cache read (92,7% eficiente), 455 turnos, pico 144k,
+  6 compactações, 518 chamadas de ferramenta. Config não é hot-reloaded.
 
 ## Próximo passo
 
-Iteração 3 **concluída** — decisão (Sploit):
-- **Poda do SPLOIT_STATE.md** (feita): 3.344 → ~1.500 tokens/turno (-55%). Commit `bda293d`.
-- **Flag de injeção condicional**: NÃO implementada — custo/benefício ruim (mudança
-  invasiva no motor para ganho marginal, já que quase sempre há `# Próximo passo`
-  pendente). Registrar como possível futura.
-- **Disciplina de contexto** (adotada, sem build): consultar Graphify antes de grep em
-  base grande; `read` com offsets/limits; evitar despejar tool output no contexto.
-- Restart limpo executado (estado 100% commitado antes).
-
-Próximos passos (após restart):
-  1. Confirmar que a sessão nova carrega o estado enxuto e segue fluida.
-  2. Avaliar nova iteração (identidade, confiabilidade ou usabilidade).
-  3. Manter a regra 2: este arquivo custa tokens/turno — podar periodicamente.
+Iteração 5 em curso — diferenciais funcionais. `/saude` e `/planejar` prontos e
+validados (saída real do DB acima). Próximos candidatos, em ordem de valor:
+  1. Continuar na cola de diferenciais funcionais (ex.: memória de decisões
+     indexada no grafo para retomar contexto entre sessões).
+  2. Rodar `/saude` periodicamente para medir impacto das mudanças na economia.
+  3. Avaliar com o usuário quais diferenciais valem o esforço de build no motor.
 
 ## Verificação
 
@@ -90,6 +90,8 @@ Próximos passos (após restart):
 - self-restart validado 2x (Iterações 1 e 2): smoke OK, `.bak` criado, conversa
   retomada com `--continue` ✔
 - Iteração 2 validada no binário (PID 19732); usuário confirmou ("ficou muito bom") ✔
+- Iteração 4 validada no binário (PID 17976) — marca PT-BR no rodapé ✔
+- Iteração 5: `/saude` rodado com saída real (455 turnos, 92,7% cache, pico 144k) ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
