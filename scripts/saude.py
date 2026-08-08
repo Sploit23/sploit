@@ -14,9 +14,29 @@ from pathlib import Path
 
 DB = Path.home() / ".local" / "share" / "sploit" / "opencode-sploit.db"
 
+# Precos estimados por milhao de tokens (USD) quando o provider nao reporta custo.
+# Ajuste conforme o modelo/proxy usado. 0 desliga a estimativa.
+PRICE_INPUT = 3.0
+PRICE_OUTPUT = 15.0
+PRICE_CACHE_READ = 0.30
+PRICE_CACHE_WRITE = 1.50
+
 
 def fmt(n):
     return f"{n:,.0f}".replace(",", ".")
+
+
+def estimate_cost(ti, to, tc, tw, tr, reported=0):
+    if reported and reported > 0:
+        return reported
+    if not (PRICE_INPUT or PRICE_OUTPUT):
+        return 0.0
+    return (
+        ti * PRICE_INPUT
+        + (to + tr) * PRICE_OUTPUT
+        + tc * PRICE_CACHE_READ
+        + tw * PRICE_CACHE_WRITE
+    ) / 1_000_000
 
 
 def main():
@@ -52,6 +72,8 @@ def main():
     tw = tw or 0
     tr = tr or 0
     cost = cost or 0
+    est = estimate_cost(ti, to, tc, tw, tr, cost)
+    est_note = " (estimado)" if cost == 0 and est > 0 else ""
 
     print(f"=== SAUDE DA SESSAO: {sid[:20]}... ===")
     print(f"Titulo : {title or '(sem titulo)'}")
@@ -61,7 +83,7 @@ def main():
     print(f"Tokens de saida     : {fmt(to)}")
     print(f"Tokens em cache     : {fmt(tc)} (read) / {fmt(tw)} (write)")
     print(f"Tokens de raciocinio: {fmt(tr)}")
-    print(f"Custo estimado      : US$ {cost:.4f}")
+    print(f"Custo estimado      : US$ {est:.4f}{est_note}")
     if ti + to > 0:
         print(f"Eficiencia de cache : {100 * tc / (tc + ti + to):.1f}% dos tokens vieram do cache")
     print()

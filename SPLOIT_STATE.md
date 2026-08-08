@@ -29,7 +29,7 @@ Princípios:
 - [x] Iteração 2: TUI 100% PT-BR (traduções validadas no binário)
 - [x] Iteração 3: economia de tokens (poda do estado -55%, diagnóstico, disciplina de tools)
 - [x] Iteração 4: identidade (marca PT-BR no rodapé — validada no binário PID 17976)
-- [ ] Iteração 5: diferenciais funcionais (`/saude`, `/planejar` — feitos; avaliar próximos)
+- [ ] Iteração 5: diferenciais funcionais (`/saude`, `/planejar`, `/decisao` — feitos; avaliar próximos)
 
 ## Progresso
 
@@ -67,19 +67,24 @@ Princípios:
   duplicado, 83MB) adicionado ao `.gitignore`.
 - **Iteração 5** (em curso): diferenciais funcionais — `/saude` (script
   `scripts/saude.py` lê o DB e reporta tokens/custo/cache/compactações/contexto
-  efetivo em PT-BR) e `/planejar` (mapeia impacto no grafo antes de editar;
-  comunidades afetadas + plano de verificação). Diagnóstico real: 2,85M tokens
-  de entrada, 37,5M cache read (92,7% eficiente), 455 turnos, pico 144k,
-  6 compactações, 518 chamadas de ferramenta. Config não é hot-reloaded.
+  efetivo em PT-BR, com custo estimado local quando o provider não reporta),
+  `/planejar` (mapeia impacto no grafo antes de editar; comunidades afetadas +
+  plano de verificação) e `/decisao` (registra decisões de arquitetura em
+  `DECISOES.md` — o porquê, não o quê). Diagnóstico real: 2,99M tokens de
+  entrada, 38,2M cache read (92,4% eficiente), 474 turnos, pico 144k,
+  6 compactações, custo estimado US$ 24,18. Config não é hot-reloaded.
 
 ## Próximo passo
 
-Iteração 5 em curso — diferenciais funcionais. `/saude` e `/planejar` prontos e
-validados (saída real do DB acima). Próximos candidatos, em ordem de valor:
-  1. Continuar na cola de diferenciais funcionais (ex.: memória de decisões
-     indexada no grafo para retomar contexto entre sessões).
-  2. Rodar `/saude` periodicamente para medir impacto das mudanças na economia.
-  3. Avaliar com o usuário quais diferenciais valem o esforço de build no motor.
+Iteração 5 em curso — diferenciais funcionais. `/saude`, `/planejar` e `/decisao`
+prontos e validados (saída real do DB acima). Decisão tomada com autonomia do usuário:
+  - Custo estimado local no `/saude` (US$ 24,18 na sessão atual).
+  - `DECISOES.md` + `/decisao` como memória de decisões (o porquê).
+Próximos candidatos, em ordem de valor:
+  1. Reiniciar o Sploit (config não é hot-reloaded) para ativar os 3 comandos.
+  2. Continuar a cola de diferenciais (ex.: memória de decisões indexada no grafo
+     para retomar contexto entre sessões).
+  3. Rodar `/saude` periodicamente para medir impacto das mudanças na economia.
 
 ## Verificação
 
@@ -91,7 +96,7 @@ validados (saída real do DB acima). Próximos candidatos, em ordem de valor:
   retomada com `--continue` ✔
 - Iteração 2 validada no binário (PID 19732); usuário confirmou ("ficou muito bom") ✔
 - Iteração 4 validada no binário (PID 17976) — marca PT-BR no rodapé ✔
-- Iteração 5: `/saude` rodado com saída real (455 turnos, 92,7% cache, pico 144k) ✔
+- Iteração 5: `/saude` rodado com saída real (474 turnos, 92,4% cache, pico 144k, US$ 24,18) ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
