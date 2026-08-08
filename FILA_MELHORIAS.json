@@ -52,5 +52,14 @@
     "verificacao": "Gravar a licao em sploit-src\\packages\\opencode\\src\\tool\\edit.txt e confirmar que a falha nao repete",
     "commit": "875b409",
     "criado": "2026-08-08 19:19"
+  },
+  {
+    "id": "melh-7",
+    "status": "feito",
+    "titulo": "Retomada automatica apos restart: relaunch envia --prompt e o TUI auto-submete Antes: self-restart relancava --continue sem prompt e o agente voltava esperando input. Agora: relaunch.ps1 -ResumePrompt + app.tsx passa prompt na navegacao + session/index.tsx auto-submete quando sync/model prontos typecheck tui+opencode OK, relaunch real PID 18192->4356, prompt 'continue' enviado e auto-submetido pelo binario novo",
+    "evidencia": "# Evidencia\n\nPor que este candidato existe?",
+    "verificacao": "# Verificacao\n\nComo provar que ficou melhor?",
+    "commit": "51ed96e (tui) + 9933c75 (scripts)",
+    "criado": "2026-08-08 19:34"
   }
 ]

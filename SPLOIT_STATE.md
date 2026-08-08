@@ -131,21 +131,27 @@ Princípios:
   gravadas → sem candidatos duplicados. Lição do edit gravada no prompt
   (`edit.txt`: reler se o arquivo mudou antes de editar — oldString obsoleto é a
   falha nº1). Commits: `875b409` (motor) + `e1bb64c` (raiz).
+- **Retomada automática pós-restart (melh-7)** ✔: antes, o self-restart relançava
+  `--continue` sem prompt e o agente voltava esperando input. Agora: `relaunch.ps1`
+  aceita `-ResumePrompt` (repassado por `self-restart.ps1`), o `app.tsx` navega com o
+  prompt no `--continue` e a rota de sessão (`session/index.tsx`) auto-submete quando
+  sync+model prontos (padrão da Home). Validado em restart real: PID 18192→4356,
+  prompt "continue" enviado e auto-submetido pelo binário novo — a sessão atual
+  retomou sozinha sem input do usuário. Commits: `51ed96e` (tui) + `9933c75` (raiz).
 
 ## Próximo passo
 
 **Novo diferencial — "o agente que melhora o próprio arnês"** (Iteração 7) — **em curso**.
 
-Dois ciclos ponta-a-ponta validados (melh-4 e melh-6): diagnóstico → fila → aprovação →
-typecheck → build → commit → self-restart com rollback → prompt novo ativo no binário.
-O diagnóstico agora é auto-classificante: distingue defeito do harness de erro do agente
-e propõe a lição exata a gravar no prompt da ferramenta certa.
+Três ciclos ponta-a-ponta validados (melh-4, melh-6 e melh-7): diagnóstico → fila →
+aprovação → typecheck → build → commit → self-restart com rollback → prompt novo ativo
+no binário. O diagnóstico é auto-classificante (HARNESS vs AGENTE) e o restart agora
+retoma o trabalho sozinho (melh-7).
 
 **Próximo passo**:
-1. Reindexar o Graphify (novos scripts/comandos/FILA — mudanças de código).
-2. Rodar o self-restart para ativar o melh-6 no binário (lição do edit.txt) — smoke OK,
-   falta a troca; validar relaunch.log e o prompt ativo na sessão nova.
-3. Avaliar melh-3 (pico de contexto 132k) como próximo candidato de harness.
+1. Reindexar o Graphify (novos scripts/comandos/FILA e mudanças no motor — melh-6 e melh-7).
+2. Avaliar melh-3 (pico de contexto 132k) como próximo candidato de harness.
+3. Rodar `/diagnostico` para medir a sessão e ver se as lições do harness reduziram falhas.
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
@@ -179,6 +185,10 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
 - Ciclo ponta-a-ponta melh-6: typecheck opencode OK (0 erros), build smoke OK
   (backup criado; cópia aguardando self-restart), commits `875b409` + `e1bb64c`,
   diagnóstico validado: `--fila` reconhece lições de bash e edit como já gravadas ✔
+- Ciclo ponta-a-ponta melh-7: typecheck tui+opencode OK (0 erros), build smoke OK,
+  relaunch real PID 18192→4356 com `-ResumePrompt "continue"`, prompt enviado e
+  auto-submetido pelo binário novo (sessão retomou sem input), commits `51ed96e`
+  (tui) + `9933c75` (scripts) ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
 
 ## Armadilhas
