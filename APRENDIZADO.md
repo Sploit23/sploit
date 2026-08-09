@@ -9,6 +9,11 @@
 
 ## Lições
 
+- **L-git — Para desfazer UMA feature, usar `git revert <commit>`, não `reset` para um commit-base** (origem: G5 perdida).
+  O reset desfaz tudo que veio depois do commit-base. Um revert da small_model
+  fez `reset` para 2bbca6e e jogou fora a Geração 5 (72851dd) junto — a memória
+  (SPLOIT_STATE) ficou registrando "G5 ativada" e o binário nunca teve a mutação.
+
 - **L-bash — Nunca rodar servidor/daemon de forma síncrona** (origem: 3 aborts no sploit-web).
   Um servidor rodado na tool de shell trava até o timeout de 120s. Usar
   `Start-Process`/`-Detached`/`start /b` e retornar na hora.

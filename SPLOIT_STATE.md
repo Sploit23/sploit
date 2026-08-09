@@ -343,6 +343,19 @@ Princípios:
   diagnóstico da raiz apontam para `sploit.db` com fallback para o legado
   (commit raiz `0598f13`). Typecheck monorepo 16/16; falhas pré-existentes do
   core confirmadas (2) sem novas.
+- **G5 RECUPERADA (lição de processo)** ✔: ao investigar por que o reminder de
+  verificação parecia fraco, grep por `VERIFY_PROMPT` no código atual não achou
+  nada — e `git merge-base --is-ancestor 72851dd HEAD` → exit 1. A G5
+  (`72851dd`) **nunca foi ancestral do HEAD**: o revert da small_model fez
+  `reset` para `2bbca6e` (G4) em vez de `git revert` do commit, jogando fora a
+  G5 junto; as Fases 1-4 da desvinculação foram construídas sobre o commit sem
+  ela e o binário atual (c34739b) nunca teve a mutação. A medição "pós" (4,2%)
+  era o comportamento natural do modelo (meta.txt), não a mutação. Recuperada
+  via `git cherry-pick -n 72851dd` (aplicou limpo, 167 inserções): typecheck
+  opencode OK, 12 testes de reminders OK, build smoke `0.1.0-sploit` OK
+  (backup criado; cópia do exe em uso — troca via self-restart). Commit motor
+  `5c75238`. Lição no APRENDIZADO (L-git) + NOTAS.md. **Re-medir a taxa de
+  verificação agora com a mutação ATIVA de verdade.**
 
 ## Próximo passo
 
@@ -376,18 +389,21 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   injeta o `VERIFY_PROMPT` (typecheck/build/test); detecção de verificação
   generosa (typecheck/tsgo/bun test/test/build/pytest/go test/cargo/npm/pnpm/
   yarn). 4 testes novos + 80 de regressão OK; typecheck opencode OK; build
-  smoke `0.1.0-sploit` OK (backup criado); self-restart ativou no binário
-  (PID 18648, exe 01:13:43). Commit motor `72851dd`. **Medição (baseline)**:
-  `scripts/medicao_mutacoes.py` — verificação pós-edição de código 2,4%
-  (9/374), consulta ao grafo em centrais 0% (0/1) — meta pós-mutações:
-  >> 2,4% e > 0%.
+  smoke `0.1.0-sploit` OK (backup criado); **self-restart ativou no binário
+  (PID 18648, exe 01:13:43) — MAS a mutação foi perdida depois no revert da
+  small_model e recuperada em `5c75238` (ver Progresso); ativação real no
+  binário atual pendente via self-restart**. Commit motor `72851dd`
+  (recuperado). **Medição (baseline)**: `scripts/medicao_mutacoes.py` —
+  verificação pós-edição de código 2,4% (9/374), consulta ao grafo em centrais
+  0% (0/1) — meta pós-mutações: >> 2,4% e > 0%.
 
 **Próximo passo** (desvinculação concluída; validação real feita — ver Progresso):
-1. **Medição pós-mutações (1ª rodada feita)**: G5 verificação 2,5% → **4,2%**
-   (9/359 → 3/71); G4 grafo em centrais: pré **0/37** (0%), pós **sem amostra**
-   (0 edições em centrais ainda). Re-medir após mais sessões acumuladas no DB
-   (script com filtro `--desde`/`--ate` UTC; mutações ativas desde 09/08 04:13
-   UTC). Meta: >> 2,5% e > 0%.
+1. **G5 recuperada — ativar e re-medir de verdade**: a 1ª rodada (G5 4,2%,
+   G4 0/37 pré) mediu o comportamento natural do modelo (a mutação não estava
+   no binário). Após o self-restart com o binário novo (`5c75238`), re-medir a
+   verificação pós-edição com a mutação ATIVA (script com filtro
+   `--desde`/`--ate` UTC; mutações ativas desde 09/08 04:13 UTC; self-restart
+   a partir de agora). Meta: >> 2,5% e > 0%.
 2. **Próxima sessão dedicada (desvinculação, pendências)**: renomear a pasta
    `packages/opencode` (decisão do usuário: não agora, mas ficou como item);
    renomear o workspace `@opencode-ai/cli` → `@sploit-ai/cli` (único restante
@@ -548,7 +564,17 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   `node.get("degree")` + falsos positivos de basename). Fix no script (degree
   pelos links, file_type code, match por sufixo). Resultado real: pré — G5 2,5%
   (9/359), G4 0% (0/37); pós — G5 **4,2%** (3/71), G4 sem amostra (0 edições
-  em centrais). G5 com tendência positiva; G4 inconclusivo ✔
+   em centrais). G5 com tendência positiva; G4 inconclusivo ✔
+- **G5 recuperada e validada (lição de processo)**: `git merge-base --is-ancestor
+  72851dd HEAD` → exit 1 provou que a mutação nunca esteve no binário (perdida no
+  revert da small_model — reset para 2bbca6e em vez de git revert); recuperada via
+  `git cherry-pick -n 72851dd` (aplicou limpo); typecheck opencode OK (0 erros);
+  12 testes de reminders passam (inclui os 4 novos da G5); build smoke
+  `0.1.0-sploit` OK (backup criado; cópia do exe em uso — troca via self-restart
+  pendente). Commit motor `5c75238`; lição L-git no APRENDIZADO + nota em NOTAS.md ✔
+- **Atenção (re-medir G5)**: a 1ª rodada "pós" (4,2%) mediu o comportamento
+  natural do modelo — a mutação não estava no binário. A re-medição real só vale
+  após o self-restart com o binário novo (`5c75238`).
 
 ## Armadilhas
 

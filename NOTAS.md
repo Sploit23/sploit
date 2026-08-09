@@ -6,6 +6,34 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] G5 perdida no revert da small_model — recuperada (lição de processo)
+- **Como raciocinei**: ao investigar por que o reminder G5 (verificação pós-edição)
+  parecia fraco, fui ler o código em vez de confiar na memória — e `grep` por
+  `VERIFY_PROMPT` no `reminders.ts` atual não achou NADA. Confirmei no git: o
+  commit da G5 (`72851dd`) **não é ancestral do HEAD** (`git merge-base
+  --is-ancestor` → exit 1). A causa: o revert da small_model fez `reset` do
+  sploit-src para `2bbca6e` (G4) em vez de `git revert` do commit específico
+  (`5cbe9a1`) — o reset desfez TUDO que veio depois do 2bbca6e, incluindo a G5.
+  As Fases 1-4 da desvinculação foram construídas sobre o commit sem ela, e o
+  binário atual (c34739b, 13:01) NUNCA teve a mutação. Ou seja: os "4,2%" que
+  medimos eram o comportamento natural do modelo via meta.txt, não a mutação —
+  e o SPLOIT_STATE.md registrava "G5 ativada" (memória errada do projeto).
+- **O que valeu a pena**: (1) G-causaraiz de novo — o sintoma ("G5 fraca") tinha
+  uma causa estrutural: a mutação não existia; (2) reler o código em vez de
+  aceitar o estado documentado — a memória do projeto pode mentir; (3) o diff da
+  G5 estava intacto no commit órfão e aplicou limpo via `git cherry-pick -n`
+  (reminders.ts + teste, 167 inserções); (4) o ciclo de validação pegou tudo:
+  typecheck OK, 12 testes de reminders OK, build smoke `0.1.0-sploit` OK.
+- **Verificado**: commit motor `5c75238`; typecheck opencode OK; `bun test
+  test/session/reminders.test.ts` → 12 pass; build smoke OK (backup criado;
+  cópia do exe em uso — troca via self-restart). A G5 agora está no código de
+  verdade; re-medir a taxa de verificação pós-edição com a mutação ATIVA.
+- **Lição de processo**: para desfazer UMA feature, usar `git revert <commit>`
+  (desfaz só ele), não `reset` para um commit-base (desfaz tudo que veio depois).
+- **Referências**: sploit-src/packages/opencode/src/session/reminders.ts
+  (VERIFY_PROMPT), git log --oneline (2bbca6e → c34739b sem 72851dd),
+  SPLOIT_STATE.md (corrigido)
+
 ## [2026-08-09] Medição pós-mutações G3/G4/G5 — 1ª rodada real (art. 6)
 - **Como raciocinei**: para medir o "depois" sem misturar períodos, dei ao
   `medicao_mutacoes.py` filtro de tempo (`--desde`/`--ate` UTC) e separei a
