@@ -20,6 +20,33 @@ Princípios:
 - Memória é a fundação: SPLOIT_STATE.md é a fonte da verdade entre sessões.
 - Pesquisar novidades com parcimônia: observar, filtrar, adotar só o que serve.
 
+## Constituição — o Sploit como organismo que evolui o próprio corpo
+
+> O diferencial que ninguém tem: **o código do Sploit é o produto final da evolução**.
+> Cada sessão é uma geração. O corpo (harness + memória + DNA) muda com propósito
+> e validação — não por erro, mas por observação de sucesso.
+
+1. **O corpo, não o comportamento.** Lições ensinam a não errar (comportamento);
+   a Constituição trata do harness: o pipeline de raciocínio (como recebe, planeja,
+   decide, age), a memória e as regras de evolução. Melhoria estrutural gerada por
+   observação, não por fracasso.
+2. **Aprendizado por sucesso (reforço positivo).** O Sploit observa o que DEU CERTO
+   em cada tarefa e destila uma técnica (gene positivo) que viaja pela nuvem. Erro
+   é sinal barulhento; sucesso é sinal limpo do que funciona.
+3. **Geração a cada sessão:** Observar → Refletir → Mutar o corpo → Validar
+   (typecheck/build/medir) → Manter ou reverter. Nada entra no corpo sem medição.
+4. **Nota de evolução pós-tarefa.** Ao concluir uma tarefa, registrar *"como
+   raciocinei e o que valeu a pena"* — não o que errei. Forma o estilo de raciocínio
+   próprio do Sploit.
+5. **O usuário é parceiro de criação, não espectador.** Ideias "loucas" viram
+   experimentos baratos no próprio corpo, com validação e dados. Cada uma que
+   funciona vira gene; cada uma que não funciona é descartada com evidência.
+6. **Validação é inegociável.** Tipo: typecheck + build + smoke + medição da falha
+   antes/depois. Confirmada → mantém. Não mediu → reverte.
+7. **Rede de amigos = pontos de evolução.** O PC do amigo não tem o código-fonte,
+   mas gera a evidência (padrões de sucesso/falha) que dispara mutações no PC com
+   `sploit-src`; o binário novo volta pela rede. Evolução distribuída.
+
 ## Plano
 
 - [x] Memória persistente (SPLOIT_STATE.md + instructions + /retomar)
@@ -31,6 +58,8 @@ Princípios:
 - [x] Iteração 4: identidade (marca PT-BR no rodapé — validada no binário PID 17976)
 - [x] Iteração 5: diferenciais funcionais (`/saude`, `/planejar`, `/decisao`, `/resumo`)
 - [ ] Iteração 6: acesso remoto (fase 1 rede local feita; fase 2 Telegram)
+- [ ] Iteração 8: evolução do corpo (Constituição) — reforço positivo, nota de
+      evolução, primeira mutação estrutural medida
 
 ## Progresso
 
@@ -196,6 +225,31 @@ Princípios:
   - **Pendente (ação do usuário)**: rodar `deploy-conhecimento.ps1` (conta
     Cloudflare grátis), copiar a URL + senha para o PC dos amigos, regenerar o
     `dist/`. Remover `wrangler.toml` id placeholder antes do deploy.
+- **Lição que se prova (Iteração 7.4)** ✔ (implementada): placar de eficácia no
+  APRENDIZADO.md — seção `## Placar de eficácia` com o estado por lição
+  (`? verificar | n/3` → `ok confirmada`). Transições automáticas no
+  `diagnostico.py`: (a) lição recém-gravada nasce `? verificar`; (b) se as últimas
+  3 sessões do DB (via `historico_falhas_agente`) não tiveram falha AGENTE da
+  ferramenta → `ok confirmada`; (c) se uma confirmada volta a falhar → `! fraca`
+  e gera candidato de HARNESS automaticamente (fila). `sync_lessons` passou a
+  inserir lição nova ANTES do placar (que fica no fim). Placar viaja na nuvem
+  junto com o APRENDIZADO.md (push real validado: pull 200 com placar).
+  Validações: py_compile OK, testes fake dos 3 cenários (transição 2/3→confirmada,
+  falha hoje reseta, confirmada+falha→candidato), idempotência real (2ª execução
+  sem duplicar), diagnóstico real gravou 2 lições + placar no arquivo coletivo.
+- **Constituição (Iteração 8, marco conceitual)** ✔ (formalizada no topo deste
+  arquivo): o Sploit como organismo que evolui o próprio corpo. Sete artigos —
+  corpo ≠ comportamento; reforço positivo; geração a cada sessão
+  (Observar→Refletir→Mutar→Validar→Manter/Reverter); nota de evolução pós-tarefa;
+  usuário parceiro de criação; validação inegociável; rede de amigos como pontos
+  de evolução. Geração 1 (nota de evolução + primeiro gene medido) agendada no
+  Próximo passo.
+- **Geração 1 — nota de evolução automática** ✔: ao concluir tarefas, o Sploit
+  registra em NOTAS.md *"como raciocinei e o que valeu a pena"* (reforço positivo),
+  sem comando do usuário — `/resumo` virou legado. AGENTS.md raiz atualizado
+  (regra da nota de evolução + NOTAS.md com registro automático); primeira nota
+  desta sessão registrada (Geração 1). Direção do usuário: eliminar slashes aos
+  poucos — quem decide o momento é o próprio Sploit.
 
 ## Próximo passo
 
@@ -244,15 +298,26 @@ testados isoladamente.
     real: pull 200 (47 bytes), push 200, senha errada → aviso sem quebrar.
 
 **Próximo passo**:
-1. **Distribuir aos amigos**: enviar `dist/sploit-20260808-2243.zip`. Eles só
+1. **Lição que se prova (implementada nesta sessão)**: placar de eficácia no
+   APRENDIZADO.md — `? verificar → ok confirmada → ! fraca`. Confirmada que volta
+   a falhar gera candidato de HARNESS automaticamente. Commitar (prévia do diff:
+   só `scripts/diagnostico.py`).
+2. **Distribuir aos amigos**: enviar `dist/sploit-20260808-2243.zip`. Eles só
    descompactam e dão duplo clique em `INSTALAR.cmd` — conhecimento coletivo
    conecta sozinho (config embutida no pacote).
-2. **Agendador diário no PC do amigo** (Task Scheduler): rodar
+3. **Agendador diário no PC do amigo** (Task Scheduler): rodar
    `sync-conhecimento.ps1 -URL <url> -Action pull` para receber lições dos outros.
-3. Confirmar que o `/diagnostico` do PC do usuário faz POST de lições para a nuvem.
-4. Commit das mudanças (raiz) quando o usuário pedir.
+4. Confirmar que o `/diagnostico` do PC do usuário faz POST de lições para a nuvem.
 5. Decidir se `deploy-conhecimento.ps1` precisa de ajuste (o fluxo real usou
    comandos manuais + API para o subdomínio, não o script todo).
+6. **Iteração 8 — evolução do corpo (Constituição)**: começar pela Geração 1 —
+   nota de evolução pós-tarefa (reforço positivo) + definir o primeiro gene
+   estrutural com medição.
+7. **Geração 2 — destilar genes positivos**: a partir das notas de evolução em
+   NOTAS.md, o Sploit identifica técnicas que funcionaram (ex.: grafo antes de
+   grep, read com limits) e as propõe como mutação estrutural do harness com
+   medição — eliminando mais um slash (candidato: `/planejar` tornando-se
+   automático quando o grafo indicar impacto).
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
@@ -341,6 +406,12 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   47 bytes + push real 200 (senha errada → aviso sem quebrar) ✔; INSTALAR.cmd sem BOM e
   ASCII puro ✔; pacote `dist/sploit-20260808-2243.zip` gerado com conhecimento.txt embutido
   e senha <oculta> confirmada fora da tela ✔
+- **Placar de eficácia (Iteração 7.4)**: py_compile OK; testes fake dos 3 cenários
+  (2/3→ok confirmada; falha hoje reseta; confirmada+falha→`! fraca` + candidato harness);
+  idempotência real (2ª execução sem duplicar); diagnóstico real (sessão mais recente)
+  gravou 2 lições + placar `? verificar 0/3` no arquivo coletivo; push real para a nuvem
+  validado (pull 200 retorna APRENDIZADO.md com placar). Unicode do arquivo conferido por
+  bytes (UTF-8 sem BOM, em-dash `e2 80 94`) — `�` no console é só display do PS 5.1 ✔
 
 ## Armadilhas
 

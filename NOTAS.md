@@ -2,7 +2,23 @@
 
 > Detalhe histórico do quê foi feito por sessão (o SPLOIT_STATE.md guarda o estado
 > vivo e o DECISOES.md as decisões). Indexado no Graphify — sessões futuras
-> recuperam por `graphify query`, não por texto achatado. Registrar: `/resumo`.
+> recuperam por `graphify query`, não por texto achatado.
+> **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
+> ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
+
+## [2026-08-08] Geração 1 — nota de evolução automática (Constituição)
+- **Como raciocinei**: a conversa saiu de "aprender com erros" para "evoluir o
+  corpo" (o harness, não o comportamento). O usuário apontou — corretamente — que
+  lição = comportamento, e que a estrela é o motor. Distilei a Constituição em 7
+  artigos (SPLOIT_STATE.md) e comecei a Geração 1.
+- **O que valeu a pena**: separar *corpo ≠ comportamento* muda o alvo de tudo —
+  o placar de eficácia (7.4) já era o embrião de evolução por sucesso; a nota de
+  evolução pós-tarefa é a primeira mutação estrutural. Slashes viram legado: quem
+  decide o momento é o próprio Sploit, não o usuário.
+- **Verificado**: AGENTS.md raiz sem `/resumo`; NOTAS.md com registro automático;
+  SPLOIT_STATE.md com a Constituição formalizada.
+- **Pendente**: próxima geração — o Sploit destilar genes positivos a partir das
+  notas (ex.: grafo antes de grep) e medir a primeira mutação estrutural.
 
 ## [2026-08-08] Iteracao 5 — diferenciais funcionais
 - **Feito**: comandos `/saude` (scripts/saude.py: tokens, custo estimado, cache,

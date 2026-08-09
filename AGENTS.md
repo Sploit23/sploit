@@ -13,8 +13,9 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
   sem comando do usuário.
 - `DECISOES.md` — memória de decisões de arquitetura (o porquê). Consultar antes
   de decisões relevantes; registrar com `/decisao`.
-- `NOTAS.md` — memória temporal de trabalho (o quê/histórico por sessão). Registrar
-  com `/resumo`; indexada no Graphify para retomar contexto por referência.
+- `NOTAS.md` — memória temporal de trabalho (o quê/histórico por sessão). Registrada
+  AUTOMATICAMENTE pelo Sploit ao concluir tarefas (nota de evolução, reforço positivo);
+  indexada no Graphify para retomar contexto por referência. `/resumo` é legado.
 - `venv/` — ambiente Python usado pelo Graphify (não commitar).
 - `scripts/sploit-web.ps1` — servidor web do Sploit acessível pela rede local
   (celular), com senha em `sploit-web.secret` (gitignored). Subir com
@@ -29,6 +30,7 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
   `/melhorar`. Slash fica para intenção do usuário (ex.: `/status`, `/ajuda`).
 - **Início de sessão**: leia `SPLOIT_STATE.md`. Se houver `# Próximo passo`, continue de lá — não recomece do zero.
 - **Conclusão de passo**: atualize `SPLOIT_STATE.md` (Progresso + Próximo passo) **antes** de encerrar/reiniciar. Nunca terminar uma sessão com o estado desatualizado.
+- **Nota de evolução (Constituição, art. 4)**: ao concluir uma tarefa, registre em `NOTAS.md` *"como raciocinei e o que valeu a pena"* — reforço positivo, sem pedir comando do usuário (nunca `/resumo`; é legado). O objetivo é formar o estilo de raciocínio próprio do Sploit.
 - **Decisões**: antes de decisões relevantes, consulte `DECISOES.md`; ao decidir, registre com `/decisao`.
 - **Mudanças no motor**: rode `bun typecheck` (em `sploit-src/packages/opencode`) e `scripts/build-sploit.ps1` antes de reiniciar o binário; registre o resultado na seção `# Verificação`.
 - **Mudanças de config/skills/plugins**: lembre o usuário de reiniciar (config não é hot-reloaded).
