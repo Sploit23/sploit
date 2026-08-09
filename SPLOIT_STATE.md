@@ -387,10 +387,22 @@ Princípios:
   via `Layer.mock` capturando `updateMessage`/`updatePart`); typecheck opencode OK;
   **25/25 reminders**; build smoke `0.1.0-sploit` OK (backup criado; cópia em uso
   — troca via self-restart pendente). Commit motor `8430925`.
+- **Geração 8 — "o arquivo lembra" (memória procedural por arquivo)** ✔:
+  primeira mutação com ideia própria do Sploit (pedido do usuário: "não só se
+  ajustar"). Diferente dos reminders genéricos, a G8 é **contextual e ancorada**:
+  `findFileErrors(messages)` percorre a janela de mensagens e mapeia arquivo →
+  erro real de tool (turnos anteriores ao atual); quando o assistant volta a
+  editar um arquivo com erro conhecido, o harness injeta o erro passado no
+  userMessage antes da edição ("releia o estado e a causa — evite repetir").
+  Sem estado global (deriva dos próprios messages), erros do turno atual ficam
+  com o ROOT_CAUSE (sem dupla injeção), silêncio para arquivos limpos, não
+  duplica no turno. 4 testes novos; typecheck opencode OK; **29/29 reminders**;
+  383 pass na suíte de sessão (2 revert-compact pré-existentes); build smoke
+  `0.1.0-sploit` OK. Commit motor `da7e4ee`.
 
 ## Próximo passo
 
-**Iteração 8 — Constituição (evolução do corpo): Gerações 1–7 + Iteração B concluídas.**
+**Iteração 8 — Constituição (evolução do corpo): Gerações 1–8 + Iteração B concluídas.**
 
 O usuário rejeitou features de "agente de dev comum" e definiu a direção: **o
 Sploit evolui o próprio corpo** — memória viva + grafo + ciclo seguro de
@@ -444,15 +456,23 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   quando a última user message é gate. 7 testes novos (mock do Session
   capturando updateMessage/updatePart); typecheck opencode OK; 25/25 reminders;
   build smoke `0.1.0-sploit` OK (backup criado). Commit motor `8430925`.
+- **Geração 8** ✔: "o arquivo lembra" — memória procedural **por arquivo**.
+  `findFileErrors(messages)` mapeia arquivo → erro real de tool em turnos
+  anteriores; ao editar um arquivo com erro conhecido, o harness injeta o erro
+  passado no userMessage ("releia o estado e a causa — evite repetir"). Sem
+  estado global, erros do turno atual ficam com o ROOT_CAUSE, silêncio para
+  arquivos limpos, não duplica. 4 testes novos; typecheck opencode OK; 29/29
+  reminders; build smoke `0.1.0-sploit` OK. Commit motor `da7e4ee`.
 
 **Próximo passo** (desvinculação concluída; validação real feita — ver Progresso):
-1. **Ativar G5+G6+G7 no binário e re-medir de verdade**: a 1ª rodada (G5 4,2%,
+1. **Ativar G5–G8 no binário e re-medir de verdade**: a 1ª rodada (G5 4,2%,
    G4 0/37 pré) mediu o comportamento natural do modelo (a mutação não estava
-   no binário). Após o **self-restart com o binário novo (`8430925`, G5+G6+G7
+   no binário). Após o **self-restart com o binário novo (`da7e4ee`, G5+G6+G7
    ativos)**, re-medir a verificação pós-edição com a mutação ATIVA (script com
    filtro `--desde`/`--ate` UTC; mutações ativas desde 09/08 04:13 UTC;
    self-restart a partir de agora). Meta: >> 2,5% e > 0%. Com o proof-gate, o
-   indicador que importa é o de **verificação concluída ANTES do fechamento**.
+   indicador que importa é o de **verificação concluída ANTES do fechamento**;
+   com a G8, medir também **erros repetidos no mesmo arquivo** (devem cair).
 2. **Próxima sessão dedicada (desvinculação, pendências)**: renomear a pasta
    `packages/opencode` (decisão do usuário: não agora, mas ficou como item);
    renomear o workspace `@opencode-ai/cli` → `@sploit-ai/cli` (único restante
@@ -643,6 +663,13 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   install, sem relação com o proof-gate); build smoke `0.1.0-sploit` OK
   (backup criado; cópia do exe em uso — troca via self-restart pendente).
   Commit motor `8430925` ✔
+- **Geração 8 — "o arquivo lembra" validado**: typecheck opencode OK (0 erros);
+  29 testes de reminders passam (25 antigos + 4 novos: injeta o erro passado de
+  um arquivo antes de reeditá-lo, silêncio em arquivo limpo, erro do turno atual
+  fica com o ROOT_CAUSE (sem dupla injeção), não duplica no turno); 383 pass na
+  suíte de sessão (2 revert-compact pré-existentes — 404 do `@sploit-ai/plugin`,
+  sem relação); build smoke `0.1.0-sploit` OK (backup criado; cópia do exe em
+  uso — troca via self-restart pendente). Commit motor `da7e4ee` ✔
 
 ## Armadilhas
 

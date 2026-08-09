@@ -6,6 +6,31 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Geração 8 — "o arquivo lembra" (memória procedural por arquivo)
+- **Como raciocinei**: o usuário cobrou que eu estava só me "ajustando" — G5-G7
+  eram o mesmo padrão (reminder de texto injetado). A primeira ideia PRÓPRIA:
+  memória ancorada no arquivo. Em vez de texto genérico ("verifique", "consulte
+  o grafo"), o harness passa a lembrar que UM ARQUIVO específico já falhou — e
+  quando o modelo volta a editar ESSE arquivo, injeta o erro passado real antes
+  da edição. É conhecimento procedural localizado, não instrução genérica.
+- **O que valeu a pena**: (1) a decisão de DERIVAR a ficha dos próprios
+  `messages` (função pura `findFileErrors`) em vez de estado global — zero
+  wiring novo, testável direto, nada a limpar; (2) excluir erros do turno atual
+  (time >= lastAssistant) deixa o ROOT_CAUSE cuidar do presente e a ficha do
+  passado — sem dupla injeção (testado); (3) erro de tool sem arquivo (bash
+  sem filePath) não vira ficha — a memória só existe onde pode ser ancorada;
+  (4) typecheck pegou de novo: filter sem type guard devolve `Part[]` e o
+  `found[0].text` quebra — guard `part is SessionV1.TextPart` resolve.
+- **Verificado**: commit motor `da7e4ee`; typecheck opencode OK (0 erros); 29/29
+  reminders (4 novos); 383 pass na suíte de sessão (2 revert-compact
+  pré-existentes, 404 do `@sploit-ai/plugin`); build smoke `0.1.0-sploit` OK.
+- **Próximo**: self-restart com o binário novo (G5+G6+G7+G8 ativos) e re-medição
+  real — além da verificação, medir **erros repetidos no mesmo arquivo** (devem
+  cair com a G8).
+- **Referências**: sploit-src/packages/opencode/src/session/reminders.ts
+  (findFileErrors/FILE_MEMORY_PREFIX), test/session/reminders.test.ts
+  (describe file memory)
+
 ## [2026-08-09] Geração 7 — proof-gate: o turno só fecha com a verificação passando
 - **Como raciocinei**: a G6 rodava a verificação no `apply` do próximo turno — mas
   o `break` do runLoop (`prompt.ts`) acontecia ANTES de qualquer verificação, no
