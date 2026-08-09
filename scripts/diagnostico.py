@@ -151,7 +151,11 @@ def push_lessons(added):
                 f"{url}/aprendizado.md",
                 data=body,
                 method="POST",
-                headers={"Content-Type": "text/markdown", "X-Senha": senha},
+                headers={
+                    "Content-Type": "text/markdown",
+                    "X-Senha": senha,
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                },
             )
             with urllib.request.urlopen(req, timeout=30) as resp:
                 if resp.status == 200:

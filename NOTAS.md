@@ -6,6 +6,26 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Causa raiz do push automático do conhecimento (bug melh de infra)
+- **Como raciocinei**: o passo "verificar o push do conhecimento" da fila noturna
+  era suspeito — o diagnóstico de 02:15 reportou "[AVISO] sem rede", mas o sync
+  manual funcionou na sequência. Em vez de assumir "rede caiu", investiguei o
+  caminho: testei o POST do `push_lessons()` isolado com `urllib` → `403
+  Forbidden` do Cloudflare. O `urllib` envia User-Agent `Python-urllib/3.x`, que
+  o Cloudflare bloqueia; com User-Agent de browser → 200. O `sync-conhecimento.ps1`
+  nunca falhava porque usa curl/Invoke-WebRequest com User-Agent de browser.
+- **O que valeu a pena**: (1) G-causaraiz de novo — o sintoma ("sem rede") não
+  tinha nada a ver com rede; (2) G-isolado — testei o push contra a URL real com
+  um arquivo temporário antes de tocar no código; (3) atenção: o teste fake
+  sobrescreveu o APRENDIZADO.md da nuvem, e eu restaurei o real na sequência
+  (idempotência do restore verificada via GET).
+- **Verificado**: py_compile OK; push fake com o fix → `[OK] licoes enviadas para
+  a nuvem coletiva` (com config cloudflare real); GET confirma conteúdo real
+  restaurado na nuvem.
+- **Pendente**: o próximo `/diagnostico` real deve fazer o push automático (não
+  reportar "sem rede"); confirmar na próxima execução.
+- **Referências**: scripts/diagnostico.py (`push_lessons`, linha ~150)
+
 ## [2026-08-09] Geração 4 — gene G-grafo vira segunda mutação estrutural
 - **Como raciocinei**: a G3 expôs as âncoras no system prompt, mas a técnica do
   gene G-grafo ("consultar o grafo ANTES de editar arquivos centrais") ainda

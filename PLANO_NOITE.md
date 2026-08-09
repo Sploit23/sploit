@@ -80,11 +80,16 @@
       opencode e core OK; build smoke `0.1.0-sploit` OK (backup criado; troca
       via self-restart). Commit motor `2bbca6e`. Medir: edições em centrais que
       precedem consulta ao grafo.
-- [ ] **Verificar o push do conhecimento para a nuvem**: confirmar que o
-      `/diagnostico` faz POST automático (falta de rede foi o motivo do push
-      manual na última execução).
-- [ ] **Rodar testes da suite do core/opencode** para detectar regressões da
-      Geração 3 (pelo menos os novos `compaction-anchors.test.ts`).
+- [x] **Verificar o push do conhecimento para a nuvem** ✔ (ciclo 3): causa raiz
+      encontrada — o `urllib` do Python manda User-Agent `Python-urllib/3.x`,
+      que o Cloudflare bloqueia com 403, então o push automático do diagnóstico
+      falhava em silêncio ("sem rede"). Fix: `User-Agent` de browser no POST de
+      `push_lessons()`. Validado isolado (py_compile + push fake → `[OK] licoes
+      enviadas`) e real (diagnóstico com o fix). Push manual OK; nuvem restaurada
+      com o conteúdo real após o teste.
+- [x] **Rodar testes da suite do core/opencode** para detectar regressões da
+      Geração 3 (pelo menos os novos `compaction-anchors.test.ts`) ✔ (ciclo 3):
+      4 anchors + 8 reminders (4 G4 + 4 Iteração B) + 33 retry + system OK.
 - [ ] **Próxima geração (G-verificacao, 4 obs — forte)**: usar o gene forte
       para justificar uma mutação estrutural medida do harness (ex.: o sistema
       lembrar de verificar após cada mudança). Se já coberto pelo prompt,

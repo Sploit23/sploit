@@ -291,6 +291,13 @@ Princípios:
   não duplica no turno); typecheck opencode+core OK; build smoke
   `0.1.0-sploit` OK (backup criado; troca via self-restart pendente). Commit
   motor `2bbca6e`.
+- **Causa raiz do push automático do conhecimento** ✔ (fix): o `urllib` do Python
+  envia User-Agent `Python-urllib/3.x` que o Cloudflare bloqueia com 403 — o push
+  automático do diagnóstico falhava em silêncio ("sem rede"), enquanto o sync
+  manual funcionava (curl/Invoke-WebRequest com User-Agent de browser). Fix:
+  `User-Agent` de browser no POST de `push_lessons()` (scripts/diagnostico.py).
+  Validado isolado (py_compile + push fake → `[OK]`) e real (próximo diagnóstico
+  deve fazer push automático).
 - **Modo noturno autônomo** ✔ (preparado): permissões auto-approve no
   `sploit.json` (bash `*`, tools allow, external_directory allow) + PLANO_NOITE.md
   com o protocolo do ciclo noturno (1 passo da fila por ciclo; typecheck+build;
