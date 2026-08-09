@@ -52,10 +52,11 @@
 - [x] **Preparação**: permissões auto-approve no `sploit.json` (modo noturno) +
       plano criado. Config não é hot-reloaded — vale a partir do próximo
       self-restart (próximo ciclo).
-- [ ] **Ativar as mutações no binário**: o próximo self-restart troca para o
-      binário com G3 (âncoras do grafo no `<env>`) + Iteração B (reminder de
-      causa raiz). Após reiniciar, conferir se o binário novo está ativo
-      (`--version` / PID) e que as permissões auto-approve passaram a valer.
+- [x] **Ativar as mutações no binário** ✔ (ciclo 2, 00:34:56): self-restart
+      relançou com o binário novo (G3 âncoras no `<env>` + Iteração B reminder
+      de causa raiz) — relaunch.log `[OK] PID 4648`; processo atual (7312,
+      boot 00:38:45) roda `sploit.exe` com mtime 00:30:39 = build com as duas
+      mutações; permissões auto-approve do `sploit.json` ativas no boot.
 - [ ] **Medição da Geração 3** (Constituição art. 6): comparar "arquivos
       centrais tocados x falhas" antes/depois da mutação. Manter se melhorar,
       reverter com evidência se não.
