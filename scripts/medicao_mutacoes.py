@@ -1,12 +1,16 @@
-# Medição das mutações estruturais (Constituição art. 6) — baseline pré-G3/G4/G5.
+# Medição das mutações estruturais (Constituição art. 6).
 # Para cada turno (mensagem do assistant) que editou código/arquivo central, olha as
 # próximas 3 mensagens (mesma sessão, <=15min) procurando verificação (G5) ou grafo (G4).
+# Uso: python scripts/medicao_mutacoes.py [--desde "YYYY-MM-DD HH:MM"] [--ate ...]
+# (filtros em UTC; o DB guarda ms UTC. Mutações G3/G4/G5 ativadas em 2026-08-09 01:13 local)
 import sqlite3
 import json
 import os
 import sys
 import re
+import argparse
 from collections import defaultdict
+from datetime import datetime, timezone
 
 _DB_DIR = os.path.join(os.environ["USERPROFILE"], ".local", "share", "sploit")
 DB = os.path.join(_DB_DIR, "sploit.db")
@@ -60,6 +64,18 @@ def main():
     if not os.path.exists(DB):
         print(f"DB nao encontrado: {DB}")
         sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--desde", help="filtra mensagens a partir de (UTC, ex.: 2026-08-09 04:13)")
+    parser.add_argument("--ate", help="filtra mensagens ate (UTC)")
+    args = parser.parse_args()
+
+    def to_ms(s):
+        return int(datetime.strptime(s, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).timestamp() * 1000)
+
+    desde_ms = to_ms(args.desde) if args.desde else 0
+    ate_ms = to_ms(args.ate) if args.ate else 10**18
+    label = f"({args.desde or 'inicio'} a {args.ate or 'hoje'} UTC)"
+
     centrals = load_central_files()
     print(f"Centrais (top-15 degree): {len(centrals)}")
 
@@ -70,6 +86,8 @@ def main():
         "FROM part p ORDER BY p.session_id, p.time_created, p.rowid"
     ).fetchall()
     for sid, mid, t, data in rows:
+        if t < desde_ms or t > ate_ms:
+            continue
         try:
             d = json.loads(data)
         except Exception:
@@ -113,7 +131,7 @@ def main():
                     if is_central and any(x["tool"] in GRAPH_TOOLS for x in tool_parts(d2)):
                         break
 
-    print("\n=== BASELINE (sessões pré-mutações) ===")
+    print(f"\n=== MEDICAO {label} ===")
     print(f"  Edições de código:          {edits_code}")
     print(f"  ... verificadas em +3 turnos: {verified_after} ({100*verified_after/edits_code:.1f}%)" if edits_code else "")
     print(f"  Edições em centrais:        {edits_central}")

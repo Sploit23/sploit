@@ -383,11 +383,11 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   >> 2,4% e > 0%.
 
 **Próximo passo** (desvinculação concluída; validação real feita — ver Progresso):
-1. **Medição pós-mutações** (Constituição art. 6, pendência antiga): rodar
-   `scripts/medicao_mutacoes.py` (agora lê `sploit.db`) com sessões novas do
-   binário com G3+G4+G5 (ativos desde 01:13). Baseline: verificação pós-edição
-   **2,4%** (9/374), consulta ao grafo em centrais **0%** (0/1). Meta:
-   >> 2,4% e > 0%.
+1. **Medição pós-mutações (1ª rodada feita)**: G5 verificação 2,5% → **4,4%**
+   (9/359 → 3/68); G4 grafo em centrais 0% (0/1 → 0/4) — amostra pequena,
+   inconclusivo. Re-medir após mais sessões acumuladas no DB (script com filtro
+   `--desde`/`--ate` UTC; mutações ativas desde 09/08 04:13 UTC). Meta: >> 2,5%
+   e > 0%.
 2. **Próxima sessão dedicada (desvinculação, pendências)**: renomear a pasta
    `packages/opencode` (decisão do usuário: não agora, mas ficou como item);
    renomear o workspace `@opencode-ai/cli` → `@sploit-ai/cli` (único restante
@@ -540,6 +540,11 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   passam; py_compile OK nos 3 scripts da raiz (saude/diagnostico/medicao);
   typecheck monorepo 16/16; commit raiz `0598f13` (scripts apontam para
   `sploit.db` com fallback) ✔
+- **Medição pós-mutações (1ª rodada, art. 6)**: `medicao_mutacoes.py` ganhou
+  filtro `--desde`/`--ate` (UTC) para separar pré/pós ativação das mutações
+  (09/08 04:13 UTC). Pré: verificação 2,5% (9/359), grafo em centrais 0% (0/1).
+  Pós: verificação **4,4%** (3/68), grafo em centrais 0% (0/4). G5 com tendência
+  positiva; G4 inconclusivo (amostra pequena) ✔
 
 ## Armadilhas
 

@@ -6,6 +6,23 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Medição pós-mutações G3/G4/G5 (1ª rodada, Constituição art. 6)
+- **Como raciocinei**: o baseline (2,4%) foi medido antes das mutações virarem
+  binário. Para medir o "depois" sem misturar períodos, dei ao
+  `medicao_mutacoes.py` filtro de tempo (`--desde`/`--ate` UTC) e separei a
+  ativação das mutações (09/08 04:13 UTC = 01:13 local). O DB guarda ms UTC; a
+  sessão atual cruza os dois períodos, então o filtro por `time_created` da part
+  (não da sessão) foi essencial.
+- **O que valeu a pena**: (1) medir o mesmo script nos dois lados da ativação
+  dá comparação justa — pré: 2,5% (9/359); pós: **4,4%** (3/68). G5 melhorou
+  ~1,8x; (2) honestidade estatística: 3 eventos em 68 edições é tendência, não
+  prova — anotei "inconclusivo" para G4 (0/4 centrais); (3) o filtro por part
+  em vez de sessão foi a sacada que tornou a sessão atual utilizável nos dois
+  lados.
+- **Verificado**: py_compile OK; pré e pós rodaram (359/68 edições; 1/4
+  centrais; 17/6 erros de tool). Re-medir após mais sessões acumuladas.
+- **Referências**: scripts/medicao_mutacoes.py (filtro --desde/--ate)
+
 ## [2026-08-09] Desvinculação — validação da Fase 4 em produção (fecha o ciclo)
 - **Como raciocinei**: a Fase 4 (migração `opencode-*.db` → `sploit.db` no primeiro
   boot) precisava de prova em ambiente real, não só de testes. O self-restart
