@@ -52,16 +52,21 @@
 - [x] **Preparação**: permissões auto-approve no `sploit.json` (modo noturno) +
       plano criado. Config não é hot-reloaded — vale a partir do próximo
       self-restart (próximo ciclo).
-- [ ] **Ativar a Geração 3 no binário**: self-restart já vai trocar para o
-      binário com âncoras do grafo no `<env>`. Após reiniciar, conferir no
-      diagnóstico das próximas sessões se edições em arquivos centrais caem.
+- [ ] **Ativar as mutações no binário**: o próximo self-restart troca para o
+      binário com G3 (âncoras do grafo no `<env>`) + Iteração B (reminder de
+      causa raiz). Após reiniciar, conferir se o binário novo está ativo
+      (`--version` / PID) e que as permissões auto-approve passaram a valer.
 - [ ] **Medição da Geração 3** (Constituição art. 6): comparar "arquivos
       centrais tocados x falhas" antes/depois da mutação. Manter se melhorar,
       reverter com evidência se não.
-- [ ] **Mutação G-causaraiz**: quando uma ferramenta falhar, antes de tentar
-      de novo, investigar a causa raiz. Forma estrutural: reminder no prompt
-      quando houver erro de ferramenta (ver `reminders.ts` — padrão
-      PROMPT_PLAN). Medir: taxa de falhas repetidas antes/depois.
+- [x] **Mutação G-causaraiz** ✔ (concluída no ciclo 1): quando a última resposta
+      do assistant tem tool part com `state.status === "error"`, `reminders.ts`
+      injeta a instrução de investigar a causa raiz antes do retry (synthetic,
+      mecânica dos reminders existentes). 4 testes novos
+      `test/session/reminders.test.ts` passam; typecheck opencode OK; build
+      smoke `0.1.0-sploit` OK (backup criado; troca via self-restart). Commit
+      motor `e42c47a` + raiz `b700b6a`. Medir: taxa de falhas repetidas
+      antes/depois.
 - [ ] **G-grafo → consulta de comunidades antes de editar centrais**: quando
       uma edição tocar arquivo central (alto degree), o harness deve sugerir
       consultar o grafo (comunidade) primeiro. Medir: edições em centrais que
