@@ -9,7 +9,7 @@ import os
 import sys
 import re
 import argparse
-from collections import defaultdict
+from collections import defaultdict, Counter
 from datetime import datetime, timezone
 
 _DB_DIR = os.path.join(os.environ["USERPROFILE"], ".local", "share", "sploit")
@@ -31,20 +31,21 @@ def load_central_files():
             g = json.load(f)
     except Exception:
         return []
+    degree = Counter()
+    for link in g.get("links", []):
+        degree[link.get("source")] += 1
+        degree[link.get("target")] += 1
     code_degree = []
     for node in g.get("nodes", []):
-        lbl = str(node.get("label", ""))
-        if lbl.lower().endswith(CODE_EXTS):
-            code_degree.append((node.get("degree", 0), lbl))
+        if node.get("file_type") == "code":
+            lbl = str(node.get("source_file") or node.get("label") or node.get("id") or "")
+            code_degree.append((degree.get(node.get("id"), 0), lbl))
     code_degree.sort(reverse=True)
     return [lbl for _, lbl in code_degree[:15]]
 
 def match_central(path, centrals):
-    base = os.path.basename(path.replace("\\", "/")).lower()
     pl = path.replace("\\", "/").lower()
-    return base in (c.split("/")[-1].lower() for c in centrals) or any(
-        pl.endswith(c.replace("\\", "/").lower()) for c in centrals
-    )
+    return any(pl.endswith(c.replace("\\", "/").lower()) for c in centrals)
 
 def tool_parts(d):
     out = []

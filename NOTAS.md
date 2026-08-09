@@ -6,22 +6,31 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
-## [2026-08-09] Medição pós-mutações G3/G4/G5 (1ª rodada, Constituição art. 6)
-- **Como raciocinei**: o baseline (2,4%) foi medido antes das mutações virarem
-  binário. Para medir o "depois" sem misturar períodos, dei ao
+## [2026-08-09] Medição pós-mutações G3/G4/G5 — 1ª rodada real (art. 6)
+- **Como raciocinei**: para medir o "depois" sem misturar períodos, dei ao
   `medicao_mutacoes.py` filtro de tempo (`--desde`/`--ate` UTC) e separei a
   ativação das mutações (09/08 04:13 UTC = 01:13 local). O DB guarda ms UTC; a
   sessão atual cruza os dois períodos, então o filtro por `time_created` da part
-  (não da sessão) foi essencial.
-- **O que valeu a pena**: (1) medir o mesmo script nos dois lados da ativação
-  dá comparação justa — pré: 2,5% (9/359); pós: **4,4%** (3/68). G5 melhorou
-  ~1,8x; (2) honestidade estatística: 3 eventos em 68 edições é tendência, não
-  prova — anotei "inconclusivo" para G4 (0/4 centrais); (3) o filtro por part
-  em vez de sessão foi a sacada que tornou a sessão atual utilizável nos dois
-  lados.
-- **Verificado**: py_compile OK; pré e pós rodaram (359/68 edições; 1/4
-  centrais; 17/6 erros de tool). Re-medir após mais sessões acumuladas.
-- **Referências**: scripts/medicao_mutacoes.py (filtro --desde/--ate)
+  foi essencial. A reindexação do Graphify (pós-desvinculação, 28.811 nós)
+  revelou um problema no SCRIPT (não no motor): o graphify 0.9.34 usa multigraph
+  (arestas em `links`) e os nós **não têm mais o campo `degree`** — o core já
+  calcula degree pelos links (compaction.ts:112-120), mas o script media com
+  `node.get("degree")` (tudo 0 → top-15 aleatório) e ainda casava central por
+  basename (qualquer `index.ts` casava com `worktree/index.ts` → 4 falsos
+  positivos). Corrigi espelhando o core: degree dos links + `file_type=="code"`
+  + `source_file` + match por sufixo.
+- **O que valeu a pena**: (1) G-causaraiz de novo — em vez de aceitar "G4 não
+  funcionou (0/4)", investiguei os paths e vi que eram falsos positivos; (2)
+  espelhar exatamente o que o harness usa (degree pelos links, source_file) é o
+  único jeito de medir o comportamento real; (3) o baseline G4 REAL é **0/37**
+  (37 edições em centrais sem consultar o grafo no período pré) — a mutação tem
+  espaço enorme; (4) resultado honesto: G5 2,5% → **4,2%** (tendência, amostra
+  pequena); G4 pós sem amostra (0 edições em centrais ainda) — inconclusivo.
+- **Verificado**: py_compile OK; pré (359 edições, 37 centrais, 17 erros) e pós
+  (71 edições, 0 centrais, 6 erros) rodados com o matcher correto. Re-medir
+  após mais sessões acumuladas.
+- **Referências**: scripts/medicao_mutacoes.py, graphify-out/graph.json (schema
+  0.9.34), sploit-src/packages/core/src/session/compaction.ts
 
 ## [2026-08-09] Desvinculação — validação da Fase 4 em produção (fecha o ciclo)
 - **Como raciocinei**: a Fase 4 (migração `opencode-*.db` → `sploit.db` no primeiro

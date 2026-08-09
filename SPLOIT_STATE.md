@@ -383,11 +383,11 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   >> 2,4% e > 0%.
 
 **Próximo passo** (desvinculação concluída; validação real feita — ver Progresso):
-1. **Medição pós-mutações (1ª rodada feita)**: G5 verificação 2,5% → **4,4%**
-   (9/359 → 3/68); G4 grafo em centrais 0% (0/1 → 0/4) — amostra pequena,
-   inconclusivo. Re-medir após mais sessões acumuladas no DB (script com filtro
-   `--desde`/`--ate` UTC; mutações ativas desde 09/08 04:13 UTC). Meta: >> 2,5%
-   e > 0%.
+1. **Medição pós-mutações (1ª rodada feita)**: G5 verificação 2,5% → **4,2%**
+   (9/359 → 3/71); G4 grafo em centrais: pré **0/37** (0%), pós **sem amostra**
+   (0 edições em centrais ainda). Re-medir após mais sessões acumuladas no DB
+   (script com filtro `--desde`/`--ate` UTC; mutações ativas desde 09/08 04:13
+   UTC). Meta: >> 2,5% e > 0%.
 2. **Próxima sessão dedicada (desvinculação, pendências)**: renomear a pasta
    `packages/opencode` (decisão do usuário: não agora, mas ficou como item);
    renomear o workspace `@opencode-ai/cli` → `@sploit-ai/cli` (único restante
@@ -540,11 +540,15 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   passam; py_compile OK nos 3 scripts da raiz (saude/diagnostico/medicao);
   typecheck monorepo 16/16; commit raiz `0598f13` (scripts apontam para
   `sploit.db` com fallback) ✔
-- **Medição pós-mutações (1ª rodada, art. 6)**: `medicao_mutacoes.py` ganhou
-  filtro `--desde`/`--ate` (UTC) para separar pré/pós ativação das mutações
-  (09/08 04:13 UTC). Pré: verificação 2,5% (9/359), grafo em centrais 0% (0/1).
-  Pós: verificação **4,4%** (3/68), grafo em centrais 0% (0/4). G5 com tendência
-  positiva; G4 inconclusivo (amostra pequena) ✔
+- **Reindexação Graphify + medição corrigida (1ª rodada real, art. 6)**: grafo
+  reindexado pós-desvinculação (28.811 nós, 55.611 arestas, 2.418 comunidades;
+  2.103 arquivos re-extraídos). Descoberta: o schema do graphify 0.9.34 não tem
+  `degree` no nó (é multigraph — arestas em `links`; o core já calcula degree
+  pelos links em compaction.ts:112-120; o `medicao_mutacoes.py` media lixo com
+  `node.get("degree")` + falsos positivos de basename). Fix no script (degree
+  pelos links, file_type code, match por sufixo). Resultado real: pré — G5 2,5%
+  (9/359), G4 0% (0/37); pós — G5 **4,2%** (3/71), G4 sem amostra (0 edições
+  em centrais). G5 com tendência positiva; G4 inconclusivo ✔
 
 ## Armadilhas
 
