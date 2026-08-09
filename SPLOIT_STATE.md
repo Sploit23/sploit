@@ -439,6 +439,18 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   (recuperado). **Medição (baseline)**: `scripts/medicao_mutacoes.py` —
   verificação pós-edição de código 2,4% (9/374), consulta ao grafo em centrais
   0% (0/1) — meta pós-mutações: >> 2,4% e > 0%.
+- **Geração 9 — gene G-idempotencia (4 obs, forte) vira mutação estrutural** ✔
+  (implementada): quando o assistant roda um comando bash que escreve estado
+  persistente (scaffold/geração/migração/seed/SQL-write — `looksStatefulCommand`)
+  apenas 1x no turno, `reminders.ts` injeta o reminder de provar idempotência:
+  rodar 2x e conferir que a 2ª execução NÃO duplica. `unprovenStatefulCommands`
+  conta os comandos bash completados do turno (normalizados), considera "provado"
+  quem rodou ≥2x, e injeta um prompt por comando único não provado. Não duplica
+  no turno (prefixo `IDEMPOTENCY_PREFIX`), silêncio para comandos read-only
+  (typecheck/build/test/ls...). 5 testes novos; typecheck opencode OK (0 erros);
+  **34/34 reminders**; 388 pass na suíte de sessão (2 revert-compact
+  pré-existentes); build smoke `0.1.0-sploit` OK (backup criado; cópia em uso —
+  troca via self-restart pendente). Commit motor `52be6d1`.
 - **Geração 6** ✔: o harness RODA a verificação de verdade — `reminders.ts`
   roda `bun run typecheck` (fallback `build`) via `AppProcess.run` quando o
   assistant edita código e NÃO verificou no turno (turno final), injetando o
@@ -463,16 +475,23 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   estado global, erros do turno atual ficam com o ROOT_CAUSE, silêncio para
   arquivos limpos, não duplica. 4 testes novos; typecheck opencode OK; 29/29
   reminders; build smoke `0.1.0-sploit` OK. Commit motor `da7e4ee`.
+- **Geração 9** ✔: gene G-idempotencia (4 obs, forte) vira mutação estrutural —
+  `unprovenStatefulCommands` detecta comandos bash stateful (scaffold/geração/
+  migração/seed/SQL-write) rodados 1x no turno; `apply` injeta o reminder de
+  rodar 2x e provar que não duplica (prefixo `IDEMPOTENCY_PREFIX`). 5 testes
+  novos; typecheck opencode OK; 34/34 reminders; 388 pass na suíte de sessão;
+  build smoke `0.1.0-sploit` OK. Commit motor `52be6d1`.
 
 **Próximo passo** (desvinculação concluída; validação real feita — ver Progresso):
-1. **Ativar G5–G8 no binário e re-medir de verdade**: a 1ª rodada (G5 4,2%,
-   G4 0/37 pré) mediu o comportamento natural do modelo (a mutação não estava
-   no binário). Após o **self-restart com o binário novo (`da7e4ee`, G5+G6+G7
-   ativos)**, re-medir a verificação pós-edição com a mutação ATIVA (script com
-   filtro `--desde`/`--ate` UTC; mutações ativas desde 09/08 04:13 UTC;
-   self-restart a partir de agora). Meta: >> 2,5% e > 0%. Com o proof-gate, o
-   indicador que importa é o de **verificação concluída ANTES do fechamento**;
-   com a G8, medir também **erros repetidos no mesmo arquivo** (devem cair).
+1. **Ativar G9 no binário e re-medir de verdade (G5–G9 ativos)**: a 1ª rodada
+   (G5 4,2%, G4 0/37 pré) mediu o comportamento natural do modelo (a mutação
+   não estava no binário). Após o **self-restart com o binário novo (`52be6d1`,
+   G5+G6+G7+G8+G9 ativos)**, re-medir a verificação pós-edição com a mutação
+   ATIVA (script com filtro `--desde`/`--ate` UTC; mutações ativas desde 09/08
+   16:24 UTC). Meta: >> 2,5% e > 0%. Com o proof-gate, o indicador que importa
+   é o de **verificação concluída ANTES do fechamento**; com a G8, medir também
+   **erros repetidos no mesmo arquivo** (devem cair); com a G9, observar se
+   comandos stateful passam a ser reexecutados (2ª execução) antes de concluir.
 2. **Próxima sessão dedicada (desvinculação, pendências)**: renomear a pasta
    `packages/opencode` (decisão do usuário: não agora, mas ficou como item);
    renomear o workspace `@opencode-ai/cli` → `@sploit-ai/cli` (único restante
@@ -483,15 +502,11 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
    operação): distribuir `dist/sploit-20260808-2243.zip` aos amigos
    (INSTALAR.cmd zero-config); agendador diário no PC do amigo (Task Scheduler,
    `-Action pull`); confirmar POST automático do `/diagnostico` para a nuvem.
-4. **Próxima geração do corpo — G-idempotencia (4 obs, forte)** ✔ (candidato
-   pronto): genes atuais destilados pelo diagnóstico de 09/08 — G-verificacao
-   17 obs (mutada G5-G7), G-causaraiz 4 (mutada Iteração B), G-grafo 4 (mutada
-   G3/G4), **G-idempotencia 4 (NÃO mutada ainda — próxima)**, G-isolado 1
-   (acumulando). Mutação sugerida: quando o assistant cria/executa um script
-   ou tool que escreve estado (scaffold, geração, migração, seed), o harness
-   lembra de rodar 2x e conferir que a 2ª execução não duplica — a técnica
-   vira comportamento, não disciplina. Medição antes/depois: duplicações
-   reais detectadas em execuções repetidas.
+4. **Próxima geração do corpo**: todos os genes fortes estão mutados (G-verificacao
+   → G5-G7, G-causaraiz → Iteração B, G-grafo → G3/G4, G-idempotencia → G9).
+   Próximo candidato: **G-isolado (1 obs, acumulando)** — validar em ambiente
+   isolado antes de tocar arquivos reais. Quando atingir 3+ obs, aplicar nova
+   mutação estrutural com medição antes/depois.
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 

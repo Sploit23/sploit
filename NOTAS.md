@@ -6,6 +6,30 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Geração 9 — gene G-idempotencia vira mutação estrutural
+- **Como raciocinei**: o gene G-idempotencia ("provar idempotência rodando 2x")
+  era a técnica que mais salvou nos ciclos reais (scaffold, migrações, seeds
+  duplicando). A mutação: observar as tools bash do turno, detectar comandos que
+  ESCREVEM estado persistente (heurística conservadora: scaffold/geração/
+  migração/seed/CLIs de DB/SQL-write), e se rodaram só 1x, injetar o reminder de
+  rodar de novo e provar que a 2ª execução não duplica.
+- **O que valeu a pena**: (1) herdar o molde das G5-G8 tornou a implementação
+  mecânica — prefixo + prompt + bloco no `apply` + 5 testes; (2) a decisão de
+  contar comandos NORMALIZADOS (lowercase + collapse spaces) permite detectar
+  "rodou 2x" com variações de espaçamento; (3) "provado" = rodou ≥2x → silêncio;
+  o reminder só aparece quando falta a prova; (4) heurística exige palavra-chave
+  FORTE (migrat/seed/scaffold/generate/prisma...) — comandos read-only
+  (typecheck/build/test/ls) nunca disparam; (5) um prompt por comando único não
+  provado, join com separador (padrão do file memory).
+- **Verificado**: commit motor `52be6d1`; typecheck opencode 0 erros; **34/34
+  reminders** (5 novos); 388 pass na suíte de sessão (2 revert-compact
+  pré-existentes); build smoke `0.1.0-sploit` OK.
+- **Próximo**: self-restart para ativar a G9 no binário; na re-medição, observar
+  se comandos stateful passam a ser reexecutados (2ª execução) antes de concluir.
+- **Referências**: sploit-src/packages/opencode/src/session/reminders.ts
+  (unprovenStatefulCommands/IDEMPOTENCY_PREFIX), test/session/reminders.test.ts
+  (describe idempotency)
+
 ## [2026-08-09] Geração 8 — "o arquivo lembra" (memória procedural por arquivo)
 - **Como raciocinei**: o usuário cobrou que eu estava só me "ajustando" — G5-G7
   eram o mesmo padrão (reminder de texto injetado). A primeira ideia PRÓPRIA:
