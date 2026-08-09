@@ -6,6 +6,26 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Revertida a compactação com small_model — volta ao big-pickle
+- **Como raciocinei**: a flag `compaction.small_model` (Groq gpt-oss-120b) foi
+  habilitada no `sploit.json`, mas em uso real a compactação falhava — "o contexto
+  dá erro e a IA para de fazer" (Groq free tem limite de 8k TPM e não sustentou o
+  prompt de compactação com âncoras). Em vez de insistir no A/B, o usuário pediu
+  para voltar. Reversão limpa: `sploit.json` sem a flag + `sploit-src` de volta ao
+  commit `2bbca6e` (reset do master com working tree limpo) + rebuild.
+- **O que valeu a pena**: (1) a flag opt-in (default false) foi o que tornou a
+  reversão trivial — sem código morto, só desligar; (2) reset do master no
+  submodule em vez de `git revert` — histórico local limpo e o commit `5cbe9a1`
+  continua recuperável se um dia o Groq aguentar a carga; (3) Constituição art. 6
+  na prática: não deu certo → reverteu com evidência (erro real de contexto),
+  sem teimosia.
+- **Verificado**: typecheck opencode e core OK (exit 0); build smoke
+  `0.1.0-sploit` OK (backup criado; cópia do exe em uso — troca no restart).
+  Commits: `sploit: fix:` (config+memórias) + `sploit: chore:` (motor).
+- **Pendente**: restart do Sploit (config não é hot-reloaded) para a compactação
+  voltar a usar o big-pickle; swap do binário novo via self-restart.
+- **Referências**: sploit.json, sploit-src/packages/opencode/src/session/compaction.ts
+
 ## [2026-08-09] Compactação com small_model — economizar tokens do modelo grande
 - **Como raciocinei**: o usuário quer que o `small_model` (Groq, hoje só usado em
   título de sessão e cópia de projeto) assuma tarefas pequenas. A compactação é o
