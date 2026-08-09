@@ -36,6 +36,31 @@
   (VERIFY_PROMPT, CODE_EXTENSIONS, looksLikeVerification),
   sploit-src/packages/opencode/test/session/reminders.test.ts
 
+## [2026-08-09] Medição das mutações (Constituição art. 6) — baseline
+- **Como raciocinei**: ativei as mutações G3/G4/G5 no binário (self-restart,
+  PID 19844→18648, binário novo 01:13) e precisei do baseline "antes" para
+  medir depois. O DB de sessões (`opencode-sploit.db`) guarda cada tool call
+  em mensagens separadas — a janela certa é por mensagem seguinte (+3, <=15min),
+  não por part. Criei `scripts/medicao_mutacoes.py` que agrupa por sessão e
+  mede: edição de código → verificação (G5); edição em central → consulta ao
+  grafo (G4). Basename do arquivo para casar com os centrais do grafo (paths
+  absolutos no DB vs. labels relativos no graph.json).
+- **O que valeu a pena**: (1) o baseline provou que as mutações têm espaço:
+  G5 = só **2,4%** das edições de código foram seguidas de verificação em +3
+  turnos (9/374); G4 = **0%** de edições em centrais consultaram o grafo
+  (0/1); (2) a medição é barata (script 100 linhas, roda em segundos) e
+  reutilizável nas próximas sessões para medir o "depois"; (3) descobri que
+  paths no DB são absolutos e os centrais do grafo são labels relativos —
+  lição para futuras análises.
+- **Verificado**: `python scripts\medicao_mutacoes.py` roda e imprime o
+  baseline; self-restart confirmado (relaunch.log `[OK] PID 18648`, exe
+  01:13:43 = dist novo com G3+G4+G5). Commit motor `72851dd` + raiz `a96d19b`.
+- **Pendente**: rodar a mesma medição depois de N sessões com o binário novo
+  e comparar (meta: verificação pós-edição >> 2,4%; consulta ao grafo em
+  centrais >> 0%).
+- **Referências**: sploit-src/packages/opencode/src/session/reminders.ts
+  (G3/G4/G5), scripts/medicao_mutacoes.py
+
 ## [2026-08-09] Causa raiz do push automático do conhecimento (bug melh de infra)
 - **Como raciocinei**: o passo "verificar o push do conhecimento" da fila noturna
   era suspeito — o diagnóstico de 02:15 reportou "[AVISO] sem rede", mas o sync

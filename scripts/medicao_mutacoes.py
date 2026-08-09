@@ -1,0 +1,121 @@
+# Medição das mutações estruturais (Constituição art. 6) — baseline pré-G3/G4/G5.
+# Para cada turno (mensagem do assistant) que editou código/arquivo central, olha as
+# próximas 3 mensagens (mesma sessão, <=15min) procurando verificação (G5) ou grafo (G4).
+import sqlite3
+import json
+import os
+import sys
+import re
+from collections import defaultdict
+
+DB = os.path.join(os.environ["USERPROFILE"], ".local", "share", "sploit", "opencode-sploit.db")
+GRAPH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "graphify-out", "graph.json")
+
+CODE_EXTS = (".ts", ".tsx", ".js", ".mjs", ".cjs", ".py", ".rs", ".go", ".java", ".c", ".cpp", ".cs", ".rb", ".php", ".swift", ".kt", ".kts", ".sh", ".ps1", ".zig", ".ex", ".dart", ".jsx", ".vue", ".svelte")
+VERIFY_RE = re.compile(r"(typecheck|tsgo\b|bun\s+test|pytest|go\s+test|cargo\s+(check|test)|npm\s+(run\s+)?(test|build|typecheck)|pnpm\s+(run\s+)?(test|build|typecheck)|yarn\s+(run\s+)?(test|build|typecheck)|build-sploit|gradlew|mvn\s+test|dotnet\s+(test|build)|python\s+(-m\s+)?pytest|ruff\s+check|eslint)", re.IGNORECASE)
+GRAPH_TOOLS = frozenset(("graphify_query_graph", "graphify_get_node", "graphify_get_neighbors", "graphify_get_community", "graphify_god_nodes", "graphify_graph_stats", "graphify_shortest_path"))
+
+def load_central_files():
+    if not os.path.exists(GRAPH):
+        return []
+    try:
+        with open(GRAPH, "r", encoding="utf-8") as f:
+            g = json.load(f)
+    except Exception:
+        return []
+    code_degree = []
+    for node in g.get("nodes", []):
+        lbl = str(node.get("label", ""))
+        if lbl.lower().endswith(CODE_EXTS):
+            code_degree.append((node.get("degree", 0), lbl))
+    code_degree.sort(reverse=True)
+    return [lbl for _, lbl in code_degree[:15]]
+
+def match_central(path, centrals):
+    base = os.path.basename(path.replace("\\", "/")).lower()
+    pl = path.replace("\\", "/").lower()
+    return base in (c.split("/")[-1].lower() for c in centrals) or any(
+        pl.endswith(c.replace("\\", "/").lower()) for c in centrals
+    )
+
+def tool_parts(d):
+    out = []
+    if not isinstance(d, dict) or d.get("type") != "tool":
+        return out
+    st = d.get("state", {}) or {}
+    inp = st.get("input", {}) or {}
+    out.append({
+        "tool": d.get("tool", ""),
+        "cmd": str(inp.get("command") or inp.get("cmd") or ""),
+        "path": str(inp.get("filePath") or inp.get("path") or inp.get("file") or ""),
+        "status": st.get("status"),
+    })
+    return out
+
+def main():
+    if not os.path.exists(DB):
+        print(f"DB nao encontrado: {DB}")
+        sys.exit(1)
+    centrals = load_central_files()
+    print(f"Centrais (top-15 degree): {len(centrals)}")
+
+    c = sqlite3.connect(DB)
+    sess_msgs = defaultdict(list)
+    rows = c.execute(
+        "SELECT p.session_id, p.message_id, p.time_created, p.data "
+        "FROM part p ORDER BY p.session_id, p.time_created, p.rowid"
+    ).fetchall()
+    for sid, mid, t, data in rows:
+        try:
+            d = json.loads(data)
+        except Exception:
+            continue
+        sess_msgs[sid].append((mid, t, d))
+
+    edits_code = edits_central = 0
+    verified_after = graph_after = 0
+    tool_errors = 0
+
+    for sid, msgs in sess_msgs.items():
+        for i in range(len(msgs)):
+            _, t, d = msgs[i]
+            for tp in tool_parts(d):
+                if tp["status"] == "error":
+                    tool_errors += 1
+                if tp["tool"] not in ("edit", "write", "apply_patch", "notebook"):
+                    continue
+                pl = tp["path"].lower()
+                is_code = pl.endswith(CODE_EXTS) and not pl.endswith((".json", ".jsonc", ".lock"))
+                is_central = match_central(tp["path"], centrals)
+                if is_code:
+                    edits_code += 1
+                if is_central:
+                    edits_central += 1
+                if not (is_code or is_central):
+                    continue
+                # janela: próximas 3 mensagens, <= 15 min
+                for j in range(i + 1, min(len(msgs), i + 4)):
+                    _, t2, d2 = msgs[j]
+                    if t2 - t > 15 * 60 * 1000:
+                        break
+                    for tp2 in tool_parts(d2):
+                        if is_code and VERIFY_RE.search(tp2["cmd"]):
+                            verified_after += 1
+                        if is_central and tp2["tool"] in GRAPH_TOOLS:
+                            graph_after += 1
+                    # para não contar 2x no mesmo turno de edição, sair após a 1ª evidência
+                    if is_code and any(VERIFY_RE.search(x["cmd"]) for x in [tp2 for tp2 in tool_parts(d2)]):
+                        break
+                    if is_central and any(x["tool"] in GRAPH_TOOLS for x in tool_parts(d2)):
+                        break
+
+    print("\n=== BASELINE (sessões pré-mutações) ===")
+    print(f"  Edições de código:          {edits_code}")
+    print(f"  ... verificadas em +3 turnos: {verified_after} ({100*verified_after/edits_code:.1f}%)" if edits_code else "")
+    print(f"  Edições em centrais:        {edits_central}")
+    print(f"  ... com grafo em +3 turnos:  {graph_after} ({100*graph_after/edits_central:.1f}%)" if edits_central else "")
+    print(f"  Erros de tool (total):      {tool_errors}")
+    c.close()
+
+if __name__ == "__main__":
+    main()

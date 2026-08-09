@@ -347,24 +347,23 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   injeta o `VERIFY_PROMPT` (typecheck/build/test); detecção de verificação
   generosa (typecheck/tsgo/bun test/test/build/pytest/go test/cargo/npm/pnpm/
   yarn). 4 testes novos + 80 de regressão OK; typecheck opencode OK; build
-  smoke `0.1.0-sploit` OK (backup criado). Commit motor `72851dd`.
+  smoke `0.1.0-sploit` OK (backup criado); self-restart ativou no binário
+  (PID 18648, exe 01:13:43). Commit motor `72851dd`. **Medição (baseline)**:
+  `scripts/medicao_mutacoes.py` — verificação pós-edição de código 2,4%
+  (9/374), consulta ao grafo em centrais 0% (0/1) — meta pós-mutações:
+  >> 2,4% e > 0%.
 
 **Próximo passo** (modo noturno autônomo — protocolo em `PLANO_NOITE.md`):
-1. **Ativar as mutações no binário**: `scripts/self-restart.ps1
-   -ResumePrompt "<próximo passo da fila>"` — ativa o build novo (G3 + Iteração B
-   + Geração 4 + Geração 5) e as permissões auto-approve do `sploit.json`; o
-   relaunch envia o prompt sozinho. **Sempre confirmar que o processo voltou**
-   (relaunch.log `[OK] PID ...` + Get-Process sploit) antes de seguir.
-2. **Medição das mutações** (Constituição art. 6): G3 = "arquivos centrais tocados
-   x falhas" antes/depois; Iteração B = "falha → retry repetido" antes/depois;
-   Geração 4 = "edições em centrais x consulta ao grafo" antes/depois; Geração 5 =
-   "edições de código x verificação rodada" antes/depois.
-   Manter se a taxa melhorar; reverter com evidência se não.
-3. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (pendências de operação):
+1. **Medição pós-mutações** (Constituição art. 6): rodar `scripts/medicao_mutacoes.py`
+   quando houver sessões novas no DB com o binário novo (G3+G4+G5 ativos desde
+   01:13). Baseline registrado: verificação pós-edição de código **2,4%**
+   (9/374), consulta ao grafo em centrais **0%** (0/1). Meta: >> 2,4% e > 0%.
+   Manter as mutações se a taxa melhorar; reverter com evidência se não.
+2. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (pendências de operação):
    distribuir `dist/sploit-20260808-2243.zip` aos amigos (INSTALAR.cmd zero-config);
    agendador diário no PC do amigo (Task Scheduler, `-Action pull`); confirmar POST
-   automático do `/diagnostico` para a nuvem.
-4. **Próxima geração**: quando outro gene atingir 3+ obs (candidatos atuais:
+   automático do `/diagnostico` para a nuvem (validado: `[OK] licoes enviadas`).
+3. **Próxima geração**: quando outro gene atingir 3+ obs (candidatos atuais:
    G-causaraiz 2, G-grafo 2), aplicar nova mutação estrutural com medição
    antes/depois.
 

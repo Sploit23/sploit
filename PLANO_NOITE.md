@@ -105,8 +105,16 @@
   editar código sem verificação). Commit motor `72851dd`.
 - **Testes** ✔: 12 reminders (4+4+4) + 80 regressão (system+retry+prompt), tudo OK.
 - **Build** ✔: smoke `0.1.0-sploit` OK (backup criado; troca via self-restart).
-- Próximo ciclo: **self-restart para ativar G5 no binário**, depois medição das
-  mutações (G3/G4/G5) e reindexar Graphify se necessário.
+- **Self-restart** ✔: PID 19844→18648, relaunch.log `[OK]`, exe 01:13:43 (G5 ativo).
+- **Medição (Constituição art. 6) — baseline** ✔: `scripts/medicao_mutacoes.py`
+  — edições de código: 374, verificadas em +3 turnos: **9 (2,4%)**; edições em
+  centrais: 1, com grafo: **0 (0%)**; erros de tool: 17. Próximo passo: re-medir
+  após N sessões com o binário novo e comparar.
+- **Diagnóstico + push nuvem** ✔: `[OK] licoes enviadas para a nuvem coletiva`
+  (fix do User-Agent validado em produção); fila sem candidatos abertos;
+  Graphify reindexado (28906 nós, 55729 arestas, 2443 comunidades).
+- Próximo ciclo: rodar medição pós-mutações quando houver sessões novas no DB;
+  se a fila tiver candidato, seguir protocolo.
 
 ## Registro do ciclo 3 (concluído)
 
