@@ -6,6 +6,33 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Desvinculação — validação da Fase 4 em produção (fecha o ciclo)
+- **Como raciocinei**: a Fase 4 (migração `opencode-*.db` → `sploit.db` no primeiro
+  boot) precisava de prova em ambiente real, não só de testes. O self-restart
+  ativou o binário novo (PID 2960, 13:01:29, build 12:57:09) e a migração rodou no
+  boot. Validei os três elos da corrente: (1) DB novo existe (`sploit.db`
+  182.489.088 bytes + wal + shm); (2) o legado `opencode-sploit.db` (183.672.832)
+  continua **intacto** — a migração copia, nunca move/remove; (3) `/saude` lê o
+  histórico migrado (2467 turnos, 15,3M tokens in, 200M cache read, 38
+  compactações, pico 179.546) — dados antigos no DB novo, sessão atual retomada.
+- **O que valeu a pena**: (1) o design "copia idempotente, nunca remove o legado"
+  se pagou: o rollback automático do self-restart continua seguro mesmo depois da
+  migração; (2) ao conferir o processo ativo descobri que `dist/` da raiz só tem o
+  pacote antigo — o build real fica em
+  `sploit-src/packages/opencode/dist/sploit-windows-x64` (é o `build.ts` que gera
+  lá, e o `build-sploit.ps1` copia pra raiz) — erro meu de procurar no lugar
+  errado, não bug; (3) G-idempotencia: scripts de diagnóstico da raiz agora leem
+  `sploit.db` com fallback para o legado — funcionam em qualquer instalação, nova
+  ou antiga.
+- **Verificado**: `python scripts/saude.py` com saída real no histórico migrado;
+  py_compile OK nos 3 scripts (saude/diagnostico/medicao); 4 testes
+  `database-path.test.ts` + 2 do boot passam; typecheck monorepo 16/16. Commits:
+  motor `c34739b` (Fase 4) + raiz `0598f13` (scripts) + `9c356df` (SPLOIT_STATE).
+- **Pendente**: medição pós-mutações (G3+G4+G5) nas próximas sessões — baseline
+  já medido (verificação 2,4%, grafo em centrais 0%).
+- **Referências**: sploit-src/packages/core/src/database/database.ts,
+  sploit-src/packages/opencode/src/index.ts, scripts/{saude,diagnostico,medicao_mutacoes}.py
+
 ## [2026-08-09] Desvinculação opencode → sploit — Fases 1 a 4 (IDs, binário, textos, DB)
 - **Como raciocinei**: o usuário pediu para limpar o projeto e desvincular a
   identidade do opencode em 4 fases (IDs de serviço Effect → binário → textos →
