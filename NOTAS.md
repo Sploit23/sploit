@@ -6,6 +6,33 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Geracao 3 — primeiro gene forte vira mutacao estrutural (Constituicao)
+- **Como raciocinei**: o gene G-grafo (consultar o grafo antes de grep/read em bases
+  grandes) era disciplina do agente — funcionava quando eu lembrava. A Geracao 3
+  transfere a tecnica do comportamento para o CORPO: o harness passa a expor as
+  ancoras do grafo (top-15 por degree) no `<env>` do system prompt de toda sessao
+  que tiver `graphify-out/graph.json`. Assim o modelo sempre sabe quais arquivos
+  sao centrais antes de planejar uma edicao — sem slash, sem depender de memoria.
+  Reusei o `loadAnchors` que ja existia no core (compactacao com consciencia de
+  grafo) em vez de duplicar logica: exportei a funcao e chamei de `system.ts`.
+- **O que valeu a pena**: (1) grafo antes de editar — a mutacao nasce de um gene
+  que ja era forte na pratica (evidencia no diagnostico: arquivos centrais tocados
+  sem consulta ao grafo); (2) reuso em vez de copia — mesma fonte de verdade do
+  grafo para compactacao e system prompt, cache por mtime compartilhado; (3)
+  medição antes/depois — o /diagnostico ja cruza arquivos centrais tocados x
+  falhas, entao a mutacao e verificavel nas proximas sessoes.
+- **Verificado**: typecheck core + opencode OK (0 erros); 4 testes novos
+  `compaction-anchors.test.ts` passam (sem grafo -> ""; top-degree ordenado;
+  invalidacao de cache por mtime; grafo malformado nao quebra); build smoke
+  `0.1.0-sploit` OK (backup criado; copia do exe em uso — esperado, troca via
+  self-restart).
+- **Pendente**: self-restart para ativar no binario; nas proximas sessoes conferir
+  no /diagnostico se edicoes em arquivos centrais caem (a consciencia do grafo
+  agora e estrutural, nao de disciplina).
+- **Referencias**: sploit-src/packages/core/src/session/compaction.ts (loadAnchors
+  exportado), sploit-src/packages/opencode/src/session/system.ts (anchors no env),
+  sploit-src/packages/core/test/compaction-anchors.test.ts
+
 ## [2026-08-08] Geração 2 — genes de sucesso destilados das notas (Constituição)
 - **Como raciocinei**: a Geração 1 criou a nota de evolução (reforço positivo);
   a 2 pega essas notas e as transforma em genes — técnicas que funcionaram, com

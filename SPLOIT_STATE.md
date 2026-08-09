@@ -258,78 +258,58 @@ Princípios:
   placar), viaja na nuvem. Validado: py_compile, testes fake (destilação real
   das notas: 4 genes ativos, idempotência, preserva placar), diagnóstico real +
   push para a nuvem. Slash eliminado no caminho: `/resumo`.
+- **Geração 3 — primeiro gene forte vira mutação estrutural** ✔ (implementada):
+  G-verificacao atingiu 4 obs (forte) e G-grafo 2 obs. A mutação do G-grafo foi
+  aplicada no CORPO: `loadAnchors` do core (que já alimentava a compactação)
+  agora é exportado e `system.ts` injeta as âncoras do grafo (top-15 por degree)
+  no `<env>` do system prompt de toda sessão com `graphify-out/graph.json` — o
+  modelo sempre sabe quais arquivos são centrais antes de planejar uma edição.
+  Sem slash, sem depender de disciplina do agente. Teste novo
+  `compaction-anchors.test.ts` (4 testes passam: sem grafo → "", ordenação por
+  degree, invalidação de cache por mtime, grafo malformado não quebra);
+  typecheck core+opencode OK; build smoke `0.1.0-sploit` OK (backup criado;
+  troca via self-restart pendente). Push para a nuvem OK (genes atualizados).
 
 ## Próximo passo
 
-**Iteração 7.3 — Conhecimento coletivo via Cloudflare (em curso).**
+**Iteração 8 — Constituição (evolução do corpo): Gerações 1–3 concluídas.**
 
-O usuário rejeitou o modelo de repo git para o conhecimento coletivo (git/login
-nos PCs dos amigos, PCs desatualizados, complexo). Desenho novo implementado e
-testado: **Worker + KV persistente** — `scripts/cloudflare/worker.js` serve
-`GET/POST /aprendizado.md` (POST exige header `X-Senha` contra a secret `SENHA`);
-`sync-conhecimento.ps1` (modo cloudflare), `install-sploit.ps1
--CloudflareURL -Senha` e `diagnostico.py` (POST de lições) todos adaptados e
-testados isoladamente.
+O usuário rejeitou features de "agente de dev comum" e definiu a direção: **o
+Sploit evolui o próprio corpo** — memória viva + grafo + ciclo seguro de
+auto-atualização já são o trio único; as Gerações da Constituição agora
+transformam técnicas que funcionaram em mutações estruturais medidas.
 
-**Feito nesta sessão** (detalhe em Progresso):
-- worker.js, wrangler.toml, deploy-conhecimento.ps1, sync-conhecimento.ps1
-  (modo cloudflare + git legado), install-sploit.ps1 (-CloudflareURL/-Senha,
-  conhecimento.json), diagnostico.py (push via POST, BOM fixes), pack-dist.ps1
-  (inclui cloudflare/ + deploy).
-- Validações: worker.js via Node harness (KV fake), sync pull/push HTTP com
-  servidor fake (401 não quebra), install-sploit isolado (baixou da nuvem,
-  criou conhecimento.json + instructions absoluta).
-- **DEPLOY REAL CONCLUÍDO** ✔:
-  - `npx wrangler login` OK (conta flavioalex203@gmail.com, Account
-    0db2e48f7a796217283c7aa85b4e6cb4).
-  - KV `sploit_aprendizado` (id `473bba0f4ca048609bd26f704da3d5af`) já existia
-    (criado pelo usuário no painel); ID gravado no wrangler.toml.
-  - Secret `SENHA` definida via `wrangler secret put` (valor não vai para o git).
-  - Subdomínio workers.dev registrado via API (`PUT /workers/subdomain`) —
-    `sploit` e outras variações indisponíveis; `sploit-aprendizado` aceito.
-  - `wrangler deploy` OK → `https://sploit-conhecimento.sploit-aprendizado.workers.dev`.
-  - **Teste ponta a ponta na URL real**: GET 200 (vazio), POST com senha 200
-    (`ok: conhecimento atualizado`), POST sem senha 401, POST /licoes 200,
-    GET final retorna o conteúdo persistido. Primeira propagação SSL levou ~30s.
-  - PC do usuário configurado: `~/.config/sploit/conhecimento.json` (url+senha)
-    criado, APRENDIZADO.md baixado da nuvem para `conhecimento/`, instruction
-    absoluta adicionada ao sploit.jsonc global.
-  - **Zero-config para o amigo** ✔: `pack-dist.ps1` embute a config da nuvem
-    (lê `~/.config/sploit/conhecimento.json`) num `conhecimento.txt` dentro do
-    pacote; `install-sploit.ps1` auto-detecta esse arquivo (sem parâmetros) e
-    baixa o APRENDIZADO.md da nuvem; novo `scripts/INSTALAR.cmd` (duplo clique,
-    ASCII puro) roda o instalador sem digitar nada. LEIA-ME atualizado.
-  - **Bug do PS 5.1 corrigido**: `Invoke-WebRequest` dava timeout/TLS contra o
-    workers.dev → `install-sploit.ps1` e `sync-conhecimento.ps1` agora usam
-    `curl.exe` (com `-o NUL` no push para o corpo da resposta não vazar no
-    `%{http_code}`) com fallback para Invoke-WebRequest. Validado contra a URL
-    real: pull 200 (47 bytes), push 200, senha errada → aviso sem quebrar.
+**Feito nas Gerações 1–3** (detalhe em Progresso):
+- **Geração 1** ✔: nota de evolução pós-tarefa automática em NOTAS.md (reforço
+  positivo); `/resumo` virou legado; AGENTS.md raiz atualizado.
+- **Geração 2** ✔: `sync_genes()` no diagnostico.py destila genes de sucesso das
+  notas (G-grafo, G-isolado, G-verificacao, G-causaraiz, G-idempotencia); seção
+  `## Genes de sucesso` no APRENDIZADO.md, viaja na nuvem.
+- **Geração 3** ✔: G-verificacao atingiu 4 obs (forte). A mutação estrutural do
+  gene G-grafo foi aplicada no CORPO: `loadAnchors` (core) exportado e `system.ts`
+  injeta as âncoras do grafo (top-15 por degree) no `<env>` do system prompt de
+  toda sessão com `graphify-out/graph.json`. Testes novos (4) passam; typecheck
+  core+opencode OK; build smoke `0.1.0-sploit` OK.
 
 **Próximo passo**:
-1. **Lição que se prova (implementada nesta sessão)**: placar de eficácia no
-   APRENDIZADO.md — `? verificar → ok confirmada → ! fraca`. Confirmada que volta
-   a falhar gera candidato de HARNESS automaticamente. Commitar (prévia do diff:
-   só `scripts/diagnostico.py`).
-2. **Distribuir aos amigos**: enviar `dist/sploit-20260808-2243.zip`. Eles só
-   descompactam e dão duplo clique em `INSTALAR.cmd` — conhecimento coletivo
-   conecta sozinho (config embutida no pacote).
-3. **Agendador diário no PC do amigo** (Task Scheduler): rodar
-   `sync-conhecimento.ps1 -URL <url> -Action pull` para receber lições dos outros.
-4. Confirmar que o `/diagnostico` do PC do usuário faz POST de lições para a nuvem.
-5. Decidir se `deploy-conhecimento.ps1` precisa de ajuste (o fluxo real usou
-   comandos manuais + API para o subdomínio, não o script todo).
-6. **Iteração 8 — evolução do corpo (Constituição)**: começar pela Geração 1 —
-   nota de evolução pós-tarefa (reforço positivo) + definir o primeiro gene
-   estrutural com medição.
-7. **Geração 2 — destilar genes positivos**: a partir das notas de evolução em
-   NOTAS.md, o Sploit identifica técnicas que funcionaram (ex.: grafo antes de
-   grep, read com limits) e as propõe como mutação estrutural do harness com
-   medição — eliminando mais um slash (candidato: `/planejar` tornando-se
-   automático quando o grafo indicar impacto).
-8. **Geração 3 — primeiro gene forte vira mutação estrutural**: quando um gene
-   atingir 3+ observações (candidatos atuais: G-causaraiz e G-verificacao com 2),
-   implementar a mudança no harness com medição antes/depois — ex.: G-grafo vira
-   `/planejar` automático (consultar comunidades antes de editar arquivos centrais).
+1. **Ativar a mutação no binário**: self-restart (a cópia do exe falha em uso —
+   esperado; troca é do `self-restart.ps1`). Após reiniciar, conferir no
+   `/diagnostico` das próximas sessões se edições em arquivos centrais caem (a
+   consciência do grafo agora é estrutural, não de disciplina).
+2. **Medição da Geração 3** (Constituição art. 6 — validação inegociável):
+   comparar "arquivos centrais tocados x falhas" antes/depois da mutação.
+   Manter se a taxa melhorar; reverter com evidência se não.
+3. **Commits pendentes**: motor (core + system.ts + teste) e raiz (memórias) —
+   atômicos em separado conforme AGENTS.md.
+4. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (está OK, mas pendências
+   de operação): distribuir `dist/sploit-20260808-2243.zip` aos amigos (INSTALAR.cmd
+   zero-config); agendador diário no PC do amigo (Task Scheduler, `-Action pull`);
+   confirmar que o `/diagnostico` do PC do usuário faz POST automático para a nuvem
+   (o último push manual foi necessário por falta de rede no momento do diagnóstico).
+5. **Próxima geração**: quando outro gene atingir 3+ obs (candidatos atuais:
+   G-causaraiz 2, G-grafo 2), aplicar nova mutação estrutural com medição
+   antes/depois — ex.: G-grafo virar consulta de comunidades ANTES de editar
+   arquivos centrais (o `/planejar` automático).
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
@@ -355,6 +335,13 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
 - Compactação com consciência de grafo: typecheck core+monorepo OK, teste novo
   (anchors no prompt) + 2 existentes passam, build smoke `0.1.0-sploit` OK,
   commit `6815955` + raiz `023ad1c`, ativado no binário via self-restart ✔
+- **Geração 3 — mutação estrutural do gene G-grafo**: `loadAnchors` do core
+  exportado e `system.ts` injeta âncoras (top-15 por degree) no `<env>` do system
+  prompt; 4 testes novos `compaction-anchors.test.ts` passam (sem grafo → "",
+  ordenação por degree, invalidação por mtime, malformado não quebra); typecheck
+  core+opencode OK (0 erros); build smoke `0.1.0-sploit` OK (backup criado;
+  cópia do exe em uso — troca via self-restart pendente); push nuvem OK (genes:
+  G-verificacao forte 4 obs, G-grafo 2 obs) ✔
 - `/diagnostico` rodado em 2 sessões (sploit e MaxxPrint) com saída real; fila
   gerada (3 candidatos) e ciclo completo testado (fazer/negar/feito) ✔
 - Ciclo ponta-a-ponta melh-4: typecheck opencode OK, build smoke `0.1.0-sploit` OK,
