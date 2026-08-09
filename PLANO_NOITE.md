@@ -90,10 +90,34 @@
 - [x] **Rodar testes da suite do core/opencode** para detectar regressões da
       Geração 3 (pelo menos os novos `compaction-anchors.test.ts`) ✔ (ciclo 3):
       4 anchors + 8 reminders (4 G4 + 4 Iteração B) + 33 retry + system OK.
-- [ ] **Próxima geração (G-verificacao, 4 obs — forte)**: usar o gene forte
-      para justificar uma mutação estrutural medida do harness (ex.: o sistema
-      lembrar de verificar após cada mudança). Se já coberto pelo prompt,
-      registrar por quê e marcar como feito com evidência.
+- [x] **Próxima geração (G-verificacao, 4 obs — forte)** ✔ (ciclo 4): verificado
+      que o prompt do harness NÃO cobria verificação pós-mudança (grep em
+      system.ts/prompt.ts/reminders.ts). Mutação aplicada no CORPO: quando o
+      assistant edita código (extensões de código) sem verificar no mesmo turno,
+      `reminders.ts` injeta o `VERIFY_PROMPT` (typecheck/build/test). 4 testes
+      novos; typecheck opencode OK; 80 testes de regressão OK; build smoke
+      `0.1.0-sploit` OK. Commit motor `72851dd`. Medir: edições de código x
+      verificação rodada antes/depois.
+
+## Registro do ciclo 4 (concluído)
+
+- **Geração 5 — G-verificacao** ✔: mutação estrutural (reminder de verificar após
+  editar código sem verificação). Commit motor `72851dd`.
+- **Testes** ✔: 12 reminders (4+4+4) + 80 regressão (system+retry+prompt), tudo OK.
+- **Build** ✔: smoke `0.1.0-sploit` OK (backup criado; troca via self-restart).
+- Próximo ciclo: **self-restart para ativar G5 no binário**, depois medição das
+  mutações (G3/G4/G5) e reindexar Graphify se necessário.
+
+## Registro do ciclo 3 (concluído)
+
+- **Geração 4** ✔: mutação G-grafo (reminder de consultar grafo ao editar arquivo
+  central). Commit motor `2bbca6e` + raiz `fe73c41`/`a194c1b`.
+- **Push automático do conhecimento** ✔ (causa raiz): User-Agent do Python
+  bloqueado pelo Cloudflare → fix em `diagnostico.py`. Commit raiz `033048a`.
+- **Testes da suite** ✔: 4 anchors + 8 reminders + 33 retry + system, tudo OK.
+- **Diagnóstico** ✔: 3 HARNESS | 12 AGENTE; genes destilados; push manual OK
+  (nuvem restaurada com conteúdo real). Graphify reindexado (28892 nós).
+- Próximo ciclo: **G-verificacao** (gene forte 4 obs → mutação estrutural medida).
 
 ## Fila de baixa prioridade (se sobrar tempo)
 

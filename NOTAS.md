@@ -6,6 +6,36 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Geração 5 — gene G-verificacao (4 obs, forte) vira mutação estrutural
+- **Como raciocinei**: o gene G-verificacao ("Verificar antes de concluir:
+  typecheck/build/smoke/compile — nada sem prova") atingiu 4 observações (forte)
+  e virou o próximo candidato. Verifiquei primeiro se já era coberto pelo prompt
+  do harness — grep em system.ts/prompt.ts/reminders.ts mostrou que NÃO (só
+  menções a build-switch, nada sobre verificação pós-mudança). A mutação:
+  quando o assistant edita código (`edit`/`write`/`apply_patch` em arquivo de
+  extensão de código) e NÃO rodou verificação no mesmo turno, `reminders.ts`
+  injeta o `VERIFY_PROMPT` (synthetic, mesma mecânica dos demais). A checagem
+  `verifiedThisTurn` olha tool parts com `input.command`/`commands` que casam
+  typecheck/tsgo/bun test/test/build/pytest/go test/cargo/npm/pnpm/yarn — se já
+  verificou, não repete.
+- **O que valeu a pena**: (1) segui o padrão das mutações anteriores — lugar
+  único (reminders), guarda de duplicação, testes por comportamento; (2) o gene
+  forte justificou a mutação com evidência (4 obs no diagnóstico); (3) a
+  detecção de verificação é generosa (vários comandos) para não criar ruído
+  falso; (4) extensões de código cobrem TS/Python/Rust/Go/C++/etc., docs ficam
+  fora (sem reminder para editar .md).
+- **Verificado**: typecheck opencode OK (0 erros); 12 testes de reminders (4
+  Iteração B + 4 G-grafo + 4 G-verificacao novos: injeta após editar código;
+  não injeta em docs; não injeta se já verificou no turno; não duplica) + 80
+  testes de regressão (system+retry+prompt) passam; build smoke `0.1.0-sploit`
+  OK (backup criado; cópia do exe em uso — troca via self-restart pendente).
+  Commit motor `72851dd`.
+- **Pendente**: self-restart para ativar no binário; medição "edições de código
+  x verificação rodada" antes/depois nas próximas sessões (Constituição art. 6).
+- **Referências**: sploit-src/packages/opencode/src/session/reminders.ts
+  (VERIFY_PROMPT, CODE_EXTENSIONS, looksLikeVerification),
+  sploit-src/packages/opencode/test/session/reminders.test.ts
+
 ## [2026-08-09] Causa raiz do push automático do conhecimento (bug melh de infra)
 - **Como raciocinei**: o passo "verificar o push do conhecimento" da fila noturna
   era suspeito — o diagnóstico de 02:15 reportou "[AVISO] sem rede", mas o sync

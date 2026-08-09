@@ -291,6 +291,16 @@ Princípios:
   não duplica no turno); typecheck opencode+core OK; build smoke
   `0.1.0-sploit` OK (backup criado; troca via self-restart pendente). Commit
   motor `2bbca6e`.
+- **Geração 5 — gene G-verificacao (4 obs, forte) vira mutação estrutural** ✔
+  (implementada): verificado que o prompt do harness não cobria verificação
+  pós-mudança. Mutação no CORPO: quando o assistant edita código
+  (`edit`/`write`/`apply_patch` em arquivo de extensão de código) e NÃO rodou
+  verificação no mesmo turno (detecção por `input.command`/`commands` com
+  typecheck/tsgo/bun test/test/build/pytest/go test/cargo/npm/pnpm/yarn),
+  `reminders.ts` injeta o `VERIFY_PROMPT` (synthetic, mesma mecânica dos
+  demais). 4 testes novos; typecheck opencode OK; 80 testes de regressão
+  (system+retry+prompt) passam; build smoke `0.1.0-sploit` OK (backup criado;
+  troca via self-restart pendente). Commit motor `72851dd`.
 - **Causa raiz do push automático do conhecimento** ✔ (fix): o `urllib` do Python
   envia User-Agent `Python-urllib/3.x` que o Cloudflare bloqueia com 403 — o push
   automático do diagnóstico falhava em silêncio ("sem rede"), enquanto o sync
@@ -332,16 +342,23 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   compartilhado) e injeta reminder de consultar o grafo quando uma edição toca
   arquivo central (top-15). 4 testes novos; typecheck opencode+core OK; build
   smoke `0.1.0-sploit` OK (backup criado). Commit motor `2bbca6e`.
+- **Geração 5** ✔: gene G-verificacao (4 obs, forte) vira mutação estrutural —
+  quando o assistant edita código e NÃO verificou no turno, `reminders.ts`
+  injeta o `VERIFY_PROMPT` (typecheck/build/test); detecção de verificação
+  generosa (typecheck/tsgo/bun test/test/build/pytest/go test/cargo/npm/pnpm/
+  yarn). 4 testes novos + 80 de regressão OK; typecheck opencode OK; build
+  smoke `0.1.0-sploit` OK (backup criado). Commit motor `72851dd`.
 
 **Próximo passo** (modo noturno autônomo — protocolo em `PLANO_NOITE.md`):
 1. **Ativar as mutações no binário**: `scripts/self-restart.ps1
    -ResumePrompt "<próximo passo da fila>"` — ativa o build novo (G3 + Iteração B
-   + Geração 4) e as permissões auto-approve do `sploit.json`; o relaunch envia o
-   prompt sozinho. **Sempre confirmar que o processo voltou** (relaunch.log
-   `[OK] PID ...` + Get-Process sploit) antes de seguir.
+   + Geração 4 + Geração 5) e as permissões auto-approve do `sploit.json`; o
+   relaunch envia o prompt sozinho. **Sempre confirmar que o processo voltou**
+   (relaunch.log `[OK] PID ...` + Get-Process sploit) antes de seguir.
 2. **Medição das mutações** (Constituição art. 6): G3 = "arquivos centrais tocados
    x falhas" antes/depois; Iteração B = "falha → retry repetido" antes/depois;
-   Geração 4 = "edições em centrais x consulta ao grafo" antes/depois.
+   Geração 4 = "edições em centrais x consulta ao grafo" antes/depois; Geração 5 =
+   "edições de código x verificação rodada" antes/depois.
    Manter se a taxa melhorar; reverter com evidência se não.
 3. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (pendências de operação):
    distribuir `dist/sploit-20260808-2243.zip` aos amigos (INSTALAR.cmd zero-config);
@@ -349,8 +366,7 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
    automático do `/diagnostico` para a nuvem.
 4. **Próxima geração**: quando outro gene atingir 3+ obs (candidatos atuais:
    G-causaraiz 2, G-grafo 2), aplicar nova mutação estrutural com medição
-   antes/depois. Candidato forte: G-verificacao (4 obs) → harness lembrar de
-   verificar (typecheck/build/test) após mudanças de código.
+   antes/depois.
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
