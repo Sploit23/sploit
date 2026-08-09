@@ -8,7 +8,11 @@ import sys
 import re
 from collections import defaultdict
 
-DB = os.path.join(os.environ["USERPROFILE"], ".local", "share", "sploit", "opencode-sploit.db")
+_DB_DIR = os.path.join(os.environ["USERPROFILE"], ".local", "share", "sploit")
+DB = os.path.join(_DB_DIR, "sploit.db")
+if not os.path.exists(DB):
+    # Legado da desvinculacao opencode->sploit (antes da Fase 4).
+    DB = os.path.join(_DB_DIR, "opencode-sploit.db")
 GRAPH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "graphify-out", "graph.json")
 
 CODE_EXTS = (".ts", ".tsx", ".js", ".mjs", ".cjs", ".py", ".rs", ".go", ".java", ".c", ".cpp", ".cs", ".rb", ".php", ".swift", ".kt", ".kts", ".sh", ".ps1", ".zig", ".ex", ".dart", ".jsx", ".vue", ".svelte")

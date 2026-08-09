@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """diagnostico.py — diagnostico do harness do Sploit.
 
-Cruza o banco local (opencode-sploit.db) com o grafo do conhecimento
+Cruza o banco local (sploit.db) com o grafo do conhecimento
 (graphify-out/graph.json) para apontar ONDE o arnes sofre:
 
   - ferramentas que mais falham (status=error) e o arquivo envolvido
@@ -25,7 +25,11 @@ import collections
 from datetime import datetime
 from pathlib import Path
 
-DB = Path.home() / ".local" / "share" / "sploit" / "opencode-sploit.db"
+DB_DIR = Path.home() / ".local" / "share" / "sploit"
+DB = DB_DIR / "sploit.db"
+if not DB.exists():
+    # Legado da desvinculacao opencode->sploit (antes da Fase 4).
+    DB = DB_DIR / "opencode-sploit.db"
 GRAPH = Path(__file__).resolve().parent.parent / "graphify-out" / "graph.json"
 QUEUE = Path(__file__).resolve().parent.parent / "FILA_MELHORIAS.json"
 

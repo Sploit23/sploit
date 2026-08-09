@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """saude.py — diagnostico de saude da sessao do Sploit.
 
-Le o banco local (opencode-sploit.db) e reporta em PT-BR:
+Le o banco local (sploit.db) e reporta em PT-BR:
 sessao atual, tokens, custo, cache, compactacoes, contexto efetivo.
 
 Uso: python scripts/saude.py [sessao_id]
@@ -12,7 +12,11 @@ import sys
 import json
 from pathlib import Path
 
-DB = Path.home() / ".local" / "share" / "sploit" / "opencode-sploit.db"
+_DB_DIR = Path.home() / ".local" / "share" / "sploit"
+DB = _DB_DIR / "sploit.db"
+if not DB.exists():
+    # Legado da desvinculacao opencode->sploit (antes da Fase 4).
+    DB = _DB_DIR / "opencode-sploit.db"
 
 # Precos estimados por milhao de tokens (USD) quando o provider nao reporta custo.
 # Ajuste conforme o modelo/proxy usado. 0 desliga a estimativa.
