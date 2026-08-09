@@ -670,6 +670,11 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   suíte de sessão (2 revert-compact pré-existentes — 404 do `@sploit-ai/plugin`,
   sem relação); build smoke `0.1.0-sploit` OK (backup criado; cópia do exe em
   uso — troca via self-restart pendente). Commit motor `da7e4ee` ✔
+- **Self-restart real (16:24) com G5–G8 no binário** ✔: relaunch.log `[OK] Sploit
+  novo vivo (PID 20764)`; `sploit.exe` 16:22:52 = dist (build com G5+G6+G7+G8);
+  backup `sploit.exe.bak` 12:57:13 (known-good) preservado; prompt "continue"
+  enviado e sessão retomada sozinha. **A partir de agora a re-medição com
+  `medicao_mutacoes.py` (filtro `--desde`) mede a mutação ATIVA de verdade.** ✔
 
 ## Armadilhas
 
