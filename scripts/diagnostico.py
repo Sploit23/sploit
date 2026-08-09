@@ -18,6 +18,7 @@ import sqlite3
 import sys
 import json
 import os
+import re
 import subprocess
 import urllib.request
 import collections
@@ -68,7 +69,15 @@ def sync_lessons(tool_err, err_samples):
         if kinds and all(k == "AGENTE" for k in kinds) and lesson_graved(tool):
             marker = f"- **{entry[0]} —"  # cabeçalho da lição no arquivo (evita colidir com menções soltas)
             if marker not in text and entry[1] not in text:
-                LESSONS.write_text(text.rstrip() + "\n\n" + entry[1], encoding="utf-8")
+                # Insere a lição ANTES do placar de eficácia (que fica no fim do arquivo)
+                pl_idx = text.find(PLACAR_HEADER)
+                if pl_idx == -1:
+                    LESSONS.write_text(text.rstrip() + "\n\n" + entry[1], encoding="utf-8")
+                else:
+                    LESSONS.write_text(
+                        text[:pl_idx].rstrip() + "\n\n" + entry[1] + "\n\n" + text[pl_idx:],
+                        encoding="utf-8",
+                    )
                 added += 1
                 text = LESSONS.read_text(encoding="utf-8")
     return added
@@ -138,6 +147,157 @@ def push_lessons(added):
             print("   [AVISO] push falhou; licoes ficam locais ate o proximo sync")
     except Exception:
         pass
+
+
+PLACAR_HEADER = "## Placar de eficácia"
+PLACAR_LIMITE_SESSOES = 3
+
+
+def _ler_placar(text):
+    """Le o estado de cada licao a partir da secao '## Placar de eficacia' do
+    APRENDIZADO.md. Retorna { L-id: {"status", "limpas", "limite"} }."""
+    placar = {}
+    idx = text.find(PLACAR_HEADER)
+    if idx == -1:
+        return placar
+    for linha in text[idx:].splitlines():
+        m = re.match(r"^- (L-\w+) \| (.+?) \| (\d+)/(\d+)", linha)
+        if m:
+            placar[m.group(1)] = {
+                "status": m.group(2),
+                "limpas": int(m.group(3)),
+                "limite": int(m.group(4)),
+            }
+    return placar
+
+
+def _render_placar(placar):
+    """Serializa o estado de eficacia das licoes em linhas markdown."""
+    if not placar:
+        return ""
+    linhas = [PLACAR_HEADER, ""]
+    for lid in sorted(placar):
+        st = placar[lid]
+        linhas.append(f"- {lid} | {st['status']} | {st['limpas']}/{st['limite']}")
+    return "\n".join(linhas) + "\n"
+
+
+def historico_falhas_agente(cur, sid, tool, n=3):
+    """Conta, nas ultimas n sessoes (exceto a atual), quantas tiveram falha da
+    ferramenta classificada como AGENTE (disciplina). Retorna (sessoes_limpas,
+    sessoes_total). Sessao sem dados da tool conta como limpa."""
+    cur.execute(
+        """SELECT id FROM session ORDER BY time_updated DESC LIMIT ?""",
+        (n + 1,),
+    )
+    recentes = [r[0] for r in cur.fetchall()]
+    alvo_idx = None
+    for i, s in enumerate(recentes):
+        if s == sid:
+            alvo_idx = i
+            break
+    if alvo_idx is None:
+        alvo_idx = len(recentes)  # sessao nao esta entre as recentes: analisa todas
+    anteriores = [s for i, s in enumerate(recentes) if i != alvo_idx][:n]
+    if not anteriores:
+        return 0, 0
+    limpas = 0
+    total = 0
+    for s in anteriores:
+        cur.execute(
+            """SELECT data FROM part
+               WHERE session_id=? AND json_extract(data,'$.type')='tool'
+                 AND json_extract(data,'$.state.status')='error'""",
+            (s,),
+        )
+        teve_falha = False
+        for (r,) in cur.fetchall():
+            try:
+                d = json.loads(r)
+            except Exception:
+                continue
+            err = ((d.get("state") or {}).get("error") or "")[:200]
+            if d.get("tool") == tool and classify_error(tool, err) == "AGENTE":
+                teve_falha = True
+                break
+        total += 1
+        if not teve_falha:
+            limpas += 1
+    return limpas, total
+
+
+def update_placar(cur, sid, tool_err, err_samples):
+    """Atualiza o placar de eficacia das licoes e retorna True se mudou.
+
+    Transicao de estado por licao:
+      - '? verificar' nasce junto com a licao.
+      - Se as ultimas PLACAR_LIMITE_SESSOES sessoes nao tiveram falha AGENTE da
+        ferramenta -> 'ok confirmada'.
+      - Se uma licao confirmada voltar a falhar nesta sessao -> '! fraca' e gera
+        candidato de melhoria de HARNESS (a licao no prompt nao basta).
+    """
+    if not LESSONS.exists():
+        return False
+    text = LESSONS.read_text(encoding="utf-8")
+    placar = _ler_placar(text)
+    mudou = False
+
+    # Licoes presentes no arquivo: markers '- **L-<id> —' (o placar tambem vale)
+    licoes_no_texto = set(re.findall(r"^\- \*\*(L-\w+)(?: —| — )", text, flags=re.M))
+    for lid, _em in sorted(placar.items()):
+        licoes_no_texto.add(lid)
+    licoes_no_texto.discard(None)
+
+    for lid in sorted(licoes_no_texto):
+        # Convencao: o id da licao e "L-<tool>" (ex.: L-bash -> bash)
+        tool = lid[2:] if lid.startswith("L-") else None
+        if not tool or tool not in LESSON_BY_TOOL:
+            continue
+        kinds = [classify_error(t, e) for t, _, e in err_samples if t == tool]
+        tem_falha_hoje = bool(kinds) and all(k == "AGENTE" for k in kinds)
+
+        if lid not in placar:
+            placar[lid] = {"status": "? verificar", "limpas": 0, "limite": PLACAR_LIMITE_SESSOES}
+            mudou = True
+
+        st = placar[lid]
+        limpas, total = historico_falhas_agente(cur, sid, tool, n=PLACAR_LIMITE_SESSOES)
+        if tem_falha_hoje:
+            st["limpas"] = 0
+            if st["status"] == "ok confirmada":
+                st["status"] = "! fraca"
+                titulo = f"Licao {lid} confirmada voltou a falhar (sinal de defeito de HARNESS)"
+                evidencia = f"Ferramenta {tool} falhou nesta sessao apos estar confirmada"
+                verificacao = f"Investigar o motor da tool {tool} (a licao no prompt nao basta)"
+                if "--fila" in sys.argv:
+                    iid = queue_add(titulo, evidencia, verificacao)
+                    if iid:
+                        print(f"   [PLACAR] {lid} ! fraca -> candidato {iid} (harness)")
+                mudou = True
+        else:
+            if total > 0:
+                novo_limpas = min(st["limpas"] + 1, st["limite"])
+                if novo_limpas != st["limpas"]:
+                    st["limpas"] = novo_limpas
+                    mudou = True
+                if st["status"] == "! fraca":
+                    st["status"] = "? verificar"
+                    mudou = True
+                elif st["limpas"] >= st["limite"] and st["status"] != "ok confirmada":
+                    st["status"] = "ok confirmada"
+                    mudou = True
+        if st["status"] == "! fraca" and not tem_falha_hoje:
+            st["limpas"] = 0
+            st["status"] = "? verificar"
+            mudou = True
+
+    if mudou:
+        corpo = text
+        idx = corpo.find(PLACAR_HEADER)
+        corpo_sem_placar = corpo[:idx].rstrip() if idx != -1 else corpo.rstrip()
+        novo = corpo_sem_placar + "\n\n" + _render_placar(placar)
+        LESSONS.write_text(novo, encoding="utf-8")
+    return mudou
 
 
 def load_queue():
@@ -466,7 +626,11 @@ def main():
         added_lessons = sync_lessons(tool_err, err_samples)
         if added_lessons:
             print(f"   [OK] {added_lessons} licao(ns) gravada(s) automaticamente em APRENDIZADO.md")
-        push_lessons(added_lessons)
+    placar_mudou = update_placar(cur, sid, tool_err, err_samples)
+    if placar_mudou:
+        print("   [PLACAR] eficácia das lições atualizada")
+    if "--fila" not in sys.argv:
+        push_lessons(added_lessons + (1 if placar_mudou else 0))
 
     db.close()
     return 0
