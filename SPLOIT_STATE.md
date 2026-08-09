@@ -269,44 +269,59 @@ Princípios:
   degree, invalidação de cache por mtime, grafo malformado não quebra);
   typecheck core+opencode OK; build smoke `0.1.0-sploit` OK (backup criado;
   troca via self-restart pendente). Push para a nuvem OK (genes atualizados).
+- **Iteração B — gene G-causaraiz vira mutação estrutural** ✔ (implementada):
+  quando a última resposta do assistant tem um tool part com `state.status ===
+  "error"`, `reminders.ts` injeta no userMessage do turno (synthetic, mecânica
+  dos reminders existentes) a instrução de investigar a causa raiz antes de
+  retry — o harness condiciona o retry sem depender de disciplina. 4 testes
+  novos `test/session/reminders.test.ts` passam (injeta no tool error; não
+  injeta sem falha; não duplica no mesmo turno; ignora erro velho de turno
+  anterior); typecheck opencode OK; build smoke `0.1.0-sploit` OK (backup
+  criado; troca via self-restart pendente). Commit motor `e42c47a`.
+- **Modo noturno autônomo** ✔ (preparado): permissões auto-approve no
+  `sploit.json` (bash `*`, tools allow, external_directory allow) + PLANO_NOITE.md
+  com o protocolo do ciclo noturno (1 passo da fila por ciclo; typecheck+build;
+  commits atômicos motor/raiz; nota de evolução; diagnostico; sync nuvem;
+  self-restart com `-ResumePrompt`). Commit raiz `89d7df3`. PC não dorme na
+  tomada (sleep AC=0).
 
 ## Próximo passo
 
-**Iteração 8 — Constituição (evolução do corpo): Gerações 1–3 concluídas.**
+**Iteração 8 — Constituição (evolução do corpo): Gerações 1–3 + Iteração B concluídas.**
 
 O usuário rejeitou features de "agente de dev comum" e definiu a direção: **o
 Sploit evolui o próprio corpo** — memória viva + grafo + ciclo seguro de
 auto-atualização já são o trio único; as Gerações da Constituição agora
 transformam técnicas que funcionaram em mutações estruturais medidas.
 
-**Feito nas Gerações 1–3** (detalhe em Progresso):
+**Feito (detalhe em Progresso)**:
 - **Geração 1** ✔: nota de evolução pós-tarefa automática em NOTAS.md (reforço
   positivo); `/resumo` virou legado; AGENTS.md raiz atualizado.
 - **Geração 2** ✔: `sync_genes()` no diagnostico.py destila genes de sucesso das
-  notas (G-grafo, G-isolado, G-verificacao, G-causaraiz, G-idempotencia); seção
-  `## Genes de sucesso` no APRENDIZADO.md, viaja na nuvem.
-- **Geração 3** ✔: G-verificacao atingiu 4 obs (forte). A mutação estrutural do
-  gene G-grafo foi aplicada no CORPO: `loadAnchors` (core) exportado e `system.ts`
-  injeta as âncoras do grafo (top-15 por degree) no `<env>` do system prompt de
-  toda sessão com `graphify-out/graph.json`. Testes novos (4) passam; typecheck
-  core+opencode OK; build smoke `0.1.0-sploit` OK.
+  notas; seção `## Genes de sucesso` no APRENDIZADO.md, viaja na nuvem.
+- **Geração 3** ✔: mutação estrutural do gene G-grafo — `loadAnchors` (core)
+  exportado e `system.ts` injeta as âncoras do grafo (top-15 por degree) no
+  `<env>` do system prompt de toda sessão com `graphify-out/graph.json`. Testes
+  novos (4) passam; typecheck core+opencode OK; build smoke `0.1.0-sploit` OK.
+- **Iteração B** ✔: mutação estrutural do gene G-causaraiz — quando a última
+  resposta do assistant tem tool error, `reminders.ts` injeta a instrução de
+  investigar a causa raiz antes de retry. 4 testes novos passam; typecheck
+  opencode OK; build smoke `0.1.0-sploit` OK. Commit motor `e42c47a`.
 
-**Próximo passo**:
-1. **Ativar a mutação no binário**: self-restart (a cópia do exe falha em uso —
-   esperado; troca é do `self-restart.ps1`). Após reiniciar, conferir no
-   `/diagnostico` das próximas sessões se edições em arquivos centrais caem (a
-   consciência do grafo agora é estrutural, não de disciplina).
-2. **Medição da Geração 3** (Constituição art. 6 — validação inegociável):
-   comparar "arquivos centrais tocados x falhas" antes/depois da mutação.
+**Próximo passo** (modo noturno autônomo — protocolo em `PLANO_NOITE.md`):
+1. **Ativar as mutações no binário + modo noturno**: `scripts/self-restart.ps1
+   -ResumePrompt "<próximo passo da fila>"` — ativa binário novo (G3 + Iteração B)
+   e as permissões auto-approve do `sploit.json`; o relaunch envia o prompt sozinho.
+   A partir daí, seguir PLANO_NOITE.md (1 passo da fila por ciclo, typecheck+build,
+   commits atômicos, nota de evolução, diagnostico, sync nuvem, re-disparar restart).
+2. **Medição das mutações** (Constituição art. 6): G3 = "arquivos centrais tocados
+   x falhas" antes/depois; Iteração B = "falha → retry repetido" antes/depois.
    Manter se a taxa melhorar; reverter com evidência se não.
-3. **Commits pendentes**: motor (core + system.ts + teste) e raiz (memórias) —
-   atômicos em separado conforme AGENTS.md.
-4. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (está OK, mas pendências
-   de operação): distribuir `dist/sploit-20260808-2243.zip` aos amigos (INSTALAR.cmd
-   zero-config); agendador diário no PC do amigo (Task Scheduler, `-Action pull`);
-   confirmar que o `/diagnostico` do PC do usuário faz POST automático para a nuvem
-   (o último push manual foi necessário por falta de rede no momento do diagnóstico).
-5. **Próxima geração**: quando outro gene atingir 3+ obs (candidatos atuais:
+3. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (pendências de operação):
+   distribuir `dist/sploit-20260808-2243.zip` aos amigos (INSTALAR.cmd zero-config);
+   agendador diário no PC do amigo (Task Scheduler, `-Action pull`); confirmar POST
+   automático do `/diagnostico` para a nuvem.
+4. **Próxima geração**: quando outro gene atingir 3+ obs (candidatos atuais:
    G-causaraiz 2, G-grafo 2), aplicar nova mutação estrutural com medição
    antes/depois — ex.: G-grafo virar consulta de comunidades ANTES de editar
    arquivos centrais (o `/planejar` automático).
@@ -342,6 +357,14 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   core+opencode OK (0 erros); build smoke `0.1.0-sploit` OK (backup criado;
   cópia do exe em uso — troca via self-restart pendente); push nuvem OK (genes:
   G-verificacao forte 4 obs, G-grafo 2 obs) ✔
+- **Iteração B — mutação estrutural do gene G-causaraiz**: quando a última
+  resposta do assistant tem tool part com `state.status === "error"`,
+  `reminders.ts` injeta a instrução de causa raiz no userMessage do turno
+  (synthetic, mesma mecânica dos reminders existentes); 4 testes novos
+  `test/session/reminders.test.ts` passam (injeta no tool error; não injeta sem
+  falha; não duplica no mesmo turno; ignora erro velho de turno anterior);
+  typecheck opencode OK (0 erros); build smoke `0.1.0-sploit` OK (backup criado;
+  cópia do exe em uso — troca via self-restart pendente). Commit motor `e42c47a` ✔
 - `/diagnostico` rodado em 2 sessões (sploit e MaxxPrint) com saída real; fila
   gerada (3 candidatos) e ciclo completo testado (fazer/negar/feito) ✔
 - Ciclo ponta-a-ponta melh-4: typecheck opencode OK, build smoke `0.1.0-sploit` OK,

@@ -6,6 +6,30 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Iteração B — gene G-causaraiz vira mutação estrutural (Constituição)
+- **Como raciocinei**: a Geração 3 provou o caminho (gene forte → mutação no
+  harness). O gene G-causaraiz (2 obs) dizia "investigar a causa raiz antes de
+  retry". Em vez de depender da disciplina, apliquei no CORPO: quando a última
+  resposta do assistant tem um tool part com `state.status === "error"`, o
+  `reminders.ts` injeta a instrução de causa raiz no userMessage do turno
+  (`synthetic: true`, mesma mecânica dos reminders de plan/build-switch). O
+  harness agora condiciona o retry do modelo — sem slash, sem disciplina.
+- **O que valeu a pena**: (1) a mutação fica num lugar único (reminders) que já é
+  o "injetor de instruções do turno" — não inventei mecanismo novo; (2) usar
+  `findLast` para o tool error da última resposta evita "gritos" de falhas velhas
+  (o teste de stale tool error cobre isso); (3) checar se o texto já está no
+  userMessage impede duplicação no mesmo turno (testado); (4) o reminder é
+  independente do plan mode — vale em build e plan.
+- **Verificado**: typecheck opencode OK (0 erros); 4 testes novos
+  `test/session/reminders.test.ts` passam (injeta no tool error; não injeta sem
+  falha; não duplica no mesmo turno; ignora erro velho de turno anterior); build
+  smoke `0.1.0-sploit` OK (backup criado; cópia do exe em uso — esperado, troca
+  via self-restart). Commit motor `e42c47a`.
+- **Pendente**: self-restart para ativar no binário; medição da taxa de "falha →
+  retry repetido" antes/depois nas próximas sessões (Constituição art. 6).
+- **Referências**: sploit-src/packages/opencode/src/session/reminders.ts
+  (ROOT_CAUSE_PROMPT), sploit-src/packages/opencode/test/session/reminders.test.ts
+
 ## [2026-08-09] Geracao 3 — primeiro gene forte vira mutacao estrutural (Constituicao)
 - **Como raciocinei**: o gene G-grafo (consultar o grafo antes de grep/read em bases
   grandes) era disciplina do agente — funcionava quando eu lembrava. A Geracao 3
