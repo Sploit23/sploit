@@ -371,10 +371,26 @@ Princípios:
   (prompt+system) passam; typecheck opencode + monorepo 16/16 OK; build smoke
   `0.1.0-sploit` OK (backup criado; cópia em uso — troca via self-restart).
   Commit motor `10eff54`. Nota de evolução em NOTAS.md.
+- **Geração 7 — proof-gate: o turno só fecha com a verificação passando** ✔:
+  causa raiz descoberta — o `break` do runLoop (`prompt.ts`) acontecia ANTES de
+  qualquer verificação, então a G6 só re-verificava na próxima iteração que nunca
+  vinha (código quebrado era aceito como concluído). Mutação: no branch de exit do
+  runLoop, antes do `break`, o harness roda `runVerifyCommand` na hora; se FAIL,
+  persiste o erro real (saída truncada) como nova user message synthetic
+  (prefixo `VERIFY_HARNESS_PREFIX`, herdando agent/model da última user real) e
+  **reabre o turno** com `continue` — o modelo precisa corrigir a causa raiz com o
+  erro diante dos olhos. Orçamento de 3 tentativas por prompt real (gate messages
+  após a última user não-gate; esgotado → fecha com warning). PASS ou já-verificado
+  → `break` normal. `runAutoVerify` (G6) refatorado para compartilhar
+  `runVerifyCommand` e `apply` ignora o VERIFY_PROMPT quando a última user message
+  já é gate do harness (sem dupla injeção). 7 testes novos (mock do Session
+  via `Layer.mock` capturando `updateMessage`/`updatePart`); typecheck opencode OK;
+  **25/25 reminders**; build smoke `0.1.0-sploit` OK (backup criado; cópia em uso
+  — troca via self-restart pendente). Commit motor `8430925`.
 
 ## Próximo passo
 
-**Iteração 8 — Constituição (evolução do corpo): Gerações 1–6 + Iteração B concluídas.**
+**Iteração 8 — Constituição (evolução do corpo): Gerações 1–7 + Iteração B concluídas.**
 
 O usuário rejeitou features de "agente de dev comum" e definiu a direção: **o
 Sploit evolui o próprio corpo** — memória viva + grafo + ciclo seguro de
@@ -418,14 +434,25 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   (G5) sem package.json; `prompt.ts` provê `AppProcess.Service`. 6 testes novos;
   typecheck opencode + monorepo 16/16 OK; build smoke `0.1.0-sploit` OK.
   Commit motor `10eff54`.
+- **Geração 7** ✔: proof-gate — o turno que editou código SÓ fecha com a
+  verificação passando. No branch de exit do runLoop (`prompt.ts`), antes do
+  `break`, o harness roda `runVerifyCommand`; se FAIL, persiste o erro real como
+  nova user message synthetic (`VERIFY_HARNESS_PREFIX`, agent/model da última
+  user real) e reabre o turno com `continue` (orçamento 3 tentativas por prompt;
+  esgotado → fecha com warning). PASS → `break` normal. `runAutoVerify` (G6)
+  refatorado para compartilhar `runVerifyCommand`; `apply` ignora o VERIFY_PROMPT
+  quando a última user message é gate. 7 testes novos (mock do Session
+  capturando updateMessage/updatePart); typecheck opencode OK; 25/25 reminders;
+  build smoke `0.1.0-sploit` OK (backup criado). Commit motor `8430925`.
 
 **Próximo passo** (desvinculação concluída; validação real feita — ver Progresso):
-1. **Ativar G5+G6 no binário e re-medir de verdade**: a 1ª rodada (G5 4,2%,
+1. **Ativar G5+G6+G7 no binário e re-medir de verdade**: a 1ª rodada (G5 4,2%,
    G4 0/37 pré) mediu o comportamento natural do modelo (a mutação não estava
-   no binário). Após o **self-restart com o binário novo (`10eff54`, G5
-   recuperada + G6 auto-verify ativos)**, re-medir a verificação pós-edição com
-   a mutação ATIVA (script com filtro `--desde`/`--ate` UTC; mutações ativas
-   desde 09/08 04:13 UTC; self-restart a partir de agora). Meta: >> 2,5% e > 0%.
+   no binário). Após o **self-restart com o binário novo (`8430925`, G5+G6+G7
+   ativos)**, re-medir a verificação pós-edição com a mutação ATIVA (script com
+   filtro `--desde`/`--ate` UTC; mutações ativas desde 09/08 04:13 UTC;
+   self-restart a partir de agora). Meta: >> 2,5% e > 0%. Com o proof-gate, o
+   indicador que importa é o de **verificação concluída ANTES do fechamento**.
 2. **Próxima sessão dedicada (desvinculação, pendências)**: renomear a pasta
    `packages/opencode` (decisão do usuário: não agora, mas ficou como item);
    renomear o workspace `@opencode-ai/cli` → `@sploit-ai/cli` (único restante
@@ -604,6 +631,18 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   roda) + 51 retry/anchors + 47 prompt/system OK; build smoke `0.1.0-sploit`
   OK (backup criado; cópia do exe em uso — troca via self-restart pendente).
   Commit motor `10eff54`; nota de evolução em NOTAS.md ✔
+- **Geração 7 — proof-gate validado**: typecheck opencode OK (0 erros);
+  25 testes de reminders passam (18 antigos + 7 novos: mock do Session via
+  `Layer.mock` capturando updateMessage/updatePart — FAIL real reabre o turno
+  com "continue" e cria user message + part synthetic com o erro (TS2322),
+  PASS fecha com "break", sem package.json fecha, turno já verificado não
+  reabre, doc não dispara, orçamento esgotado fecha com warning, apply não
+  duplica VERIFY_PROMPT sobre gate message); 379 testes da suíte de sessão
+  passam (2 falhas de revert-compact PRÉ-EXISTENTES, confirmadas via git
+  stash com o código original — 404 do `@sploit-ai/plugin` no background
+  install, sem relação com o proof-gate); build smoke `0.1.0-sploit` OK
+  (backup criado; cópia do exe em uso — troca via self-restart pendente).
+  Commit motor `8430925` ✔
 
 ## Armadilhas
 

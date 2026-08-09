@@ -6,6 +6,45 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Geração 7 — proof-gate: o turno só fecha com a verificação passando
+- **Como raciocinei**: a G6 rodava a verificação no `apply` do próximo turno — mas
+  o `break` do runLoop (`prompt.ts`) acontecia ANTES de qualquer verificação, no
+  topo do loop. Ou seja: o turno que editava código quebrado era aceito como
+  concluído, e a "re-verificação" da G6 só ocorreria na próxima iteração que nunca
+  vinha. A mutação foi feita no lugar certo: no branch de exit do runLoop, antes
+  do `break`, o harness roda `runVerifyCommand` na hora; se FAIL, persiste o erro
+  real (saída truncada) como nova user message synthetic (prefixo
+  `VERIFY_HARNESS_PREFIX`, herdando agent/model da última user real) e reabre o
+  turno com `continue` — o modelo corrige com o erro diante dos olhos, com
+  orçamento de 3 tentativas por prompt real.
+- **O que valeu a pena**: (1) G-causaraiz de novo — o "G6 fraca" era estrutura:
+  o break antecipado; o fix no branch de exit, não no apply; (2) descobri no
+  schema que `User` e `Assistant` têm shapes diferentes (`model` vs
+  `modelID/providerID`) e o `findLast` não estreita a union — precisei de
+  narrowing explícito; (3) o `Effect.fn` v4 NÃO aceita anotação de retorno no
+  generator (`: "break" | "continue"`) — o TS a lê como tipo do Generator e o
+  arquivo quebra em cascata (erros TS2448/T2322/TS2339 em linhas distantes);
+  remover a anotação deixou o TS inferir certo; (4) a variável local
+  `verifiedThisTurn` no `apply` SOMBREADA a função do módulo → TDZ ("used before
+  its declaration") — renomeada para `didVerify`; (5) mock do Session via
+  `Layer.mock` com métodos genéricos (`<T extends Info>`) capturando
+  updateMessage/updatePart — os gate tests não precisam de DB real; (6) 25/25
+  reminders; as 2 falhas de revert-compact são PRÉ-EXISTENTES (404 do
+  `@sploit-ai/plugin` no background install — confirmado via git stash com o
+  código original).
+- **Verificado**: commit motor `8430925`; typecheck opencode OK (0 erros); 7
+  testes novos (FAIL real reabre com "continue" + user message synthetic com o
+  erro, PASS fecha, sem package.json fecha, turno já verificado não reabre, doc
+  não dispara, orçamento 3 esgotado fecha com warning, apply não duplica
+  VERIFY_PROMPT sobre gate); build smoke `0.1.0-sploit` OK (backup criado; cópia
+  do exe em uso — troca via self-restart pendente).
+- **Próximo**: self-restart com o binário novo (`8430925`, G5+G6+G7 ativos) e
+  re-medição real — com o proof-gate, o indicador que importa é o de verificação
+  concluída ANTES do fechamento do turno.
+- **Referências**: sploit-src/packages/opencode/src/session/reminders.ts
+  (enforceTurnVerification/runVerifyCommand/isVerifyGateMessage), prompt.ts
+  (branch de exit ~1113-1142), test/session/reminders.test.ts (gateIt + captured)
+
 ## [2026-08-09] Geração 6 — o harness roda a verificação de verdade (auto-verify)
 - **Como raciocinei**: a G5 pede verificação com texto (VERIFY_PROMPT) — funciona,
   mas depende do modelo obedecer. O usuário cobrou ideias que não sejam "fáceis":
