@@ -356,10 +356,25 @@ Princípios:
   (backup criado; cópia do exe em uso — troca via self-restart). Commit motor
   `5c75238`. Lição no APRENDIZADO (L-git) + NOTAS.md. **Re-medir a taxa de
   verificação agora com a mutação ATIVA de verdade.**
+- **Geração 6 — o harness RODA a verificação de verdade (auto-verify)** ✔:
+  a G5 pede verificação com texto; a G6 executa. Quando o assistant edita código
+  e NÃO verificou no turno (e o turno terminou — `finish !== "tool-calls"`),
+  `reminders.ts` lê `package.json` do diretório (via `FSUtil.readFileStringSafe`),
+  detecta script `typecheck` (fallback `build`) e roda `bun run <script>` via
+  `AppProcess.run` (timeout 120s, `maxOutputBytes` 3000) — injeta o RESULTADO
+  REAL (PASS/FAIL + saída truncada) como part synthetic no userMessage. Sem
+  package.json/script → fallback VERIFY_PROMPT (G5). Não duplica, ignora
+  edições de não-código e turnos em andamento. `apply` agora requer
+  `AppProcess.Service` → `prompt.ts` importa/provê o serviço + `AppProcess.node`
+  no layer. 6 testes novos (mock do AppProcess via `Layer.mock`, exitCode/
+  stdout/stderr controláveis) + 18 reminders + 51 (retry+anchors) + 47
+  (prompt+system) passam; typecheck opencode + monorepo 16/16 OK; build smoke
+  `0.1.0-sploit` OK (backup criado; cópia em uso — troca via self-restart).
+  Commit motor `10eff54`. Nota de evolução em NOTAS.md.
 
 ## Próximo passo
 
-**Iteração 8 — Constituição (evolução do corpo): Gerações 1–4 + Iteração B concluídas.**
+**Iteração 8 — Constituição (evolução do corpo): Gerações 1–6 + Iteração B concluídas.**
 
 O usuário rejeitou features de "agente de dev comum" e definiu a direção: **o
 Sploit evolui o próprio corpo** — memória viva + grafo + ciclo seguro de
@@ -396,14 +411,21 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   (recuperado). **Medição (baseline)**: `scripts/medicao_mutacoes.py` —
   verificação pós-edição de código 2,4% (9/374), consulta ao grafo em centrais
   0% (0/1) — meta pós-mutações: >> 2,4% e > 0%.
+- **Geração 6** ✔: o harness RODA a verificação de verdade — `reminders.ts`
+  roda `bun run typecheck` (fallback `build`) via `AppProcess.run` quando o
+  assistant edita código e NÃO verificou no turno (turno final), injetando o
+  RESULTADO REAL (PASS/FAIL + saída) como part synthetic; fallback VERIFY_PROMPT
+  (G5) sem package.json; `prompt.ts` provê `AppProcess.Service`. 6 testes novos;
+  typecheck opencode + monorepo 16/16 OK; build smoke `0.1.0-sploit` OK.
+  Commit motor `10eff54`.
 
 **Próximo passo** (desvinculação concluída; validação real feita — ver Progresso):
-1. **G5 recuperada — ativar e re-medir de verdade**: a 1ª rodada (G5 4,2%,
+1. **Ativar G5+G6 no binário e re-medir de verdade**: a 1ª rodada (G5 4,2%,
    G4 0/37 pré) mediu o comportamento natural do modelo (a mutação não estava
-   no binário). Após o self-restart com o binário novo (`5c75238`), re-medir a
-   verificação pós-edição com a mutação ATIVA (script com filtro
-   `--desde`/`--ate` UTC; mutações ativas desde 09/08 04:13 UTC; self-restart
-   a partir de agora). Meta: >> 2,5% e > 0%.
+   no binário). Após o **self-restart com o binário novo (`10eff54`, G5
+   recuperada + G6 auto-verify ativos)**, re-medir a verificação pós-edição com
+   a mutação ATIVA (script com filtro `--desde`/`--ate` UTC; mutações ativas
+   desde 09/08 04:13 UTC; self-restart a partir de agora). Meta: >> 2,5% e > 0%.
 2. **Próxima sessão dedicada (desvinculação, pendências)**: renomear a pasta
    `packages/opencode` (decisão do usuário: não agora, mas ficou como item);
    renomear o workspace `@opencode-ai/cli` → `@sploit-ai/cli` (único restante
@@ -575,6 +597,13 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
 - **Atenção (re-medir G5)**: a 1ª rodada "pós" (4,2%) mediu o comportamento
   natural do modelo — a mutação não estava no binário. A re-medição real só vale
   após o self-restart com o binário novo (`5c75238`).
+- **Geração 6 — auto-verify validado**: typecheck opencode OK (0 erros) +
+  monorepo 16/16; 18 testes de reminders passam (12 antigos + 6 novos com mock
+  do AppProcess: PASS real, FAIL real, fallback VERIFY_PROMPT sem package.json,
+  doc não dispara, verificação no turno não duplica, turno em andamento não
+  roda) + 51 retry/anchors + 47 prompt/system OK; build smoke `0.1.0-sploit`
+  OK (backup criado; cópia do exe em uso — troca via self-restart pendente).
+  Commit motor `10eff54`; nota de evolução em NOTAS.md ✔
 
 ## Armadilhas
 

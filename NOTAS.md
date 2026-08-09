@@ -6,6 +6,36 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Geração 6 — o harness roda a verificação de verdade (auto-verify)
+- **Como raciocinei**: a G5 pede verificação com texto (VERIFY_PROMPT) — funciona,
+  mas depende do modelo obedecer. O usuário cobrou ideias que não sejam "fáceis":
+  a Geração 6 faz o **harness executar** a verificação. Se o projeto tem
+  `package.json` com script `typecheck` (fallback `build`), o `reminders.ts` roda
+  `bun run typecheck` via `AppProcess.run` (timeout 120s, saída truncada em 3000
+  bytes) e injeta o RESULTADO REAL (PASS/FAIL + erro concreto) como part synthetic
+  no userMessage — o modelo corrige com prova, não com convite. Sem package.json,
+  cai no VERIFY_PROMPT da G5. Só verifica no turno final (finish !==
+  "tool-calls"), para não checar mudança pela metade; não duplica quando já rodou
+  verificação no turno; docs editadas não disparam.
+- **O que valeu a pena**: (1) encontrar o caminho `AppProcess.run` já usado por
+  git/snapshot/worktree — o serviço resolve do runtime global, sem wiring extra
+  (mas o typecheck pegou o requisito: `apply` agora precisa de `AppProcess.Service`
+  e o prompt.ts teve que importar/prover o serviço + node no layer — 3 pontos);
+  (2) o falso positivo do tsgo no prompt.ts:1081 era o requirements novo do `apply`
+  propagando — o erro sumiu ao prover o serviço; (3) o mock do AppProcess no teste
+  (Layer.mock com exitCode/stdout/stderr controláveis) permite testar PASS e FAIL
+  sem processo real; (4) 6 testes novos + 51 de regressão (reminders+retry+anchors)
+  + 47 prompt/system OK; monorepo 16/16; build smoke `0.1.0-sploit` OK.
+- **Verificado**: commit motor `10eff54`; typecheck opencode + monorepo OK; 18
+  testes de reminders passam (12 antigos + 6 novos); build smoke OK (backup
+  criado; cópia do exe em uso — troca via self-restart pendente).
+- **Próximo**: self-restart com o binário novo (G5 recuperada + G6 ativa) e
+  re-medição real com `medicao_mutacoes.py` (verificação pós-edição > 2,5%;
+  agora a mutação está no binário DE VERDADE).
+- **Referências**: sploit-src/packages/opencode/src/session/reminders.ts
+  (runAutoVerify/AUTO_VERIFY_PROMPT/detectVerifyCommand), prompt.ts (provide
+  AppProcess), test/session/reminders.test.ts (mock do AppProcess + 6 casos)
+
 ## [2026-08-09] G5 perdida no revert da small_model — recuperada (lição de processo)
 - **Como raciocinei**: ao investigar por que o reminder G5 (verificação pós-edição)
   parecia fraco, fui ler o código em vez de confiar na memória — e `grep` por
