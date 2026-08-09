@@ -250,6 +250,14 @@ Princípios:
   (regra da nota de evolução + NOTAS.md com registro automático); primeira nota
   desta sessão registrada (Geração 1). Direção do usuário: eliminar slashes aos
   poucos — quem decide o momento é o próprio Sploit.
+- **Geração 2 — genes de sucesso (reforço positivo)** ✔: `sync_genes()` no
+  `diagnostico.py` lê NOTAS.md por seção e conta em quantas notas distintas cada
+  técnica apareceu (G-grafo, G-isolado, G-verificacao, G-causaraiz,
+  G-idempotencia). Com 3+ observações o gene vira "forte" → candidato a mutação
+  estrutural medida. Seção `## Genes de sucesso` no APRENDIZADO.md (antes do
+  placar), viaja na nuvem. Validado: py_compile, testes fake (destilação real
+  das notas: 4 genes ativos, idempotência, preserva placar), diagnóstico real +
+  push para a nuvem. Slash eliminado no caminho: `/resumo`.
 
 ## Próximo passo
 
@@ -318,6 +326,10 @@ testados isoladamente.
    grep, read com limits) e as propõe como mutação estrutural do harness com
    medição — eliminando mais um slash (candidato: `/planejar` tornando-se
    automático quando o grafo indicar impacto).
+8. **Geração 3 — primeiro gene forte vira mutação estrutural**: quando um gene
+   atingir 3+ observações (candidatos atuais: G-causaraiz e G-verificacao com 2),
+   implementar a mudança no harness com medição antes/depois — ex.: G-grafo vira
+   `/planejar` automático (consultar comunidades antes de editar arquivos centrais).
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 

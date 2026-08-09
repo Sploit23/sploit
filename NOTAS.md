@@ -6,6 +6,25 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-08] Geração 2 — genes de sucesso destilados das notas (Constituição)
+- **Como raciocinei**: a Geração 1 criou a nota de evolução (reforço positivo);
+  a 2 pega essas notas e as transforma em genes — técnicas que funcionaram, com
+  contagem de observações. Em vez de "não erre" (lição), o gene diz "faça assim"
+  (sucesso). Diferente do placar de lições (falha → confirmada), o gene nasce do
+  que deu certo.
+- **O que valeu a pena**: `sync_genes()` no diagnostico.py lê NOTAS.md por seção
+  e conta em quantas notas distintas cada técnica aparece (G-grafo, G-isolado,
+  G-verificacao, G-causaraiz, G-idempotencia). Com 3+ observações vira "forte" —
+  candidato a mutação estrutural medida. Seção `## Genes de sucesso` no
+  APRENDIZADO.md (antes do placar), viaja na nuvem junto.
+- **Verificado**: py_compile OK; testes fake (destilação real das notas: 4 genes
+  ativos; idempotência 2ª execução sem mudar; preserva placar de eficácia);
+  diagnóstico real gravou genes no arquivo coletivo; push real para a nuvem OK.
+- **Pendente**: G-grafo (1 obs) e G-isolado (1 obs) precisam de mais notas para
+  virar "forte"; próxima geração: gene forte → mutação estrutural com medição.
+- **Referências**: scripts/diagnostico.py (GENE_BY_PADRAO, sync_genes), NOTAS.md,
+  ~/.config/sploit/conhecimento/APRENDIZADO.md
+
 ## [2026-08-08] Geração 1 — nota de evolução automática (Constituição)
 - **Como raciocinei**: a conversa saiu de "aprender com erros" para "evoluir o
   corpo" (o harness, não o comportamento). O usuário apontou — corretamente — que
