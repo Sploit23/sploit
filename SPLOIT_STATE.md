@@ -321,8 +321,8 @@ Princípios:
   do usuário: flag removida do `sploit.json` + `sploit-src` de volta ao `2bbca6e`
   + rebuild. A compactação volta a usar o big-pickle. Commit `5cbe9a1` fica
   recuperável se o Groq um dia aguentar a carga.
-- **Desvinculação opencode → sploit — Fases 1 a 4** ✔ (em curso): limpeza de
-  identidade aprovada pelo usuário. Fase 1: IDs de serviço Effect
+- **Desvinculação opencode → sploit — Fases 1 a 4 concluídas e validadas** ✔:
+  limpeza de identidade aprovada pelo usuário. Fase 1: IDs de serviço Effect
   `@opencode/`→`@sploit/` em 137 arquivos (commit `d9bd735`). Fase 2: binário
   `sploit` (outfile/user-agent/smoke), package.json `sploit`, user-agents em 13
   arquivos, branch `sploit/`, scripts .ps1 (commits `7ee5124`+`22333ec`). Fase 3:
@@ -333,11 +333,16 @@ Princípios:
   continua alias; decisão da flag no chamador `src/index.ts`) + 4 testes novos
   (commit `c34739b`). NÃO mexer: headers `x-opencode-*` (protocolo), provider ID
   `opencode`, shim `@opencode-ai/plugin`, URLs funcionais, env vars de flag.
-  Typecheck monorepo 16/16; falhas pré-existentes do core confirmadas (2) sem
-  novas; build smoke `0.1.0-sploit` OK (backup criado; troca via self-restart
-  pendente). Pendente: self-restart para ativar binário novo + migração real
-  (`opencode-sploit.db` 182MB → `sploit.db`), validar `/saude` no histórico
-  migrado.
+  **Validação real pós-restart (13:01, PID 2960)**: self-restart ativou o
+  binário novo (build 12:57:09 em
+  `packages/opencode/dist/sploit-windows-x64`), a migração rodou no primeiro
+  boot (`sploit.db` 182.489.088 bytes + wal + shm criados), o legado
+  `opencode-sploit.db` (183.672.832) continua intacto (nunca é removido), e o
+  `/saude` lê o histórico migrado (sessão atual 2467 turnos, 15,3M tokens de
+  entrada, 200M cache read, 38 compactações, pico 179.546). Scripts de
+  diagnóstico da raiz apontam para `sploit.db` com fallback para o legado
+  (commit raiz `0598f13`). Typecheck monorepo 16/16; falhas pré-existentes do
+  core confirmadas (2) sem novas.
 
 ## Próximo passo
 
@@ -377,29 +382,23 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   (9/374), consulta ao grafo em centrais 0% (0/1) — meta pós-mutações:
   >> 2,4% e > 0%.
 
-**Próximo passo** (desvinculação opencode → sploit em curso):
-1. **Self-restart (fim desta sessão)** — ativa o binário novo
-   `sploit-windows-x64` (Fases 1-4) + migração real do DB
-   (`opencode-sploit.db` 182MB → `sploit.db` no primeiro boot). Rollback
-   automático via `sploit.exe.bak` se o binário novo morrer.
-2. **Validar pós-restart**: `/saude` lendo o histórico migrado (sessão retomada
-   deve continuar a mesma conversa; DB novo com dados antigos); confirmar que o
-   legado `opencode-sploit.db` continua intacto (nunca é removido).
-3. **Medição pós-mutações** (Constituição art. 6, pendência antiga): rodar
-   `scripts/medicao_mutacoes.py` com sessões novas do binário com G3+G4+G5
-   (ativos desde 01:13). Baseline: verificação pós-edição **2,4%** (9/374),
-   consulta ao grafo em centrais **0%** (0/1). Meta: >> 2,4% e > 0%.
-4. **Próxima sessão dedicada (desvinculação, pendências)**: renomear a pasta
+**Próximo passo** (desvinculação concluída; validação real feita — ver Progresso):
+1. **Medição pós-mutações** (Constituição art. 6, pendência antiga): rodar
+   `scripts/medicao_mutacoes.py` (agora lê `sploit.db`) com sessões novas do
+   binário com G3+G4+G5 (ativos desde 01:13). Baseline: verificação pós-edição
+   **2,4%** (9/374), consulta ao grafo em centrais **0%** (0/1). Meta:
+   >> 2,4% e > 0%.
+2. **Próxima sessão dedicada (desvinculação, pendências)**: renomear a pasta
    `packages/opencode` (decisão do usuário: não agora, mas ficou como item);
    renomear o workspace `@opencode-ai/cli` → `@sploit-ai/cli` (único restante
    além do shim; valor baixo, adiado); revisar docs legadas (CONTEXT.md,
    specs/tui-package.md mencionam `@opencode-ai/*`); reindexar Graphify após a
    desvinculação.
-5. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (pendências de
+3. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (pendências de
    operação): distribuir `dist/sploit-20260808-2243.zip` aos amigos
    (INSTALAR.cmd zero-config); agendador diário no PC do amigo (Task Scheduler,
    `-Action pull`); confirmar POST automático do `/diagnostico` para a nuvem.
-6. **Próxima geração do corpo**: quando outro gene atingir 3+ obs (candidatos
+4. **Próxima geração do corpo**: quando outro gene atingir 3+ obs (candidatos
    atuais: G-causaraiz 2, G-grafo 2), aplicar nova mutação estrutural com
    medição antes/depois.
 
@@ -532,6 +531,15 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   OK (exit 0); build smoke `0.1.0-sploit` OK (backup `sploit.exe.bak` criado;
   cópia para `sploit.exe` falhou em uso — esperado, troca no restart). Commits
   `sploit: fix:` (config+memórias) + `sploit: chore:` (motor) ✔
+- **Desvinculação — Fase 4 validada em produção**: self-restart real ativou o
+  binário novo (PID 2960, 13:01:29, build 12:57:09); migração rodou no primeiro
+  boot — `sploit.db` 182.489.088 bytes + wal + shm; legado `opencode-sploit.db`
+  183.672.832 + wal + shm **intacto**; `/saude` (script) lê o histórico migrado
+  (2467 turnos, 15.342.727 tokens in, 200.778.112 cache read, 38 compactações,
+  pico 179.546); 4 testes `database-path.test.ts` + boot `serve-process.test.ts`
+  passam; py_compile OK nos 3 scripts da raiz (saude/diagnostico/medicao);
+  typecheck monorepo 16/16; commit raiz `0598f13` (scripts apontam para
+  `sploit.db` com fallback) ✔
 
 ## Armadilhas
 
