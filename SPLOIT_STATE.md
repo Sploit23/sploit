@@ -706,6 +706,12 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   **G-idempotencia 4 (próximo candidato a mutação)**, G-isolado 1. Commit
   `13987e8` (restart) + este registro. Re-medição da verificação AGUARDANDO
   amostras com o binário novo (sessão começou às 16:24).
+- **Self-restart real (17:19) com G5–G9 no binário** ✔: relaunch.log `[OK] Sploit
+  novo vivo (PID 20248)`; `sploit.exe` 17:18:23 = dist (build com G5+G6+G7+G8+
+  G9); backup `sploit.exe.bak` 16:22:52 (known-good) preservado; prompt "continue"
+  enviado e sessão retomada sozinha. Commit motor `52be6d1` (G9) + raiz
+  `3c68a54` (memória). Re-medição de G5–G9 a partir de agora com a mutação
+  ATIVA de verdade.
 
 ## Armadilhas
 
