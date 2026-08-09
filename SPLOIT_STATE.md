@@ -483,9 +483,15 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
    operação): distribuir `dist/sploit-20260808-2243.zip` aos amigos
    (INSTALAR.cmd zero-config); agendador diário no PC do amigo (Task Scheduler,
    `-Action pull`); confirmar POST automático do `/diagnostico` para a nuvem.
-4. **Próxima geração do corpo**: quando outro gene atingir 3+ obs (candidatos
-   atuais: G-causaraiz 2, G-grafo 2), aplicar nova mutação estrutural com
-   medição antes/depois.
+4. **Próxima geração do corpo — G-idempotencia (4 obs, forte)** ✔ (candidato
+   pronto): genes atuais destilados pelo diagnóstico de 09/08 — G-verificacao
+   17 obs (mutada G5-G7), G-causaraiz 4 (mutada Iteração B), G-grafo 4 (mutada
+   G3/G4), **G-idempotencia 4 (NÃO mutada ainda — próxima)**, G-isolado 1
+   (acumulando). Mutação sugerida: quando o assistant cria/executa um script
+   ou tool que escreve estado (scaffold, geração, migração, seed), o harness
+   lembra de rodar 2x e conferir que a 2ª execução não duplica — a técnica
+   vira comportamento, não disciplina. Medição antes/depois: duplicações
+   reais detectadas em execuções repetidas.
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
@@ -675,6 +681,16 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   backup `sploit.exe.bak` 12:57:13 (known-good) preservado; prompt "continue"
   enviado e sessão retomada sozinha. **A partir de agora a re-medição com
   `medicao_mutacoes.py` (filtro `--desde`) mede a mutação ATIVA de verdade.** ✔
+- **Graphify reindexado + diagnóstico pós-restart (G5–G8 ativos)** ✔: grafo
+  atualizado (28.834 nós, 55.648 arestas, 2.472 comunidades; antes 28.811/55.611/
+  2.418) — agora contém reminders.ts com G5–G8. `/diagnostico` real: 44
+  compactações, pico 165k, 7 HARNESS (todos de sessões pré-fix: ripgrep 19:26,
+  sploit-web aborts) | 16 AGENTE (L-edit reconhecidos); **push automático para a
+  nuvem coletiva OK** ([OK] licoes enviadas — Iteração 7.3 em operação real);
+  genes destilados atualizados: G-verificacao 17, G-causaraiz 4, G-grafo 4,
+  **G-idempotencia 4 (próximo candidato a mutação)**, G-isolado 1. Commit
+  `13987e8` (restart) + este registro. Re-medição da verificação AGUARDANDO
+  amostras com o binário novo (sessão começou às 16:24).
 
 ## Armadilhas
 
