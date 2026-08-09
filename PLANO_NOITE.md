@@ -98,6 +98,16 @@
       novos; typecheck opencode OK; 80 testes de regressão OK; build smoke
       `0.1.0-sploit` OK. Commit motor `72851dd`. Medir: edições de código x
       verificação rodada antes/depois.
+- [x] **Compactação com small_model** ✔ (motor, ciclo 5): flag
+      `compaction.small_model` (opt-in) — schema V1 + classe V2 + migrate +
+      escolha do modelo em `opencode/src/session/compaction.ts` com fallback
+      seguro (`Effect.catch`). 2 testes novos (com flag usa "test-small", sem
+      flag usa "test-model"); 54 testes de compactação + 92 de regressão passam;
+      typecheck core+opencode OK; build smoke `0.1.0-sploit` OK. Commit motor
+      `5cbe9a1`. Flag habilitada no `sploit.json`. **Pendente**: self-restart
+      para ativar no binário; medir custo/qualidade da compactação com o Groq
+      (âncoras do grafo sobrevivem à compactação? custo por compactação vs.
+      antes).
 
 ## Registro do ciclo 4 (concluído)
 
@@ -115,6 +125,18 @@
   Graphify reindexado (28906 nós, 55729 arestas, 2443 comunidades).
 - Próximo ciclo: rodar medição pós-mutações quando houver sessões novas no DB;
   se a fila tiver candidato, seguir protocolo.
+
+## Registro do ciclo 5 (concluído)
+
+- **Compactação com small_model** ✔ (a pedido do usuário): flag `compaction.small_model`
+  implementada (schema V1 + classe V2 + migrate + escolha do modelo com fallback
+  seguro). 2 testes novos; 54 compactação + 92 regressão passam; typecheck
+  core+opencode OK; build smoke `0.1.0-sploit` OK. Commit motor `5cbe9a1`.
+- **Config** ✔: flag habilitada no `sploit.json` (`"compaction": { "small_model": true }`).
+- **Pendente**: self-restart para ativar no binário; medir custo/qualidade da
+  compactação com o Groq (as âncoras do grafo sobrevivem à compactação? custo por
+  compactação vs. antes). Próximo passo: o usuário apresentará o projeto que quebra
+  a complexidade quadrática das LLMs (rodar modelo local bom em sistema fraco).
 
 ## Registro do ciclo 3 (concluído)
 

@@ -6,6 +6,33 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Compactação com small_model — economizar tokens do modelo grande
+- **Como raciocinei**: o usuário quer que o `small_model` (Groq, hoje só usado em
+  título de sessão e cópia de projeto) assuma tarefas pequenas. A compactação é o
+  lugar certo: roda com o modelo grande e custa caro. Implementei a flag
+  `compaction.small_model` (opt-in, default false — permite comparar A/B antes de
+  virar padrão): schema V1 (`config.ts`), classe `Info` V2 (`config/compaction.ts`),
+  migrate v1→v2 e a escolha do modelo em `opencode/src/session/compaction.ts`
+  (small = `getSmallModel` com `Effect.catch` → fallback pro modelo da sessão se
+  falhar). O V2/core ainda usa `input.model` direto (runner em dev) — caminho ativo
+  é o V1.
+- **O que valeu a pena**: (1) opt-in com flag em vez de troca silenciosa — dá pra
+  medir antes/depois (Constituição art. 6); (2) fallback seguro: se o
+  `getSmallModel` falhar, a compactação usa o modelo da sessão (não quebra);
+  (3) segui o padrão dos testes existentes (`withCompaction({ llm, provider,
+  config })`) em vez de criar infra nova — 2 testes novos capturam `input.model.id`
+  e provam: com flag usa "test-small", sem flag usa "test-model".
+- **Verificado**: typecheck core+opencode OK (0 erros); 54 testes de compactação
+  (52 + 2 novos) passam; 92 de regressão (reminders+retry+system+prompt) passam;
+  build smoke `0.1.0-sploit` OK (backup criado; cópia do exe em uso — troca via
+  self-restart pendente). Commit motor `5cbe9a1`.
+- **Pendente**: self-restart para ativar no binário; habilitada a flag no
+  `sploit.json` (`"compaction": { "small_model": true }`); medir custo/qualidade da
+  compactação com o Groq (as âncoras do grafo sobrevivem à compactação?).
+- **Referências**: sploit-src/packages/opencode/src/session/compaction.ts
+  (linhas ~328-337), sploit-src/packages/core/src/v1/config/config.ts,
+  sploit-src/packages/core/src/config/compaction.ts, sploit.json
+
 ## [2026-08-09] Geração 5 — gene G-verificacao (4 obs, forte) vira mutação estrutural
 - **Como raciocinei**: o gene G-verificacao ("Verificar antes de concluir:
   typecheck/build/smoke/compile — nada sem prova") atingiu 4 observações (forte)

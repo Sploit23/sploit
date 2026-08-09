@@ -314,6 +314,15 @@ Princípios:
   commits atômicos motor/raiz; nota de evolução; diagnostico; sync nuvem;
   self-restart com `-ResumePrompt`). Commit raiz `89d7df3`. PC não dorme na
   tomada (sleep AC=0).
+- **Compactação com small_model** ✔ (motor, iterado): o usuário quer que o
+  `small_model` (Groq) assuma tarefas pequenas para economizar tokens do modelo
+  grande. A compactação era o ponto mais caro. Flag `compaction.small_model`
+  (opt-in, default false): schema V1 (`config.ts`), classe `Info` V2
+  (`config/compaction.ts`), migrate v1→v2, escolha do modelo em
+  `opencode/src/session/compaction.ts` (`getSmallModel` com `Effect.catch` →
+  fallback pro modelo da sessão). V2/core ainda usa `input.model` direto (runner
+  em dev) — caminho ativo é o V1. Commit motor `5cbe9a1`. Flag habilitada no
+  `sploit.json` (`"compaction": { "small_model": true }`).
 
 ## Próximo passo
 
@@ -359,11 +368,20 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
    01:13). Baseline registrado: verificação pós-edição de código **2,4%**
    (9/374), consulta ao grafo em centrais **0%** (0/1). Meta: >> 2,4% e > 0%.
    Manter as mutações se a taxa melhorar; reverter com evidência se não.
-2. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (pendências de operação):
+2. **Compactação com small_model** (feito, validação do binário pendente): flag
+   `compaction.small_model` implementada (schema V1 + classe V2 + migrate +
+   escolha do modelo em `opencode/src/session/compaction.ts` com fallback seguro
+   via `Effect.catch`); 2 testes novos (com flag usa "test-small", sem flag usa
+   "test-model"); 54 testes de compactação + 92 de regressão passam; typecheck
+   core+opencode OK; build smoke `0.1.0-sploit` OK. Commit motor `5cbe9a1`.
+   Flag habilitada no `sploit.json` (`"compaction": { "small_model": true }`).
+   **Pendente**: self-restart para ativar no binário; medir custo/qualidade da
+   compactação com o Groq (âncoras do grafo sobrevivem? custo vs. antes).
+3. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (pendências de operação):
    distribuir `dist/sploit-20260808-2243.zip` aos amigos (INSTALAR.cmd zero-config);
    agendador diário no PC do amigo (Task Scheduler, `-Action pull`); confirmar POST
    automático do `/diagnostico` para a nuvem (validado: `[OK] licoes enviadas`).
-3. **Próxima geração**: quando outro gene atingir 3+ obs (candidatos atuais:
+4. **Próxima geração**: quando outro gene atingir 3+ obs (candidatos atuais:
    G-causaraiz 2, G-grafo 2), aplicar nova mutação estrutural com medição
    antes/depois.
 
@@ -485,6 +503,12 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   gravou 2 lições + placar `? verificar 0/3` no arquivo coletivo; push real para a nuvem
   validado (pull 200 retorna APRENDIZADO.md com placar). Unicode do arquivo conferido por
   bytes (UTF-8 sem BOM, em-dash `e2 80 94`) — `�` no console é só display do PS 5.1 ✔
+- **Compactação com small_model**: typecheck core+opencode OK (0 erros); 54 testes
+  de compactação (52 + 2 novos: com flag usa "test-small", sem flag usa
+  "test-model") + 92 de regressão (reminders+retry+system+prompt) passam; build
+  smoke `0.1.0-sploit` OK (backup criado; cópia do exe em uso — troca via
+  self-restart pendente); commit motor `5cbe9a1`; flag habilitada no `sploit.json`
+  (`"compaction": { "small_model": true }`) ✔
 
 ## Armadilhas
 
