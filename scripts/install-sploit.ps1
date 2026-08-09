@@ -1,30 +1,132 @@
-# Instala o Sploit pra uso do dia a dia: copia o sploit.exe já buildado
-# para um local estável fora do repo e registra esse local no PATH do
-# usuário, para que `sploit` funcione em qualquer pasta.
+﻿# install-sploit.ps1 - Instalador autonomo do Sploit (para qualquer PC).
+#
+# Copia o sploit.exe para um local estavel e registra no PATH do usuario,
+# para que `sploit` funcione em qualquer pasta. Cria a identidade do Sploit
+# em ~/.config/sploit/ (AGENTS.md, tui.json, sploit.jsonc) e instala o
+# conhecimento coletivo (APRENDIZADO.md) como instruction global - assim todo
+# projeto deste PC herda as licoes que o Sploit aprendeu em outras maquinas.
+#
+# Este instalador NAO precisa do repositorio do Sploit: funciona sozinho,
+# basta estar na mesma pasta do sploit.exe (ex.: dentro do pacote de
+# distribuicao). Ideal para instalar em PCs de amigos.
 #
 # Uso:
-#   .\scripts\install-sploit.ps1              # builda do zero e instala
-#   .\scripts\install-sploit.ps1 -SkipBuild    # reusa o sploit.exe já existente na raiz
+#   powershell -ExecutionPolicy Bypass -File install-sploit.ps1 `
+#       [-BinPath <caminho do sploit.exe>] [-CloudflareURL <url> -Senha <s>]
+#
+# Parametros:
+#   -BinPath            Caminho do sploit.exe (padrao: a pasta deste script)
+#   -CloudflareURL      URL do Worker do conhecimento coletivo
+#                       (ex.: https://sploit-conhecimento.<conta>.workers.dev).
+#                       Se informado, o instalador baixa o APRENDIZADO.md da
+#                       nuvem (GET publico) e salva a config de sincronizacao
+#                       para o diagnostico enviar licoes (POST com X-Senha).
+#   -Senha              Senha compartilhada (junto com -CloudflareURL).
+#   -RepoConhecimento   [LEGADO] URL do repo git privado (GitHub). Use apenas
+#                       se ainda nao migrou para o Cloudflare.
+#   -SkipConfig         Nao cria a config global (~/.config/sploit/) se ja existir
+#
+# Se -CloudflareURL/-Senha nao forem informados, o instalador procura um
+# arquivo "conhecimento.txt" na mesma pasta (gerado pelo pack-dist.ps1 dentro
+# do pacote de distribuicao). Nesse caso o amigo nao precisa digitar nada.
+#
+# Apos instalar, cada usuario precisa configurar o modelo/API key:
+#   sploit          # abre a TUI; o primeiro acesso guia para escolher o provider
+
 param(
-    [switch]$SkipBuild
+    [string]$BinPath = "",
+    [string]$CloudflareURL = "",
+    [string]$Senha = "",
+    [string]$RepoConhecimento = "",
+    [switch]$SkipConfig
 )
 
 $ErrorActionPreference = "Stop"
-$root = Split-Path -Parent $PSScriptRoot
-$exePath = "$root\sploit.exe"
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-if (-not $SkipBuild) {
-    & "$PSScriptRoot\build-sploit.ps1"
+# ---------------------------------------------------------------------------
+# Config embutida do conhecimento coletivo: se o pacote trouxer um
+# "conhecimento.txt", usa-o automaticamente (o amigo nao digita nada).
+# Formato (uma config por linha, "chave=valor"):
+#   url=https://sploit-conhecimento.<conta>.workers.dev
+#   senha=<senha-compartilhada>
+#   modo=cloudflare
+# ---------------------------------------------------------------------------
+$configArquivo = Join-Path $here "conhecimento.txt"
+if (-not $CloudflareURL -and (Test-Path $configArquivo)) {
+    $configLinhas = Get-Content $configArquivo -ErrorAction SilentlyContinue
+    foreach ($linha in $configLinhas) {
+        $partes = $linha -split "=", 2
+        if ($partes.Count -eq 2) {
+            switch ($partes[0].Trim()) {
+                "url"   { if (-not $CloudflareURL) { $CloudflareURL = $partes[1].Trim() } }
+                "senha" { if (-not $Senha) { $Senha = $partes[1].Trim() } }
+            }
+        }
+    }
+    if ($CloudflareURL) {
+        Write-Host "==> Config de conhecimento encontrada no pacote (conhecimento.txt)" -ForegroundColor Cyan
+    }
 }
 
-if (-not (Test-Path $exePath)) {
-    throw "sploit.exe não encontrado em $exePath. Rode sem -SkipBuild, ou rode build-sploit.ps1 primeiro."
+if (-not $BinPath) {
+    $BinPath = Join-Path $here "sploit.exe"
+}
+if (-not (Test-Path $BinPath)) {
+    Write-Host "[ERRO] sploit.exe nao encontrado em: $BinPath" -ForegroundColor Red
+    Write-Host "       Rode o instalador a partir da pasta que contem o sploit.exe,"
+    Write-Host "       ou informe o caminho com -BinPath."
+    exit 1
 }
 
-$installDir = "$env:LOCALAPPDATA\Sploit\bin"
+# O instalador pode rodar com Python ausente; o /diagnostico requer python no PATH.
+$hasPython = $false
+$oldEA = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+$null = python --version 2>$null
+$hasPython = ($LASTEXITCODE -eq 0)
+$ErrorActionPreference = $oldEA
+
+# ---------------------------------------------------------------------------
+# Helper de download. Prefere o curl.exe (confiavel, presente no Windows 10
+# 1803+); o Invoke-WebRequest do PS 5.1 da timeout em alguns hosts (TLS).
+# ---------------------------------------------------------------------------
+function Invoke-Download([string]$Url, [string]$Destino) {
+    $curlPath = (Get-Command curl.exe -ErrorAction SilentlyContinue).Source
+    if ($curlPath) {
+        $oldEA2 = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        $httpCode = & $curlPath -sS -o $Destino -w "%{http_code}" $Url 2>$null
+        $ErrorActionPreference = $oldEA2
+        if ("$httpCode".Trim() -eq "200") { return "ok" }
+    }
+    $oldEA2 = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $res = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 30
+        if ($res.StatusCode -eq 200) {
+            $res.Content | Set-Content -Path $Destino -Encoding UTF8
+            return "ok"
+        }
+    } catch {
+        return "erro"
+    } finally {
+        $ErrorActionPreference = $oldEA2
+    }
+    return "erro"
+}
+
+# ---------------------------------------------------------------------------
+# 1. Copia o binario para um local estavel fora do repo
+# ---------------------------------------------------------------------------
+$installDir = Join-Path $env:LOCALAPPDATA "Sploit\bin"
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-Copy-Item $exePath "$installDir\sploit.exe" -Force
+Copy-Item $BinPath (Join-Path $installDir "sploit.exe") -Force
+Write-Host "[1/3] sploit.exe instalado em $installDir\sploit.exe" -ForegroundColor Green
 
+# ---------------------------------------------------------------------------
+# 2. Registra no PATH do usuario (funciona de qualquer pasta)
+# ---------------------------------------------------------------------------
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ([string]::IsNullOrEmpty($userPath)) {
     $userPath = ""
@@ -33,16 +135,199 @@ $pathEntries = $userPath -split ";" | Where-Object { $_ -ne "" }
 if ($pathEntries -notcontains $installDir) {
     $newPath = if ($userPath) { "$userPath;$installDir" } else { $installDir }
     [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
-    Write-Host "PATH do usuário atualizado com $installDir"
+    Write-Host "[2/3] PATH do usuario atualizado com $installDir" -ForegroundColor Green
 } else {
-    Write-Host "$installDir já está no PATH do usuário"
+    Write-Host "[2/3] $installDir ja esta no PATH do usuario" -ForegroundColor Gray
 }
-
-# Atualiza o PATH da sessão atual, para poder testar sem abrir um terminal novo.
 if (($env:Path -split ";") -notcontains $installDir) {
     $env:Path = "$env:Path;$installDir"
 }
 
+# ---------------------------------------------------------------------------
+# 3. Config global (identidade do Sploit) - cria so se nao existir
+# ---------------------------------------------------------------------------
+$configDir = Join-Path $env:USERPROFILE ".config\sploit"
+$aprendizadoPath = ""
+
+if (-not $SkipConfig) {
+    New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+
+    $tuiPath = Join-Path $configDir "tui.json"
+    if (-not (Test-Path $tuiPath)) {
+        @"
+{"`$schema": "https://opencode.ai/tui.json", "theme": "sploit"}
+"@ | Set-Content -Path $tuiPath -Encoding UTF8
+    }
+
+    $globalAgents = Join-Path $configDir "AGENTS.md"
+    if (-not (Test-Path $globalAgents)) {
+        @'
+# AGENTS.md global - Sploit
+
+Instrucoes de identidade que valem em qualquer pasta, independente de haver um `AGENTS.md` de projeto.
+
+## Identidade
+
+- Voce e o **Sploit**, um agente de engenharia de software que roda no terminal. Nao se refira a si mesmo
+  como "opencode" - Sploit e seu proprio projeto, derivado do opencode mas com identidade e UX proprias.
+
+## Idioma
+
+- Responda **sempre em portugues brasileiro (PT-BR)**, independente do idioma da pergunta do usuario.
+'@ | Set-Content -Path $globalAgents -Encoding UTF8
+    }
+
+    # -----------------------------------------------------------------------
+    # Conhecimento coletivo:
+    #   - Modo cloudflare (padrao novo): baixa APRENDIZADO.md da nuvem e
+    #     salva a config de sync (url+senha) para o diagnostico subir licoes.
+    #   - Modo git (legado): clona o repo privado.
+    #   - Senao: usa o APRENDIZADO.md que vier no pacote.
+    # -----------------------------------------------------------------------
+    $conhecDir = Join-Path $configDir "conhecimento"
+    if ($CloudflareURL) {
+        Write-Host "==> Conectando conhecimento coletivo (Cloudflare): $CloudflareURL" -ForegroundColor Cyan
+        $cfUrl = $CloudflareURL.TrimEnd("/")
+        # Salva a config de sync para o diagnostico.py usar no push de licoes
+        $cfConfig = Join-Path $configDir "conhecimento.json"
+        @{ url = $cfUrl; senha = $Senha; modo = "cloudflare" } |
+            ConvertTo-Json | Set-Content -Path $cfConfig -Encoding UTF8
+
+        New-Item -ItemType Directory -Force -Path $conhecDir | Out-Null
+        $aprendizadoPath = Join-Path $conhecDir "APRENDIZADO.md"
+        $result = Invoke-Download "$cfUrl/aprendizado.md" $aprendizadoPath
+        if ($result -eq "ok") {
+            Write-Host "==> Conhecimento coletivo baixado da nuvem." -ForegroundColor Green
+        } else {
+            Write-Host "[AVISO] Nao consegui baixar da nuvem agora (rede)." -ForegroundColor Yellow
+            Write-Host "        O conhecimento sera baixado na primeira sincronizacao." -ForegroundColor Yellow
+        }
+    } elseif ($RepoConhecimento) {
+        Write-Host "==> Conectando conhecimento coletivo em $RepoConhecimento (git)" -ForegroundColor Cyan
+        if (-not (Test-Path $conhecDir)) {
+            $oldEA = $ErrorActionPreference
+            $ErrorActionPreference = "Continue"
+            $clone = & git clone $RepoConhecimento $conhecDir 2>&1
+            $cloneCode = $LASTEXITCODE
+            $ErrorActionPreference = $oldEA
+            if ($cloneCode -ne 0) {
+                Write-Host "[ERRO] Nao foi possivel clonar o repo de conhecimento:" -ForegroundColor Red
+                $clone | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+                Write-Host "       O GitHub pede login 1x pelo navegador (Git Credential Manager)."
+                exit 1
+            }
+            Write-Host "==> Repo de conhecimento clonado em $conhecDir" -ForegroundColor Green
+        } else {
+            Write-Host "==> Repo de conhecimento ja existe em $conhecDir (pulando clone)" -ForegroundColor Gray
+        }
+        $aprendizadoPath = Join-Path $conhecDir "APRENDIZADO.md"
+        if (-not (Test-Path $aprendizadoPath)) {
+            Write-Host "[AVISO] APRENDIZADO.md nao encontrado no repo de conhecimento." -ForegroundColor Yellow
+        }
+    } else {
+        $aprendizadoPkg = Join-Path $here "APRENDIZADO.md"
+        if (Test-Path $aprendizadoPkg) {
+            $aprendizadoPath = Join-Path $configDir "APRENDIZADO.md"
+            Copy-Item $aprendizadoPkg $aprendizadoPath -Force
+            Write-Host "     Conhecimento coletivo (APRENDIZADO.md) instalado do pacote." -ForegroundColor Cyan
+        }
+    }
+
+    # -----------------------------------------------------------------------
+    # sploit.jsonc global: instructions com CAMINHO ABSOLUTO (caminhos
+    # relativos resolvem a partir do projeto e nao acham a config global).
+    # -----------------------------------------------------------------------
+    $sploitJsonc = Join-Path $configDir "sploit.jsonc"
+    $config = @{}
+    if (Test-Path $sploitJsonc) {
+        try {
+            $config = Get-Content $sploitJsonc -Raw -Encoding UTF8 | ConvertFrom-Json
+        } catch {
+            $config = @{}
+        }
+    }
+    $instructions = @()
+    if ($config.instructions) {
+        $instructions = @($config.instructions | Where-Object { $_ })
+    }
+    if ($aprendizadoPath) {
+        $abs = [System.IO.Path]::GetFullPath($aprendizadoPath)
+        if ($instructions -notcontains $abs) {
+            $instructions += $abs
+        }
+    }
+    $config | Add-Member -NotePropertyName instructions -NotePropertyValue $instructions -Force
+    if (-not $config.'$schema') {
+        $config | Add-Member -NotePropertyName '$schema' -NotePropertyValue "https://opencode.ai/sploit.json" -Force
+    }
+    $config | ConvertTo-Json -Depth 8 | Set-Content -Path $sploitJsonc -Encoding UTF8
+
+    Write-Host "[3/3] Config global do Sploit criada em $configDir" -ForegroundColor Green
+
+    # -----------------------------------------------------------------------
+    # 4. /diagnostico global: script auxiliar + comando markdown.
+    #    Sem isso o usuario deste PC nao tem como gerar/subir licoes proprias.
+    # -----------------------------------------------------------------------
+    $pkgDiag = Join-Path $here "diagnostico.py"
+    if (Test-Path $pkgDiag) {
+        if (-not $hasPython) {
+            Write-Host "[AVISO] Python nao encontrado no PATH. /diagnostico sera instalado," -ForegroundColor Yellow
+            Write-Host "        mas precisa de Python para rodar (https://python.org)." -ForegroundColor Yellow
+        }
+        $scriptsDir = Join-Path $installDir "..\scripts"
+        $scriptsDir = [System.IO.Path]::GetFullPath($scriptsDir)
+        New-Item -ItemType Directory -Force -Path $scriptsDir | Out-Null
+        Copy-Item $pkgDiag (Join-Path $scriptsDir "diagnostico.py") -Force
+
+        $cmdDir = Join-Path $configDir "command"
+        New-Item -ItemType Directory -Force -Path $cmdDir | Out-Null
+        $cmdPath = Join-Path $cmdDir "diagnostico.md"
+        if (-not (Test-Path $cmdPath)) {
+            $diagPy = (Join-Path $scriptsDir "diagnostico.py") -replace "\\", "/"
+            @"
+---
+description: Diagnostico do harness do Sploit (falhas de ferramenta, turnos caros, licoes)
+---
+
+Reporte o diagnostico do harness do Sploit em PT-BR:
+
+1. Rode `python "$diagPy"` para coletar os dados do banco local.
+2. Apresente ao usuario um resumo em PT-BR, destacando:
+   - **Falhas de ferramenta**: quais falharam, quantas vezes, arquivos envolvidos.
+   - **Turnos mais caros**: o que o turno fez (tools usadas) que custou tanto contexto.
+   - **Licoes coletivas**: se novas licoes foram gravadas e enviadas para o repo coletivo.
+3. Fechamento: aponte UMA acao concreta mais valiosa para o harness.
+"@ | Set-Content -Path $cmdPath -Encoding UTF8
+        }
+        Write-Host "[4/4] /diagnostico instalado (script + comando global)" -ForegroundColor Green
+    }
+} else {
+    Write-Host "[3/3] Config global mantida (nada a criar)" -ForegroundColor Gray
+}
+
 Write-Host ""
-Write-Host "sploit.exe instalado em $installDir\sploit.exe"
-Write-Host "Abra um terminal novo (ou use este mesmo, já atualizado) e rode 'sploit' de qualquer pasta."
+Write-Host "Instalacao concluida." -ForegroundColor Green
+Write-Host ""
+Write-Host "Agora:"
+Write-Host "  1. Feche e abra um terminal novo (para o PATH valer)."
+Write-Host "  2. Va ate a pasta de um projeto e rode: sploit"
+Write-Host "  3. Na primeira vez, o Sploit pergunta qual modelo/provider usar."
+Write-Host ""
+if ($CloudflareURL) {
+    Write-Host "Conhecimento coletivo ativo (Cloudflare)! As licoes dos outros PCs"
+    Write-Host "chegam sozinhas e as suas saem sozinhas."
+    Write-Host "Para sincronizar agora:"
+    Write-Host "  powershell -ExecutionPolicy Bypass -File `"$here\sync-conhecimento.ps1`" -URL `"$($CloudflareURL.TrimEnd('/'))`" -Senha `"$Senha`" -Action pull"
+} elseif ($RepoConhecimento) {
+    Write-Host "Conhecimento coletivo ativo! As licoes dos outros PCs chegam"
+    Write-Host "sozinhas e as suas saem sozinhas (via repo git privado)."
+    Write-Host "Para sincronizar agora:"
+    Write-Host "  powershell -ExecutionPolicy Bypass -File `"$here\sync-conhecimento.ps1`" -Repo `"$RepoConhecimento`" -Action pull"
+} else {
+    Write-Host "Para ativar o conhecimento coletivo (compartilhar licoes entre PCs):"
+    Write-Host "  Rode o instalador de novo informando a URL do Cloudflare:"
+    Write-Host "  powershell -ExecutionPolicy Bypass -File `"$here\install-sploit.ps1`" -CloudflareURL <url-do-worker> -Senha <senha>"
+}
+Write-Host ""
+Write-Host "Dica: no arquivo $configDir\AGENTS.md voce pode adicionar"
+Write-Host "instrucoes globais que valem para qualquer pasta deste PC."

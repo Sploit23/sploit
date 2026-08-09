@@ -1,0 +1,20 @@
+# Config do Worker sploit-conhecimento (Cloudflare).
+#
+# Para publicar (primeira vez):
+#   1. npx wrangler login
+#   2. npx wrangler kv namespace create CONHECIMENTO  -> anote o id
+#   3. edite o id abaixo em [[kv_namespaces]]
+#   4. npx wrangler secret put SENHA                  -> defina a senha compartilhada
+#   5. npx wrangler deploy
+#
+# Depois disso o conhecimento fica disponivel em:
+#   https://sploit-conhecimento.<sua-conta>.workers.dev/aprendizado.md
+
+name = "sploit-conhecimento"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "CONHECIMENTO"
+id = "473bba0f4ca048609bd26f704da3d5af"

@@ -168,28 +168,91 @@ Princípios:
 - **`--fila` sem duplicatas (melh-11)** ✔: o diagnóstico recriava candidatos negados
   (o pico de contexto virou melh-10 duplicado do melh-3). Fix: dedup por título em
   `queue_add` (era `status == "proposto"`, agora qualquer status). Commit `3501773`.
+- **Conhecimento coletivo via Cloudflare (Iteração 7.3, substitui o git)** ✔: o
+  usuário rejeitou o repo git (git/login nos PCs dos amigos, PCs desatualizados,
+  complexo). Novo desenho: **Worker + KV persistente** — PC1 faz `POST
+  /aprendizado.md` (header `X-Senha`), PC2 faz `GET /aprendizado.md` a qualquer
+  hora; nada depende de servidor acordado. Implementado:
+  - `scripts/cloudflare/worker.js` — rotas `GET/POST /aprendizado.md`, `GET/POST
+    /licoes` (com timestamp `[ISO]`), `GET /`; senha via secret `SENHA`.
+  - `scripts/cloudflare/wrangler.toml` — config do deploy (KV namespace a criar).
+  - `scripts/deploy-conhecimento.ps1` — login 1x, cria KV, define SENHA, deploy,
+    extrai a URL workers.dev; BOM corrigido.
+  - `scripts/sync-conhecimento.ps1` reescrito: `-Mode cloudflare` (padrão, HTTP
+    sem git) + `-Mode git` (legado).
+  - `scripts/install-sploit.ps1`: novo `-CloudflareURL -Senha` — baixa o
+    APRENDIZADO.md da nuvem, grava `~/.config/sploit/conhecimento.json` para o
+    diagnóstico subir lições; `-RepoConhecimento` virou legado.
+  - `scripts/diagnostico.py`: `push_lessons()` agora faz POST HTTP (com senha)
+    quando a config cloudflare existe; git ficou como fallback. Bugs corrigidos
+    no caminho: BOM do PS 5.1 quebrava `json.loads` (fix `utf-8-sig`) e o body
+    do POST ia com BOM (fix na leitura).
+  - `scripts/pack-dist.ps1`: inclui `cloudflare/` (worker.js + wrangler.toml) +
+    `deploy-conhecimento.ps1`; LEIA-ME atualizado.
+  - **Testado isoladamente**: worker.js (Node harness com KV fake: GET/POST/401/
+    licoes/404 OK), sync pull HTTP (baixou 44 chars), sync push (senha correta
+    OK; errada → 401 sem quebrar), install-sploit completo em ambiente isolado
+    (baixou da nuvem, criou conhecimento.json + instructions absoluta).
+  - **Pendente (ação do usuário)**: rodar `deploy-conhecimento.ps1` (conta
+    Cloudflare grátis), copiar a URL + senha para o PC dos amigos, regenerar o
+    `dist/`. Remover `wrangler.toml` id placeholder antes do deploy.
 
 ## Próximo passo
 
-**Mudança de direção (usuário)** — **Iteração 7 (em curso)**.
+**Iteração 7.3 — Conhecimento coletivo via Cloudflare (em curso).**
 
-O usuário rejeitou a profusão de comandos slash: "quanto mais /alguma coisa, mais ele se perde".
-Nova filosofia de design: **auto-melhoria invisível** — lição se grava sozinha, aprovação vira
-pergunta em linguagem natural, slash fica só para intenção do usuário (`/status`, `/ajuda`).
+O usuário rejeitou o modelo de repo git para o conhecimento coletivo (git/login
+nos PCs dos amigos, PCs desatualizados, complexo). Desenho novo implementado e
+testado: **Worker + KV persistente** — `scripts/cloudflare/worker.js` serve
+`GET/POST /aprendizado.md` (POST exige header `X-Senha` contra a secret `SENHA`);
+`sync-conhecimento.ps1` (modo cloudflare), `install-sploit.ps1
+-CloudflareURL -Senha` e `diagnostico.py` (POST de lições) todos adaptados e
+testados isoladamente.
 
-**Feito nesta sessão** (commit `3b3e2d8`):
-- `APRENDIZADO.md` — memória coletiva de lições (viaja no git; lida como instruction em
-  toda sessão via `sploit.json`; o PC2 que der `git pull` já nasce sabendo o que o PC1 aprendeu).
-- `diagnostico.py` grava lições automaticamente (sem slash) quando a falha é disciplina
-  e a lição já está no harness. Dedup por marcador `- **L-edit —` (cabeçalho, não menção solta).
-- `AGENTS.md` atualizado: nunca exigir slash do usuário; perguntar "posso aplicar?" em PT-BR.
+**Feito nesta sessão** (detalhe em Progresso):
+- worker.js, wrangler.toml, deploy-conhecimento.ps1, sync-conhecimento.ps1
+  (modo cloudflare + git legado), install-sploit.ps1 (-CloudflareURL/-Senha,
+  conhecimento.json), diagnostico.py (push via POST, BOM fixes), pack-dist.ps1
+  (inclui cloudflare/ + deploy).
+- Validações: worker.js via Node harness (KV fake), sync pull/push HTTP com
+  servidor fake (401 não quebra), install-sploit isolado (baixou da nuvem,
+  criou conhecimento.json + instructions absoluta).
+- **DEPLOY REAL CONCLUÍDO** ✔:
+  - `npx wrangler login` OK (conta flavioalex203@gmail.com, Account
+    0db2e48f7a796217283c7aa85b4e6cb4).
+  - KV `sploit_aprendizado` (id `473bba0f4ca048609bd26f704da3d5af`) já existia
+    (criado pelo usuário no painel); ID gravado no wrangler.toml.
+  - Secret `SENHA` definida via `wrangler secret put` (valor não vai para o git).
+  - Subdomínio workers.dev registrado via API (`PUT /workers/subdomain`) —
+    `sploit` e outras variações indisponíveis; `sploit-aprendizado` aceito.
+  - `wrangler deploy` OK → `https://sploit-conhecimento.sploit-aprendizado.workers.dev`.
+  - **Teste ponta a ponta na URL real**: GET 200 (vazio), POST com senha 200
+    (`ok: conhecimento atualizado`), POST sem senha 401, POST /licoes 200,
+    GET final retorna o conteúdo persistido. Primeira propagação SSL levou ~30s.
+  - PC do usuário configurado: `~/.config/sploit/conhecimento.json` (url+senha)
+    criado, APRENDIZADO.md baixado da nuvem para `conhecimento/`, instruction
+    absoluta adicionada ao sploit.jsonc global.
+  - **Zero-config para o amigo** ✔: `pack-dist.ps1` embute a config da nuvem
+    (lê `~/.config/sploit/conhecimento.json`) num `conhecimento.txt` dentro do
+    pacote; `install-sploit.ps1` auto-detecta esse arquivo (sem parâmetros) e
+    baixa o APRENDIZADO.md da nuvem; novo `scripts/INSTALAR.cmd` (duplo clique,
+    ASCII puro) roda o instalador sem digitar nada. LEIA-ME atualizado.
+  - **Bug do PS 5.1 corrigido**: `Invoke-WebRequest` dava timeout/TLS contra o
+    workers.dev → `install-sploit.ps1` e `sync-conhecimento.ps1` agora usam
+    `curl.exe` (com `-o NUL` no push para o corpo da resposta não vazar no
+    `%{http_code}`) com fallback para Invoke-WebRequest. Validado contra a URL
+    real: pull 200 (47 bytes), push 200, senha errada → aviso sem quebrar.
 
 **Próximo passo**:
-1. **Reiniciar o Sploit** (config não é hot-reloaded) para o APRENDIZADO.md entrar no contexto.
-2. Na próxima sessão, rodar `/diagnostico` (com o fix de dedup do melh-11) para ver
-   se as lições do harness (edit, read) e o melh-8 (grep acionável) reduziram falhas reais.
-3. Testar o fluxo multi-PC: PC2 faz `git pull` e confere se APRENDIZADO.md aparece nas instructions.
-4. Avaliar se novos defeitos HARNESS surgem no diagnóstico.
+1. **Distribuir aos amigos**: enviar `dist/sploit-20260808-2243.zip`. Eles só
+   descompactam e dão duplo clique em `INSTALAR.cmd` — conhecimento coletivo
+   conecta sozinho (config embutida no pacote).
+2. **Agendador diário no PC do amigo** (Task Scheduler): rodar
+   `sync-conhecimento.ps1 -URL <url> -Action pull` para receber lições dos outros.
+3. Confirmar que o `/diagnostico` do PC do usuário faz POST de lições para a nuvem.
+4. Commit das mudanças (raiz) quando o usuário pedir.
+5. Decidir se `deploy-conhecimento.ps1` precisa de ajuste (o fluxo real usou
+   comandos manuais + API para o subdomínio, não o script todo).
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
@@ -245,6 +308,39 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   19:26:47 (pré-fix); **0 falhas de ferramenta após 19:55** (trecho pós-restart limpo:
   reindex, diagnostico, fila, commits). melh-8 ativo e funcionando ✔
 - Injeção do `SPLOIT_STATE.md`: este texto é a prova de que está no contexto ✔
+- **Instalador autônomo (Iteração 7)**: `install-sploit.ps1` testado em ambiente
+  isolado (USERPROFILE/LOCALAPPDATA temporários) — binário copiado, PATH do usuário
+  registrado, config global criada (tui.json, AGENTS.md, sploit.jsonc com
+  `instructions: ["APRENDIZADO.md"]`) e APRENDIZADO.md instalado como instruction
+  global. `pack-dist.ps1` gerou `dist/sploit-2026-08-08.zip` (48 MB, binário 136,9 MB
+  + conhecimento + instalador; sem código-fonte/segredos). BOM UTF-8 e parse OK em
+  ambos os scripts ✔
+- **Sync do conhecimento (Iteração 7.2)**: push_lessons validado com repo git fake
+  (lição gravada pelo diagnostico.py chegou ao repo remoto) ✔; instalação com
+  `-RepoConhecimento` validada em ambiente isolado (clone + instructions absolutas +
+  /diagnostico global) ✔; diagnostico.py instalado roda fora do repo (DB real, exit 0) ✔
+- **Conhecimento coletivo Cloudflare (Iteração 7.3)**: worker.js validado via Node
+  harness com KV fake (GET público "" → POST com senha → GET retorna; 401 sem senha;
+  /licoes com timestamps; 404) ✔; `diagnostico.py` push HTTP validado contra servidor
+  fake local (body sem BOM, senha correta no header, 401 não quebra) ✔;
+  `sync-conhecimento.ps1` pull (44 chars baixados) + push (senha correta OK, errada 401)
+  validados ✔; `install-sploit.ps1 -CloudflareURL -Senha` validado em ambiente isolado
+  (baixou da nuvem, criou conhecimento.json, instructions absoluta) ✔; BOM UTF-8 e parse
+  OK nos 4 .ps1 ✔; py_compile OK no diagnostico.py ✔
+- **Deploy real do Cloudflare (Iteração 7.3)**: wrangler login OK; secret SENHA definida;
+  subdomínio workers.dev `sploit-aprendizado` registrado via API (PUT /workers/subdomain,
+  o comando `wrangler subdomain` não existe mais na v4 — é via API ou painel);
+  deploy OK → `https://sploit-conhecimento.sploit-aprendizado.workers.dev`; teste ponta a
+  ponta na URL real (GET 200, POST 200 com senha, 401 sem senha, /licoes 200, persistência
+  confirmada); PC do usuário configurado com conhecimento.json + instruction absoluta.
+  Nota: `curl.exe`/`Invoke-WebRequest` do PS 5.1 falharam com erro SSL até a propagação do
+  certificado terminar (~30s após o primeiro deploy); `webfetch` também falhou nesse intervalo ✔
+- **Zero-config validado (amigo não digita nada)**: instalador isolado SEM parâmetros com
+  `conhecimento.txt` no pacote → detectou a config, baixou APRENDIZADO.md da nuvem real
+  (curl), criou conhecimento.json + instructions absoluta ✔; `sync-conhecimento.ps1` pull real
+  47 bytes + push real 200 (senha errada → aviso sem quebrar) ✔; INSTALAR.cmd sem BOM e
+  ASCII puro ✔; pacote `dist/sploit-20260808-2243.zip` gerado com conhecimento.txt embutido
+  e senha <oculta> confirmada fora da tela ✔
 
 ## Armadilhas
 

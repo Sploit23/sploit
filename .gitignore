@@ -21,6 +21,9 @@ key.txt
 # Senha do servidor web (sploit-web.ps1)
 sploit-web.secret
 
+# Wrangler (Cloudflare) - cache local com ID da conta
+.wrangler/
+
 # Claude Code (config local, não compartilhar)
 .claude/settings.local.json
 

@@ -18,6 +18,8 @@ import sqlite3
 import sys
 import json
 import os
+import subprocess
+import urllib.request
 import collections
 from datetime import datetime
 from pathlib import Path
@@ -25,7 +27,14 @@ from pathlib import Path
 DB = Path.home() / ".local" / "share" / "sploit" / "opencode-sploit.db"
 GRAPH = Path(__file__).resolve().parent.parent / "graphify-out" / "graph.json"
 QUEUE = Path(__file__).resolve().parent.parent / "FILA_MELHORIAS.json"
-LESSONS = Path(__file__).resolve().parent.parent / "APRENDIZADO.md"
+
+# Conhecimento coletivo: se houver o repo git clonado em ~/.config/sploit/conhecimento
+# (criado pelo install-sploit.ps1 com -RepoConhecimento), as licoes sao gravadas la
+# e enviadas via push. Senao, caem no APRENDIZADO.md local do repo do Sploit.
+CONHEC_DIR = Path.home() / ".config" / "sploit" / "conhecimento"
+LESSONS = CONHEC_DIR / "APRENDIZADO.md" if (CONHEC_DIR / "APRENDIZADO.md").exists() else (
+    Path(__file__).resolve().parent.parent / "APRENDIZADO.md"
+)
 
 # Mapa ferramenta -> lição destilada (id, texto) para APRENDIZADO.md.
 # Nomeadas L-bash/L-edit/L-read para colidir com as secoes do arquivo.
@@ -63,6 +72,72 @@ def sync_lessons(tool_err, err_samples):
                 added += 1
                 text = LESSONS.read_text(encoding="utf-8")
     return added
+
+
+CONF_CF = Path.home() / ".config" / "sploit" / "conhecimento.json"
+
+
+def _cf_config():
+    """Le a config do conhecimento coletivo (Cloudflare), se existir:
+    {"url": "...", "senha": "...", "modo": "cloudflare"}."""
+    try:
+        if CONF_CF.exists():
+            return json.loads(CONF_CF.read_text(encoding="utf-8-sig"))
+    except Exception:
+        pass
+    return None
+
+
+def push_lessons(added):
+    """Envia as licoes para a nuvem coletiva.
+
+    Modo cloudflare (config conhecimento.json): POST do APRENDIZADO.md com
+    header X-Senha. Modo git (repo clonado): commit + push silenciosos.
+    Falha de rede NAO quebra o diagnostico: as licoes ficam locais e o
+    proximo sync-conhecimento.ps1 as envia."""
+    if added <= 0:
+        return
+    text = LESSONS.read_text(encoding="utf-8-sig") if LESSONS.exists() else ""
+    if not text:
+        return
+    cf = _cf_config()
+    if cf and cf.get("modo") == "cloudflare":
+        url = cf.get("url", "").rstrip("/")
+        senha = cf.get("senha", "")
+        if not url:
+            return
+        try:
+            body = text.encode("utf-8")
+            req = urllib.request.Request(
+                f"{url}/aprendizado.md",
+                data=body,
+                method="POST",
+                headers={"Content-Type": "text/markdown", "X-Senha": senha},
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                if resp.status == 200:
+                    print("   [OK] licoes enviadas para a nuvem coletiva")
+                else:
+                    print(f"   [AVISO] nuvem respondeu {resp.status}; licoes ficam locais")
+        except Exception:
+            print("   [AVISO] sem rede; licoes ficam locais ate o proximo sync")
+        return
+    if CONHEC_DIR not in LESSONS.parents:
+        return
+    try:
+        subprocess.run(["git", "-C", str(CONHEC_DIR), "add", "-A"], check=False, capture_output=True)
+        subprocess.run(
+            ["git", "-C", str(CONHEC_DIR), "commit", "-m", f"aprendizado: {added} licao(ns) coletiva(s)"],
+            check=False,
+            capture_output=True,
+        )
+        res = subprocess.run(["git", "-C", str(CONHEC_DIR), "push"], check=False, capture_output=True)
+        if res.returncode == 0:
+            print("   [OK] licoes enviadas para o repo coletivo (push)")
+        else:
+            print("   [AVISO] push falhou; licoes ficam locais ate o proximo sync")
+    except Exception:
+        pass
 
 
 def load_queue():
@@ -391,6 +466,7 @@ def main():
         added_lessons = sync_lessons(tool_err, err_samples)
         if added_lessons:
             print(f"   [OK] {added_lessons} licao(ns) gravada(s) automaticamente em APRENDIZADO.md")
+        push_lessons(added_lessons)
 
     db.close()
     return 0
