@@ -6,6 +6,33 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Geração 4 — gene G-grafo vira segunda mutação estrutural
+- **Como raciocinei**: a G3 expôs as âncoras no system prompt, mas a técnica do
+  gene G-grafo ("consultar o grafo ANTES de editar arquivos centrais") ainda
+  dependia de disciplina. Aplicação no CORPO: `reminders.ts` agora carrega as
+  âncoras via `SessionCompaction.loadAnchorFiles` (refatoração do core que
+  compartilha o cache por mtime com `loadAnchors`) e, se a última resposta do
+  assistant editou um arquivo central (top-15 por degree, casado por sufixo de
+  path relativo), injeta o reminder de consultar o grafo antes de continuar —
+  mesma mecânica do ROOT_CAUSE (synthetic, sem duplicar no turno).
+- **O que valeu a pena**: (1) reuso total — não dupliquei a lógica do grafo;
+  `loadAnchorFiles` nasceu de refatorar `loadAnchors`, os 4 testes de anchors
+  continuam passando sem mudança; (2) o reminder só dispara em arquivos centrais
+  (o teste de não-central garante silêncio em arquivos comuns); (3) sem grafo o
+  harness não faz nada — custo zero em projetos sem graphify-out; (4) o
+  `apply_patch` também é coberto (paths extraídos do patchText).
+- **Verificado**: typecheck opencode e core OK (0 erros); 8 testes de reminders
+  (4 novos da G4 + 4 da Iteração B) + 4 do compaction-anchors + 33 do retry +
+  system OK; build smoke `0.1.0-sploit` OK (backup criado; cópia do exe em uso —
+  troca via self-restart pendente). Commit motor `2bbca6e`.
+- **Pendente**: self-restart para ativar no binário (junto com o build da
+  Iteração B); medição "edições em centrais x consulta ao grafo" nas próximas
+  sessões (Constituição art. 6).
+- **Referências**: sploit-src/packages/opencode/src/session/reminders.ts
+  (GRAPH_CHECK_PROMPT), sploit-src/packages/core/src/session/compaction.ts
+  (loadAnchorFiles), sploit-src/packages/opencode/test/session/reminders.test.ts
+
+
 ## [2026-08-09] Iteração B — gene G-causaraiz vira mutação estrutural (Constituição)
 - **Como raciocinei**: a Geração 3 provou o caminho (gene forte → mutação no
   harness). O gene G-causaraiz (2 obs) dizia "investigar a causa raiz antes de

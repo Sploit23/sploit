@@ -278,6 +278,19 @@ Princípios:
   injeta sem falha; não duplica no mesmo turno; ignora erro velho de turno
   anterior); typecheck opencode OK; build smoke `0.1.0-sploit` OK (backup
   criado; troca via self-restart pendente). Commit motor `e42c47a`.
+- **Geração 4 — segunda mutação do gene G-grafo** ✔ (implementada): além das
+  âncoras no `<env>` (G3), `reminders.ts` agora carrega as âncoras via
+  `SessionCompaction.loadAnchorFiles` (novo no core — refatoração de
+  `loadAnchors` que compartilha o cache por mtime; `loadAnchorFiles` devolve o
+  array de paths, `loadAnchors` continua devolvendo o texto) e, quando a última
+  resposta do assistant editou um arquivo central (top-15 por degree, casado
+  por sufixo de path relativo; cobre edit/write/apply_patch), injeta o reminder
+  de consultar o grafo (comunidade/dependentes) antes de continuar — o
+  "consultar comunidades ANTES de editar centrais" vira comportamento do harness.
+  4 testes novos (injeta em central; não injeta em não-central; sem grafo nada;
+  não duplica no turno); typecheck opencode+core OK; build smoke
+  `0.1.0-sploit` OK (backup criado; troca via self-restart pendente). Commit
+  motor `2bbca6e`.
 - **Modo noturno autônomo** ✔ (preparado): permissões auto-approve no
   `sploit.json` (bash `*`, tools allow, external_directory allow) + PLANO_NOITE.md
   com o protocolo do ciclo noturno (1 passo da fila por ciclo; typecheck+build;
@@ -287,7 +300,7 @@ Princípios:
 
 ## Próximo passo
 
-**Iteração 8 — Constituição (evolução do corpo): Gerações 1–3 + Iteração B concluídas.**
+**Iteração 8 — Constituição (evolução do corpo): Gerações 1–4 + Iteração B concluídas.**
 
 O usuário rejeitou features de "agente de dev comum" e definiu a direção: **o
 Sploit evolui o próprio corpo** — memória viva + grafo + ciclo seguro de
@@ -307,15 +320,21 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   resposta do assistant tem tool error, `reminders.ts` injeta a instrução de
   investigar a causa raiz antes de retry. 4 testes novos passam; typecheck
   opencode OK; build smoke `0.1.0-sploit` OK. Commit motor `e42c47a`.
+- **Geração 4** ✔: segunda mutação do gene G-grafo — `reminders.ts` carrega as
+  âncoras (`SessionCompaction.loadAnchorFiles`, refatoração do core com cache
+  compartilhado) e injeta reminder de consultar o grafo quando uma edição toca
+  arquivo central (top-15). 4 testes novos; typecheck opencode+core OK; build
+  smoke `0.1.0-sploit` OK (backup criado). Commit motor `2bbca6e`.
 
 **Próximo passo** (modo noturno autônomo — protocolo em `PLANO_NOITE.md`):
-1. **Ativar as mutações no binário + modo noturno**: `scripts/self-restart.ps1
-   -ResumePrompt "<próximo passo da fila>"` — ativa binário novo (G3 + Iteração B)
-   e as permissões auto-approve do `sploit.json`; o relaunch envia o prompt sozinho.
-   A partir daí, seguir PLANO_NOITE.md (1 passo da fila por ciclo, typecheck+build,
-   commits atômicos, nota de evolução, diagnostico, sync nuvem, re-disparar restart).
+1. **Ativar as mutações no binário**: `scripts/self-restart.ps1
+   -ResumePrompt "<próximo passo da fila>"` — ativa o build novo (G3 + Iteração B
+   + Geração 4) e as permissões auto-approve do `sploit.json`; o relaunch envia o
+   prompt sozinho. **Sempre confirmar que o processo voltou** (relaunch.log
+   `[OK] PID ...` + Get-Process sploit) antes de seguir.
 2. **Medição das mutações** (Constituição art. 6): G3 = "arquivos centrais tocados
-   x falhas" antes/depois; Iteração B = "falha → retry repetido" antes/depois.
+   x falhas" antes/depois; Iteração B = "falha → retry repetido" antes/depois;
+   Geração 4 = "edições em centrais x consulta ao grafo" antes/depois.
    Manter se a taxa melhorar; reverter com evidência se não.
 3. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (pendências de operação):
    distribuir `dist/sploit-20260808-2243.zip` aos amigos (INSTALAR.cmd zero-config);
@@ -323,8 +342,8 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
    automático do `/diagnostico` para a nuvem.
 4. **Próxima geração**: quando outro gene atingir 3+ obs (candidatos atuais:
    G-causaraiz 2, G-grafo 2), aplicar nova mutação estrutural com medição
-   antes/depois — ex.: G-grafo virar consulta de comunidades ANTES de editar
-   arquivos centrais (o `/planejar` automático).
+   antes/depois. Candidato forte: G-verificacao (4 obs) → harness lembrar de
+   verificar (typecheck/build/test) após mudanças de código.
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
@@ -365,6 +384,16 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   falha; não duplica no mesmo turno; ignora erro velho de turno anterior);
   typecheck opencode OK (0 erros); build smoke `0.1.0-sploit` OK (backup criado;
   cópia do exe em uso — troca via self-restart pendente). Commit motor `e42c47a` ✔
+- **Geração 4 — segunda mutação estrutural do gene G-grafo**: `reminders.ts`
+  carrega as âncoras via `SessionCompaction.loadAnchorFiles` (novo no core,
+  refatoração de `loadAnchors` com cache compartilhado por mtime; devolve array
+  de paths, `loadAnchors` mantém o texto) e injeta reminder de consultar o grafo
+  quando a última resposta do assistant editou arquivo central (top-15 por
+  degree, sufixo de path relativo; edit/write/apply_patch); 4 testes novos
+  (injeta em central; não injeta em não-central; sem grafo nada; não duplica no
+  turno) + 8 reminders + 4 anchors + 33 retry + system OK; typecheck
+  opencode+core OK (0 erros); build smoke `0.1.0-sploit` OK (backup criado;
+  cópia do exe em uso — troca via self-restart pendente). Commit motor `2bbca6e` ✔
 - `/diagnostico` rodado em 2 sessões (sploit e MaxxPrint) com saída real; fila
   gerada (3 candidatos) e ciclo completo testado (fazer/negar/feito) ✔
 - Ciclo ponta-a-ponta melh-4: typecheck opencode OK, build smoke `0.1.0-sploit` OK,

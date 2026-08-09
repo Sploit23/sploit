@@ -68,9 +68,17 @@
       smoke `0.1.0-sploit` OK (backup criado; troca via self-restart). Commit
       motor `e42c47a` + raiz `b700b6a`. Medir: taxa de falhas repetidas
       antes/depois.
-- [ ] **G-grafo → consulta de comunidades antes de editar centrais**: quando
-      uma edição tocar arquivo central (alto degree), o harness deve sugerir
-      consultar o grafo (comunidade) primeiro. Medir: edições em centrais que
+- [x] **G-grafo → consulta de comunidades antes de editar centrais** ✔
+      (concluída no ciclo 3): `reminders.ts` agora carrega as âncoras do grafo
+      (`SessionCompaction.loadAnchorFiles`, novo no core — refatoração de
+      `loadAnchors` compartilhando o mesmo cache por mtime) e, quando a última
+      resposta do assistant editou um arquivo central (alto degree, top-15),
+      injeta o reminder de consultar o grafo (comunidade/dependentes) antes de
+      continuar editando (synthetic, mesma mecânica dos demais). 4 testes novos
+      (injeta em central; não injeta em não-central; sem grafo não injeta; não
+      duplica) + 4 do compaction-anchors + 33 do retry + system OK; typecheck
+      opencode e core OK; build smoke `0.1.0-sploit` OK (backup criado; troca
+      via self-restart). Commit motor `2bbca6e`. Medir: edições em centrais que
       precedem consulta ao grafo.
 - [ ] **Verificar o push do conhecimento para a nuvem**: confirmar que o
       `/diagnostico` faz POST automático (falta de rede foi o motivo do push
