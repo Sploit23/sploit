@@ -1,7 +1,7 @@
 ﻿# self-restart.ps1 — Reinício seguro do Sploit com rollback automático.
 #
 # Ciclo de auto-melhoria:
-#   1. build-sploit.ps1 recompila o binário (dist/opencode-windows-x64) e cria
+#   1. build-sploit.ps1 recompila o binário (dist/sploit-windows-x64) e cria
 #      sploit.exe.bak (known-good). Quando o Sploit está em execução, o build
 #      NÃO consegue sobrescrever sploit.exe (arquivo em uso) — a troca fica
 #      para este script (passo 2.5), depois do processo ser encerrado.
@@ -38,7 +38,7 @@ $smokeLog = "$logDir\smoke-test.log"
 # O binário recém-compilado pelo build-sploit.ps1. Quando o Sploit está em
 # execução, o build não consegue sobrescrever sploit.exe (arquivo em uso) —
 # por isso a troca é feita AQUI, depois do processo ser encerrado.
-$distExe = "$root\sploit-src\packages\opencode\dist\opencode-windows-x64\bin\opencode.exe"
+$distExe = "$root\sploit-src\packages\opencode\dist\sploit-windows-x64\bin\sploit.exe"
 
 Write-Host ""
 Write-Host "=== self-restart: ciclo de auto-melhoria do Sploit ==="

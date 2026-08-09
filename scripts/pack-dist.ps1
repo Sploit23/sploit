@@ -41,7 +41,7 @@ if (-not $SkipBuild) {
         Write-Host "[ERRO] build falhou." -ForegroundColor Red
         exit 1
     }
-    $built = Join-Path $root "sploit-src\packages\opencode\dist\opencode-windows-x64\bin\opencode.exe"
+    $built = Join-Path $root "sploit-src\packages\opencode\dist\sploit-windows-x64\bin\sploit.exe"
     if (Test-Path $built) {
         Copy-Item $built $binSource -Force
     }

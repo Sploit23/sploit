@@ -20,7 +20,7 @@ try {
         Copy-Item "$root\sploit.exe" "$root\sploit.exe.bak" -Force
         Write-Host "backup criado: sploit.exe.bak"
     }
-    Copy-Item "dist\opencode-windows-x64\bin\opencode.exe" "$root\sploit.exe" -Force
+    Copy-Item "dist\sploit-windows-x64\bin\sploit.exe" "$root\sploit.exe" -Force
     Write-Host "sploit.exe atualizado"
 }
 finally {

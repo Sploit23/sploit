@@ -51,7 +51,7 @@ Log "Processo antigo $OldPid encerrado."
 # --- 2. Troca o binário (se preciso) -----------------------------------------
 $exePath = "$Root\sploit.exe"
 if ($NeedsCopy) {
-    $distExe = "$Root\sploit-src\packages\opencode\dist\opencode-windows-x64\bin\opencode.exe"
+    $distExe = "$Root\sploit-src\packages\opencode\dist\sploit-windows-x64\bin\sploit.exe"
     if (Test-Path $distExe) {
         Copy-Item $distExe $exePath -Force
         Log "sploit.exe atualizado (do dist/)."
