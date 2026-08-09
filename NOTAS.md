@@ -6,6 +6,43 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-09] Desvinculação opencode → sploit — Fases 1 a 4 (IDs, binário, textos, DB)
+- **Como raciocinei**: o usuário pediu para limpar o projeto e desvincular a
+  identidade do opencode em 4 fases (IDs de serviço Effect → binário → textos →
+  DB). Em cada fase usei o mesmo filtro de três níveis: (1) o que é **identidade
+  do produto** (renomear: IDs `@opencode/`→`@sploit/`, binário `opencode`→`sploit`,
+  user-agent, nomes de DB, comentários descritivos); (2) o que é **wire
+  protocol/API externa** (não mexer: headers `x-opencode-*`, provider ID
+  `opencode`, shim `@opencode-ai/plugin`, URLs funcionais `app.opencode.ai` etc.,
+  env vars de flag `OPENCODE_DISABLE_*`); (3) o que é **lixo do upstream** (remover:
+  pasta `github/` órfã com o bot de PR).
+- **O que valeu a pena**: (1) na Fase 2 descobri no SDK JS que `launch("opencode")`
+  lançava o binário que acabara de ser renomeado para `sploit`, e o log esperado
+  (`opencode server listening`) não batia com o servidor (`sploit server
+  listening`) — bug funcional real que a "limpeza cosmética" teria deixado passar;
+  (2) a migração do DB (`opencode-*.db` → `sploit.db`) foi desenhada como **cópia
+  idempotente no primeiro boot** (nunca move/remove o legado) — se o binário novo
+  quebrar, o rollback automático do self-restart volta a usar o DB antigo intacto;
+  (3) a decisão de onde rodar a migração passou pelo filtro "efeitos colaterais
+  nos testes": o preload do core seta `OPENCODE_DB=:memory:` para isolar testes, e
+  `Flag.OPENCODE_DB` é capturado no module load — por isso a decisão da flag foi
+  movida para o chamador (entry `src/index.ts`) e a função ficou pura e testável
+  (4 testes novos, incluindo idempotência e wal/shm preservados); (4) testes de
+  integração do CLI isolam `HOME`/`XDG_DATA_HOME` no tmpdir — a migração no boot
+  é no-op segura neles.
+- **Verificado**: typecheck monorepo 16/16 OK; testes novos (global.test.ts
+  corrigido, 4 da migração do DB, SDK 1/1) passam; falhas pré-existentes do core
+  confirmadas (2) sem nenhuma nova; serve-process (2) e serve tests OK; build
+  smoke `0.1.0-sploit` OK (backup criado; cópia do exe em uso — troca via
+  self-restart pendente). Commits: `d9bd735` (Fase 1), `7ee5124`+`22333ec`
+  (Fase 2), `5e5124b` (Fase 3), `e090090` (limpeza github/), `c34739b` (Fase 4).
+- **Pendente**: self-restart para ativar o binário novo `sploit-windows-x64` +
+  migração real do DB (`opencode-sploit.db` 182MB → `sploit.db`); validar `/saude`
+  lendo o histórico migrado.
+- **Referências**: sploit-src/packages/core/src/database/database.ts,
+  sploit-src/packages/opencode/src/index.ts, sploit-src/packages/sdk/js/src/server.ts,
+  sploit-src/packages/core/test/database-path.test.ts
+
 ## [2026-08-09] Revertida a compactação com small_model — volta ao big-pickle
 - **Como raciocinei**: a flag `compaction.small_model` (Groq gpt-oss-120b) foi
   habilitada no `sploit.json`, mas em uso real a compactação falhava — "o contexto

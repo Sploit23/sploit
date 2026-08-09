@@ -321,6 +321,23 @@ Princípios:
   do usuário: flag removida do `sploit.json` + `sploit-src` de volta ao `2bbca6e`
   + rebuild. A compactação volta a usar o big-pickle. Commit `5cbe9a1` fica
   recuperável se o Groq um dia aguentar a carga.
+- **Desvinculação opencode → sploit — Fases 1 a 4** ✔ (em curso): limpeza de
+  identidade aprovada pelo usuário. Fase 1: IDs de serviço Effect
+  `@opencode/`→`@sploit/` em 137 arquivos (commit `d9bd735`). Fase 2: binário
+  `sploit` (outfile/user-agent/smoke), package.json `sploit`, user-agents em 13
+  arquivos, branch `sploit/`, scripts .ps1 (commits `7ee5124`+`22333ec`). Fase 3:
+  textos/comentários internos + SDK lança `sploit` + `SPLOIT_DIRECT_TRACE` +
+  teste global corrigido (commit `5e5124b`) + pasta `github/` órfã removida
+  (`e090090`). Fase 4: DB `sploit.db` com migração idempotente no primeiro boot
+  (copia `opencode-*.db` + wal + shm; nunca remove o legado; `OPENCODE_DB`
+  continua alias; decisão da flag no chamador `src/index.ts`) + 4 testes novos
+  (commit `c34739b`). NÃO mexer: headers `x-opencode-*` (protocolo), provider ID
+  `opencode`, shim `@opencode-ai/plugin`, URLs funcionais, env vars de flag.
+  Typecheck monorepo 16/16; falhas pré-existentes do core confirmadas (2) sem
+  novas; build smoke `0.1.0-sploit` OK (backup criado; troca via self-restart
+  pendente). Pendente: self-restart para ativar binário novo + migração real
+  (`opencode-sploit.db` 182MB → `sploit.db`), validar `/saude` no histórico
+  migrado.
 
 ## Próximo passo
 
@@ -360,27 +377,31 @@ transformam técnicas que funcionaram em mutações estruturais medidas.
   (9/374), consulta ao grafo em centrais 0% (0/1) — meta pós-mutações:
   >> 2,4% e > 0%.
 
-**Próximo passo** (modo noturno autônomo — protocolo em `PLANO_NOITE.md`):
-1. **Medição pós-mutações** (Constituição art. 6): rodar `scripts/medicao_mutacoes.py`
-   quando houver sessões novas no DB com o binário novo (G3+G4+G5 ativos desde
-   01:13). Baseline registrado: verificação pós-edição de código **2,4%**
-   (9/374), consulta ao grafo em centrais **0%** (0/1). Meta: >> 2,4% e > 0%.
-   Manter as mutações se a taxa melhorar; reverter com evidência se não.
-2. **Compactação com small_model — REVERTIDA** ✘: a flag `compaction.small_model`
-   foi implementada (commit motor `5cbe9a1`) e habilitada, mas em uso real a
-   compactação com o Groq falhava (erro de contexto; a IA parava). A pedido do
-   usuário, revertida ao estado anterior: flag removida do `sploit.json` +
-   `sploit-src` de volta ao `2bbca6e` + rebuild (smoke `0.1.0-sploit` OK).
-   Compactação volta ao big-pickle. Lição registrada em NOTAS.md (flag opt-in
-   tornou a reversão trivial). Commit `5cbe9a1` recuperável se um dia o Groq
-   aguentar a carga.
-3. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (pendências de operação):
-   distribuir `dist/sploit-20260808-2243.zip` aos amigos (INSTALAR.cmd zero-config);
-   agendador diário no PC do amigo (Task Scheduler, `-Action pull`); confirmar POST
-   automático do `/diagnostico` para a nuvem (validado: `[OK] licoes enviadas`).
-4. **Próxima geração**: quando outro gene atingir 3+ obs (candidatos atuais:
-   G-causaraiz 2, G-grafo 2), aplicar nova mutação estrutural com medição
-   antes/depois.
+**Próximo passo** (desvinculação opencode → sploit em curso):
+1. **Self-restart (fim desta sessão)** — ativa o binário novo
+   `sploit-windows-x64` (Fases 1-4) + migração real do DB
+   (`opencode-sploit.db` 182MB → `sploit.db` no primeiro boot). Rollback
+   automático via `sploit.exe.bak` se o binário novo morrer.
+2. **Validar pós-restart**: `/saude` lendo o histórico migrado (sessão retomada
+   deve continuar a mesma conversa; DB novo com dados antigos); confirmar que o
+   legado `opencode-sploit.db` continua intacto (nunca é removido).
+3. **Medição pós-mutações** (Constituição art. 6, pendência antiga): rodar
+   `scripts/medicao_mutacoes.py` com sessões novas do binário com G3+G4+G5
+   (ativos desde 01:13). Baseline: verificação pós-edição **2,4%** (9/374),
+   consulta ao grafo em centrais **0%** (0/1). Meta: >> 2,4% e > 0%.
+4. **Próxima sessão dedicada (desvinculação, pendências)**: renomear a pasta
+   `packages/opencode` (decisão do usuário: não agora, mas ficou como item);
+   renomear o workspace `@opencode-ai/cli` → `@sploit-ai/cli` (único restante
+   além do shim; valor baixo, adiado); revisar docs legadas (CONTEXT.md,
+   specs/tui-package.md mencionam `@opencode-ai/*`); reindexar Graphify após a
+   desvinculação.
+5. **Iteração 7.3 — Conhecimento coletivo via Cloudflare** (pendências de
+   operação): distribuir `dist/sploit-20260808-2243.zip` aos amigos
+   (INSTALAR.cmd zero-config); agendador diário no PC do amigo (Task Scheduler,
+   `-Action pull`); confirmar POST automático do `/diagnostico` para a nuvem.
+6. **Próxima geração do corpo**: quando outro gene atingir 3+ obs (candidatos
+   atuais: G-causaraiz 2, G-grafo 2), aplicar nova mutação estrutural com
+   medição antes/depois.
 
 Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — fora de escopo.
 
