@@ -2,6 +2,19 @@
   "$schema": "https://opencode.ai/config.json",
   "instructions": ["SPLOIT_STATE.md", "APRENDIZADO.md"],
   "small_model": "groq/openai/gpt-oss-120b",
+  "permission": {
+    "edit": "allow",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "skill": "allow",
+    "task": "allow",
+    "bash": { "*": "allow" },
+    "external_directory": { "*": "allow" }
+  },
   "agent": {
     "plan": { "model": "opencode/big-pickle" },
     "build": { "model": "opencode/big-pickle" }
