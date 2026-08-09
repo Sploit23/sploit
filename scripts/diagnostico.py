@@ -52,6 +52,36 @@ LESSON_BY_TOOL = {
     ),
 }
 
+# Genes de sucesso (Constituicao, art. 2 - reforco positivo): tecnicas que o
+# Sploit observou que funcionaram nas notas de evolucao (NOTAS.md). Cada gene
+# tem padroes de texto que, aparecendo em notas distintas, somam observacoes.
+# Com GENES_LIMITE_FORTE observacoes, o gene vira "forte" -> candidato a
+# mutacao estrutural do harness (medir antes/depois).
+NOTAS = Path(__file__).resolve().parent.parent / "NOTAS.md"
+GENES_LIMITE_FORTE = 3
+GENE_BY_PADRAO = {
+    "G-grafo": {
+        "desc": "Consultar o grafo Graphify antes de grep/read em bases grandes (contexto certo, menos tokens)",
+        "padroes": ["grafo antes de grep", "grafo antes do grep", "Graphify antes de grep", "consultar o grafo", "grafo primeiro"],
+    },
+    "G-isolado": {
+        "desc": "Validar em ambiente isolado (harness fake/DB fake/temp) antes de tocar arquivos reais",
+        "padroes": ["ambiente isolado", "testado isoladamente", "harness fake", "DB fake", "servidor fake"],
+    },
+    "G-idempotencia": {
+        "desc": "Provar idempotencia rodando 2x antes de concluir (2a execucao sem duplicar)",
+        "padroes": ["idempotencia", "idempotente", "sem duplicar", "2a execucao sem duplicar"],
+    },
+    "G-verificacao": {
+        "desc": "Verificar antes de concluir: typecheck/build/smoke/compile (nada sem prova)",
+        "padroes": ["typecheck", "build smoke", "py_compile", "typecheck+", "validado por bytes"],
+    },
+    "G-causaraiz": {
+        "desc": "Investigar a causa raiz antes de decidir (nao tratar sintoma)",
+        "padroes": ["causa raiz", "causa real", "causa raiz da"],
+    },
+}
+
 
 def sync_lessons(tool_err, err_samples):
     """Grava automaticamente no APRENDIZADO.md as licoes de disciplina cuja falha
@@ -296,6 +326,89 @@ def update_placar(cur, sid, tool_err, err_samples):
         idx = corpo.find(PLACAR_HEADER)
         corpo_sem_placar = corpo[:idx].rstrip() if idx != -1 else corpo.rstrip()
         novo = corpo_sem_placar + "\n\n" + _render_placar(placar)
+        LESSONS.write_text(novo, encoding="utf-8")
+    return mudou
+
+
+GENES_HEADER = "## Genes de sucesso"
+
+
+def _ler_genes(text):
+    """Le o estado de cada gene a partir da secao '## Genes de sucesso'."""
+    genes = {}
+    idx = text.find(GENES_HEADER)
+    if idx == -1:
+        return genes
+    for linha in text[idx:].splitlines():
+        m = re.match(r"^- (G-\w+) \| (\d+) obs(?:ervacoes)? \| (\S+)", linha)
+        if m:
+            genes[m.group(1)] = {
+                "obs": int(m.group(2)),
+                "status": m.group(3),
+            }
+    return genes
+
+
+def _render_genes(genes):
+    if not genes:
+        return ""
+    linhas = [GENES_HEADER, ""]
+    for gid in sorted(genes):
+        g = genes[gid]
+        desc = GENE_BY_PADRAO.get(gid, {}).get("desc", "")
+        linhas.append(f"- {gid} | {g['obs']} observacoes | {g['status']} | {desc}")
+    return "\n".join(linhas) + "\n"
+
+
+def sync_genes():
+    """Destila genes de sucesso (reforco positivo) das notas de evolucao.
+
+    Le NOTAS.md por secao ('## [data] ...') e conta em quantas notas distintas
+    cada tecnica (GENE_BY_PADRAO) aparece. Com GENES_LIMITE_FORTE observacoes o
+    gene vira 'forte' (candidato a mutacao estrutural medida). Retorna True se o
+    APRENDIZADO.md mudou.
+    """
+    if not LESSONS.exists():
+        return False
+    text = LESSONS.read_text(encoding="utf-8")
+    genes = _ler_genes(text)
+
+    # Conta observacoes por gene nas notas de evolucao (secoes do NOTAS.md)
+    obs = {gid: 0 for gid in GENE_BY_PADRAO}
+    if NOTAS.exists():
+        for secao in re.split(r"^## ", NOTAS.read_text(encoding="utf-8"), flags=re.M):
+            if not secao.strip():
+                continue
+            secao_lower = secao.lower()
+            for gid, cfg in GENE_BY_PADRAO.items():
+                if any(p.lower() in secao_lower for p in cfg["padroes"]):
+                    obs[gid] += 1
+
+    mudou = False
+    for gid, n in sorted(obs.items()):
+        if n == 0:
+            continue
+        st = "forte" if n >= GENES_LIMITE_FORTE else "ativo"
+        if gid not in genes:
+            genes[gid] = {"obs": n, "status": st}
+            mudou = True
+        elif genes[gid]["obs"] != n or genes[gid]["status"] != st:
+            genes[gid] = {"obs": n, "status": st}
+            mudou = True
+
+    if mudou:
+        corpo = text
+        # Remove a secao antiga de genes (se houver)
+        gi = corpo.find(GENES_HEADER)
+        pi = corpo.find(PLACAR_HEADER)
+        if gi != -1:
+            corpo = corpo[:gi].rstrip() + "\n\n" + (corpo[pi:] if pi != -1 else "")
+        # Insere genes antes do placar de eficacia (que fica no fim)
+        pi = corpo.find(PLACAR_HEADER)
+        if pi != -1:
+            novo = corpo[:pi].rstrip() + "\n\n" + _render_genes(genes) + "\n" + corpo[pi:]
+        else:
+            novo = corpo.rstrip() + "\n\n" + _render_genes(genes)
         LESSONS.write_text(novo, encoding="utf-8")
     return mudou
 
@@ -629,8 +742,11 @@ def main():
     placar_mudou = update_placar(cur, sid, tool_err, err_samples)
     if placar_mudou:
         print("   [PLACAR] eficácia das lições atualizada")
+    genes_mudou = sync_genes()
+    if genes_mudou:
+        print("   [GENES] genes de sucesso destilados das notas de evolução")
     if "--fila" not in sys.argv:
-        push_lessons(added_lessons + (1 if placar_mudou else 0))
+        push_lessons(added_lessons + (1 if placar_mudou else 0) + (1 if genes_mudou else 0))
 
     db.close()
     return 0
