@@ -308,11 +308,40 @@ Princípios:
   `User-Agent` de browser no POST de `push_lessons()` (scripts/diagnostico.py).
   Validado isolado (py_compile + push fake → `[OK]`) e real (próximo diagnóstico
   deve fazer push automático).
-- **Modo noturno autônomo** ✔ (preparado): permissões auto-approve no
-  `sploit.json` (bash `*`, tools allow, external_directory allow) + PLANO_NOITE.md
-  com o protocolo do ciclo noturno (1 passo da fila por ciclo; typecheck+build;
-  commits atômicos motor/raiz; nota de evolução; diagnostico; sync nuvem;
-  self-restart com `-ResumePrompt`). Commit raiz `89d7df3`. PC não dorme na
+- **Modo contínuo ativo (11/08, noite) — implementação do Modo Squad (MVP)**:
+ciclo 1 concluído — `scripts/squad.py` criado e commitado (`f0519ed`):
+CLI init/add/post/status/list/check, validações (init idempotente, agente
+duplicado/inexistente bloqueado), feed legível, check de integridade OK,
+py_compile OK. Ciclo 2 (skill global + gatilho) em andamento via self-restart.
+
+**Modo Squad — MVP entregue e encerrado (11/08, ciclos 2-3 via self-restart)** ✔:
+ciclo 2 = skill global `squad` criada em
+`~/.config/sploit/skills/squad/SKILL.md` (criação interativa quantos/pastas/
+nomes + formato canônico squad.json/quadro/memórias + orquestração com
+contratos e encadeamento por dependência) + gatilho no AGENTS.md global
+("crie agentes"/"squad" → skill; nunca slash). Ciclo 3 = teste ponta a ponta
+real em `Temp\sploit\projeto-demo2`: Ana (frontend) + Bruno (backend) criados
+via CLI, feature "preço" delegada a subagentes com persona, posts
+centralizados no quadro via CLI, Bruno encadeado pelo post da Ana; POST /preco
+19.90 → 200 {ok:true,preco:19.9} real; status + check OK; servidor encerrado.
+Memórias atualizadas (SQUAD.md status, PLANO_CONTINUO alvo concluído,
+NOTAS.md relato). **Ciclo contínuo ENCERRADO — aguardando o usuário.**
+Atenção: skill/AGENTS global entram em vigor no próximo boot (não hot-reload).
+
+**Modo contínuo autônomo** ✔ (preparado; ex-"modo noturno" — renomeado a
+  pedido do usuário em 11/08): permissões auto-approve no `sploit.json` (bash
+  `*`, tools allow, external_directory allow) + PLANO_CONTINUO.md com o
+  protocolo do ciclo (1 passo por ciclo; typecheck+build; commits atômicos
+  motor/raiz; nota de evolução; diagnostico; sync nuvem; self-restart com
+  `-ResumePrompt`). **Acionamento SEM slash**: falas de ausência + trabalho
+  autônomo ("vou sair, trabalha em X até eu voltar", "fica trabalhando até eu
+  chegar", "pode ir fazendo") ativam o modo automaticamente — regra gravada no
+  AGENTS.md raiz; se houver alvo (projeto/feature/tarefa), ele vira o alvo do
+  ciclo (seção "Alvo atual" no plano); senão, segue a fila. Primeiro ciclo
+  real pendente — fila atual: instrumentar as mutações G5–G9 (medir efeito
+  real, não comportamento natural), re-medir, diagnóstico + Graphify, avaliar
+  G-isolado ao atingir 3 obs. Commit raiz `89d7df3` (preparação) + renomeação
+  PLANO_NOITE→PLANO_CONTINUO + regra de acionamento natural. PC não dorme na
   tomada (sleep AC=0).
 - **Compactação com small_model — REVERTIDA** ✘ (motor, iterado): a flag
   `compaction.small_model` (Groq gpt-oss-120b) foi implementada (commit `5cbe9a1`)
@@ -401,6 +430,15 @@ Princípios:
   `0.1.0-sploit` OK. Commit motor `da7e4ee`.
 
 ## Próximo passo
+
+**ATUALIZAÇÃO (11/08, noite): Modo Squad — MVP entregue pronto e ciclo
+contínuo ENCERRADO (aguardando o usuário).** CLI `scripts/squad.py` (`f0519ed`)
++ skill global `squad` + teste ponta a ponta real (Ana/Bruno, POST /preco
+200) concluídos; relato completo em NOTAS.md ("Relato do modo contínuo").
+Ao voltar, o usuário só precisa REINICIAR o Sploit para a skill squad entrar
+em vigor; daí em diante, "crie agentes para cada área" dispara o fluxo.
+Fila do harness (instrumentar G5–G9, re-medição, G-isolado) segue intacta
+no PLANO_CONTINUO.md.
 
 **Iteração 8 — Constituição (evolução do corpo): Gerações 1–8 + Iteração B concluídas.**
 

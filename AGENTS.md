@@ -16,6 +16,10 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
 - `NOTAS.md` — memória temporal de trabalho (o quê/histórico por sessão). Registrada
   AUTOMATICAMENTE pelo Sploit ao concluir tarefas (nota de evolução, reforço positivo);
   indexada no Graphify para retomar contexto por referência. `/resumo` é legado.
+- `SQUAD.md` — blueprint do **modo squad** (agentes persistentes por área com
+  nome, memória própria e quadro de conversa). A skill global `squad`
+  (`~/.config/sploit/skills/squad/SKILL.md`) define o fluxo de criação e
+  orquestração; a CLI de apoio é `scripts/squad.py`.
 - `venv/` — ambiente Python usado pelo Graphify (não commitar).
 - `scripts/sploit-web.ps1` — servidor web do Sploit acessível pela rede local
   (celular), com senha em `sploit-web.secret` (gitignored). Subir com
@@ -32,6 +36,20 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
 - **Conclusão de passo**: atualize `SPLOIT_STATE.md` (Progresso + Próximo passo) **antes** de encerrar/reiniciar. Nunca terminar uma sessão com o estado desatualizado.
 - **Nota de evolução (Constituição, art. 4)**: ao concluir uma tarefa, registre em `NOTAS.md` *"como raciocinei e o que valeu a pena"* — reforço positivo, sem pedir comando do usuário (nunca `/resumo`; é legado). O objetivo é formar o estilo de raciocínio próprio do Sploit.
 - **Decisões**: antes de decisões relevantes, consulte `DECISOES.md`; ao decidir, registre com `/decisao`.
+- **Modo contínuo (autonomia — sem slash)**: quando o usuário indicar que vai se
+  ausentar e quiser que o Sploit continue trabalhando até ele voltar — ex.: "vou
+  sair, trabalha em X até eu voltar", "fica trabalhando até eu chegar", "pode ir
+  fazendo", "quero que você termine isso" — o Sploit ATIVA o modo contínuo
+  automaticamente, sem pedir comando nem confirmação. Protocolo: ler
+  `PLANO_CONTINUO.md`; se o usuário deu um alvo específico (projeto/feature/
+  tarefa), esse é o alvo do ciclo (registrar no plano); senão, seguir a fila do
+  plano. Trabalhar UM passo por ciclo com verificação (typecheck/testes/build),
+  commit atômico, nota em `NOTAS.md` e, ao fim de cada ciclo, disparar
+  `scripts/self-restart.ps1 -ResumePrompt "<próximo passo>"` para continuar
+  sozinho. Parar quando o alvo estiver concluído, a fila vazia ou um passo
+  falhar 2x; deixar o relato em `NOTAS.md` ("Relato do modo contínuo") e o
+  `SPLOIT_STATE.md` atualizado. O acionamento NUNCA é um slash — é a fala do
+  usuário.
 - **Mudanças no motor**: rode `bun typecheck` (em `sploit-src/packages/opencode`) e `scripts/build-sploit.ps1` antes de reiniciar o binário; registre o resultado na seção `# Verificação`.
 - **Mudanças de config/skills/plugins**: lembre o usuário de reiniciar (config não é hot-reloaded).
 - **Escopo**: cada alteração em `sploit-src/` é um commit atômico em separado; nunca misturar com mudanças de config.

@@ -6,6 +6,95 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-11] Relato do modo contínuo — Modo Squad: MVP entregue pronto
+
+**Alvo** (pedido do usuário): "pode implementar, e me entregue pronto, só me
+chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
+
+1. **O que foi feito** (commits): ciclo 1 = `scripts/squad.py` (CLI:
+   init/add/post/status/list/check; init idempotente, agente duplicado/
+   inexistente bloqueado, check de integridade) — commit raiz `f0519ed`.
+   Ciclo 2 = skill global `squad` em `~/.config/sploit/skills/squad/SKILL.md`
+   (criação interativa quantos/pastas/nomes, formato canônico squad.json/
+   quadro.md/memoria/<nome>.md, orquestração com contratos + encadeamento por
+   dependência) + gatilho no `~/.config/sploit/AGENTS.md` (não versionado).
+   Ciclo 3 = teste ponta a ponta real em `Temp\sploit\projeto-demo2`: Ana
+   (frontend) e Bruno (backend) criados via CLI, feature delegada a subagentes
+   com persona ("você é a Ana, dona do frontend"), posts centralizados no
+   quadro via CLI, Bruno encadeado pelo post da Ana; `POST /preco 19.90` →
+   `200 {"ok":true,"preco":19.9}` no servidor real; `status` + `check` OK.
+2. **O que foi medido**: o quadro guardou a conversa inteira (3 posts com
+   estado feito/pendente); o check provou consistência (agentes ↔ pastas ↔
+   memórias); arquivo de quadro validado como UTF-8 real (display "lǦ" era só
+   console PS 5.1, bytes `c3 aa` corretos).
+3. **O que o Sploit aprendeu**: (1) a mecânica "coordenador define contrato
+   ANTES de delegar" (herdada da PoC) é o que impede colisão entre áreas —
+   Ana e Bruno não se pisaram; (2) post no quadro via CLI dá timestamps e
+   valida estados — o script vale mais como "cimento" do que como criação
+   (criar com read/write também funciona); (3) skill + gatilho em
+   `~/.config` não são hot-reloaded — entram em vigor no próximo boot do
+   usuário (avisar no relato).
+4. **Pendente para decisão humana**: nada bloqueante. Próximas evoluções
+   documentadas no SQUAD.md: criação interativa na TUI, agentes como sessões
+   próprias persistentes, view de feed. A fila de evolução do harness (G5–G9)
+   continua intacta no PLANO_CONTINUO.md para a próxima rodada.
+
+- **Referências**: SQUAD.md, scripts/squad.py, skills/squad/SKILL.md,
+  Temp\sploit\projeto-demo2 (squad/quadro.md, squad/memoria/ana.md,
+  squad/memoria/bruno.md).
+
+## [2026-08-11] Modo Squad — MVP do mecanismo (CLI + skill + teste real)
+- **Como raciocinei**: o usuário pediu o produto pronto ("me entregue pronto").
+  Em vez de construir a visão inteira (sessões persistentes, TUI de feed), o
+  MVP certo é a MECÂNICA: script que padroniza a criação do squad, skill que
+  ensina o coordenador a orquestrar, e um teste ponta a ponta real provando o
+  fluxo do usuário ("crie agentes" → nomes/pastas → feature → conversa →
+  teste real).
+- **O que valeu a pena**: (1) a CLI `squad.py` reusa o formato canônico da PoC
+  e adiciona validação (duplicado bloqueado, estado válido, check) — a PoC era
+  manual, o produto não pode ser; (2) delegar a subagentes com persona (nome +
+  pasta + memória + "NÃO poste no quadro, o coordenador centraliza") manteve a
+  corrida controlada — um agente por vez, sem editar a pasta do outro; (3) o
+  encadeamento por dependência funcionou de novo: Ana postou "feito, preciso
+  do endpoint" → Bruno respondeu no quadro → teste real fechou o ciclo; (4)
+  UTF-8 conferido por bytes (o "lǦ" do console era display, não mojibake —
+  mesma lição do APRENDIZADO).
+- **Verificado**: py_compile OK; testes da CLI (idempotência, duplicado,
+  inexistente, check) passaram; `status` + `check` OK no demo2; POST real
+  19.90 → 200 {ok:true,preco:19.9}; servidor encerrado após o teste; skill +
+  AGENTS global validados por leitura.
+- **Próximo**: avisar o usuário que skill/config entram em vigor no próximo
+  boot; quando ele pedir de novo "crie agentes" num projeto, a skill squad
+  será carregada automaticamente.
+- **Referências**: scripts/squad.py (commit `f0519ed`),
+  ~/.config/sploit/skills/squad/SKILL.md, Temp\sploit\projeto-demo2.
+
+## [2026-08-11] Modo Squad — prova de conceito (João, Maria e Pedro)
+- **Como raciocinei**: o usuário sonhou com "agentes que moram no projeto, com
+  nome, conversando como colegas" — diferente dos subagentes efêmeros do Task.
+  Em vez de planejar o produto inteiro, montei a PoC com a mecânica mínima: o
+  **quadro** (`squad/quadro.md`) como canal de conversa, `squad.json` como
+  registro dos agentes (nome + pasta + papel), memória separada por agente
+  (`squad/memoria/<nome>.md`) e o coordenador ordenando dependências. Na PoC os
+  agentes são subagentes (Task) com persona própria — a persistência vem do
+  quadro + memórias, não do processo.
+- **O que valeu a pena**: (1) o contrato definido ANTES (POST /preco com
+  {preco}) permitiu o João e a Maria trabalharem sem colidir — é assim que time
+  real faz; (2) a dependência fluiu pela conversa: João postou "feito, preciso
+  da API" → Maria respondeu "no ar, pode consumir" → Pedro consumiu GET /preco
+  que ela já tinha feito; (3) provar com teste real (POST 7.50 → GET retorna
+  7.50) em vez de só mostrar os arquivos — é o que transforma "teatro" em
+  "funciona"; (4) o usuário deu o fluxo de criação: coordenador pergunta
+  quantos/pastas/nomes, não decide sozinho.
+- **Verificado**: 3 agentes (João frontend, Maria backend, Pedro visual);
+  quadro com 6 posts; POST /preco 200 {"ok":true,"preco":7.5}; GET /preco
+  200 {"ok":true,"preco":7.5}; memórias separadas criadas.
+- **Próximo**: decisão da visualização dedicada no TUI (feed); transformar
+  agentes de subagentes efêmeros em sessões próprias persistentes; aplicar no
+  projeto real (MaxxPrint?) quando o mecanismo estiver consolidado.
+- **Referências**: SQUAD.md (blueprint), projeto-demo em
+  Temp\sploit\projeto-demo (backend/frontend/visual + squad/).
+
 ## [2026-08-09] Geração 9 — gene G-idempotencia vira mutação estrutural
 - **Como raciocinei**: o gene G-idempotencia ("provar idempotência rodando 2x")
   era a técnica que mais salvou nos ciclos reais (scaffold, migrações, seeds
