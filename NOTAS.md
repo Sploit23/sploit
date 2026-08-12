@@ -857,75 +857,70 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   procedimento de seguranca. Squad do demo2 com 6 agentes, check OK.
 - Genes refor√ßados: G-verificacao, G-causaraiz (o Seguranca confirmou 404/estado
   antes de aprovar).
-
-## [2026-08-12 00:20] Squad daily ó a "empresa" acorda com standup (ciclo 4, fase C)
+## [2026-08-12 00:20] Squad daily - a "empresa" acorda com standup (ciclo 4, fase C)
 - **Como raciocinei**: as buscas de novidades 2026 renderam agent-town/Agentshire
-  (social feed: cada agente publica um resumo di·rio do trabalho REAL), Microsoft
-  Conductor (contexto explÌcito entre agentes) e TermUI/termcn (sparklines e
-  badges como padr„o de TUI bonito). O usu·rio reprovou bonecos 2x ó a beleza
-  aceita È texto/cores/layout. Ent„o a ideia adotada foi um STANDUP real: ler o
-  quadro e destilar por agente (entregas/pendÍncias/bloqueios do dia + sparkline
-  de atividade por hora), n„o um feed fake.
-- **O que valeu a pena**: (1) reuso total do infra existente ó QUADRO_RE, parse_quadro,
-  tarefa_pendente, cores_agentes, ansi, SIMBOLO ó o daily È sÛ uma leitura nova dos
+  (social feed: cada agente publica um resumo diario do trabalho REAL), Microsoft
+  Conductor (contexto explicito entre agentes) e TermUI/termcn (sparklines e
+  badges como padrao de TUI bonito). O usuario reprovou bonecos 2x - a beleza
+  aceita e texto/cores/layout. Entao a ideia adotada foi um STANDUP real: ler o
+  quadro e destilar por agente (entregas/pendencias/bloqueios do dia + sparkline
+  de atividade por hora), nao um feed fake.
+- **O que valeu a pena**: (1) reuso total do infra existente - QUADRO_RE, parse_quadro,
+  tarefa_pendente, cores_agentes, ansi, SIMBOLO - o daily e so uma leitura nova dos
   mesmos dados; (2) --data permite dia vazio ("nenhuma atividade hoje") e dia
-  cheio; (3) liÁ„o do dia: console do tool È cp1252 e - estourou
-  UnicodeEncodeError ó sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-  no topo resolveu (vale para qualquer print unicode do squad.py); (4) pluralizaÁ„o
-  do rodapÈ era o detalhe que destoava ("1 pendÍncias").
-- **Verificado**: py_compile OK; daily real no demo2 (30 entregas ∑ 1 pendÍncia ∑
-  1 bloqueio, 6 agentes, sparkline ??¶?); dia vazio OK. Commit `1713c2a`.
-
-## [2026-08-12 01:00] Sparkline 24h no dock (ciclo 5, fase C) ó a 2a ideia da pesquisa
-- **Como raciocinei**: a fase C adotou 2 ideias das buscas 2026 ó o squad daily
-  (ciclo 4, raiz) e o sparkline de atividade (TermUI/termcn), que È o toque
+  cheio; (3) licao do dia: console do tool e cp1252 e ‚îÄ estourou
+  UnicodeEncodeError - sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  no topo resolveu (vale para qualquer print unicode do squad.py); (4) pluralizacao
+  do rodape era o detalhe que destoava ("1 pendencias").
+- **Verificado**: py_compile OK; daily real no demo2 (30 entregas - 1 pendencia -
+  1 bloqueio, 6 agentes, sparkline ‚ñÅ‚ñÇ‚ñà‚ñÇ); dia vazio OK. Commit `1713c2a`.
+## [2026-08-12 01:00] Sparkline 24h no dock (ciclo 5, fase C) - a 2a ideia da pesquisa
+- **Como raciocinei**: a fase C adotou 2 ideias das buscas 2026 - o squad daily
+  (ciclo 4, raiz) e o sparkline de atividade (TermUI/termcn), que e o toque
   "vivo" que o usuario ama: o rodape do dock agora mostra o pulso do time nas
-  ultimas 24h em vez de sÛ a data do ˙ltimo post. Reusei a logica do daily
+  ultimas 24h em vez de so a data do ultimo post. Reusei a logica do daily
   (buckets por hora) mas com janela deslizante de 24h a partir do post mais
-  recente ó sempre cheio, sempre recente, strip de pontos iniciais.
+  recente - sempre cheio, sempre recente, strip de pontos iniciais.
 - **O que valeu a pena**: (1) parse de data do quadro compartilhado no mesmo
   regex do squad.py (dd/mm/yyyy HH:MM); (2) type guard no filter para o TS
-  aceitar d is Date (padr„o do repo); (3) rodapÈ do dock segue num texto sÛ
-  ó mudanÁa mÌnima, impacto visual alto.
+  aceitar `d is Date` (padrao do repo); (3) rodape do dock segue num texto so
+  - mudanca minima, impacto visual alto.
 - **Verificado**: typecheck tui exit 0; build smoke 0.1.0-sploit OK (backup
-  criado; cÛpia do exe em uso ó troca via self-restart). Commit motor
-  c567368.
-- **Pendente**: ativar no bin·rio via self-restart e validar visualmente no
+  criado; copia do exe em uso - troca via self-restart). Commit motor `c567368`.
+- **Pendente**: ativar no binario via self-restart e validar visualmente no
   demo2 (o resto da fase C fecha com isso; fase D = painel do time/dashboard).
-
-## [2026-08-12 01:40] Squad dashboard ó o painel da empresa (fase D)
+## [2026-08-12 01:40] Squad dashboard - o painel da empresa (fase D)
 - **Como raciocinei**: a fase D pediu "relatorio bonito para o usuario ver ao
-  acordar". O daily (ciclo 4) j· fazia o standup por agente; o dashboard sobe
+  acordar". O daily (ciclo 4) ja fazia o standup por agente; o dashboard sobe
   um degrau: banner com caixa (mesmo estilo do wizard create), visao geral
   (entregas/pendencias abertas/bloqueios/ultima atividade), card por agente com
   estado atual e ultimo post, sparkline 24h (helper compartilhado sparkline_24h)
   e timeline das entregas de hoje. --salvar grava squad/dashboard.md sem ANSI
   (regex de strip) para o usuario ler no celular/editor.
 - **O que valeu a pena**: (1) reuso total: parse_quadro, estado_agente,
-  tarefa_pendente, ultimo_post, cores_agentes, SIMBOLO, ESTADO_COR ó dashboard
-  e daily sao apenas leituras novas dos mesmos dados; (2) liÁ„o de Python:
-  f-string aninhado com aspas escapadas {\"...\"} e a sintaxe do 3.12+ ó mais
-  seguro extrair para variavel (pl_tot/pl_hoje, nome_pad); (3) alinhamento de
-  coluna colorida: pad no texto PURO antes de aplicar o ansi() (se pad a string
-  ja colorida, os escapes inflam o len).
+  tarefa_pendente, ultimo_post, cores_agentes, SIMBOLO, ESTADO_COR - dashboard
+  e daily sao apenas leituras novas dos mesmos dados; (2) licao de Python:
+  f-string aninhado com aspas escapadas e a sintaxe do 3.12+ - mais seguro
+  extrair para variavel (pl_tot/pl_hoje, nome_pad); (3) alinhamento de coluna
+  colorida: pad no texto PURO antes de aplicar o ansi() (se pad a string ja
+  colorida, os escapes inflam o len).
 - **Verificado**: py_compile OK; dashboard real no demo2 (32 entregas, 0 pendencias
-  abertas, timeline com 10 posts do dia, sparkline ??¶?); --salvar gerou
+  abertas, timeline com 10 posts do dia, sparkline ‚ñÅ‚ñÉ‚ñà‚ñÅ); --salvar gerou
   squad/dashboard.md; commit raiz `a6e3f73`.
-
 ## [2026-08-12 02:10] Fase F+G: testes do squad.py + celebracao da fila
-- **Como raciocinei**: a noite entregou muito cÛdigo de script sem blindagem ó
+- **Como raciocinei**: a noite entregou muito codigo de script sem blindagem -
   o certo era testes. Criei scripts/squad_test.py (zero dependencias, assert
   puro, fixtures em tempdir) cobrindo parse, tarefas, estados, sparkline,
   daily, dashboard, perfis de prompt e validacoes. Depois, a ideia do
   "celebrate" do agent-town virou real: quando o supervisor detecta fila vazia
-  sem orfas, posta do Coordenador a celebracao (N entregas ∑ M bloqueios ∑
-  dica do dashboard) ó o dock mostra isso no rodape e a empresa "fecha o dia"
+  sem orfas, posta do Coordenador a celebracao (N entregas - M bloqueios -
+  dica do dashboard) - o dock mostra isso no rodape e a empresa "fecha o dia"
   sozinha.
 - **O que valeu a pena**: (1) teste de unidade achou bug MEU, nao do codigo:
-  passei o path do quadro ao parse_quadro (que espera o base) ó 5 testes
+  passei o path do quadro ao parse_quadro (que espera o base) - 5 testes
   falhando por causa da chamada, nao da logica; (2) extrair postar_celebracao
   como helper tornou o teste possivel sem rodar o loop do supervisor;
-  (3) redirecionar stdout com redirect_stdout È suficiente para assertions de
+  (3) redirecionar stdout com redirect_stdout e suficiente para assertions de
   saida (daily/dashboard).
 - **Verificado**: py_compile OK; 12/12 testes passam (11 + celebracao);
   commit `4f923d5`.

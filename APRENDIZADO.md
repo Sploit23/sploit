@@ -40,3 +40,9 @@
 
 - **L-edit — Reler o arquivo antes de editar** (origem: oldString obsoleto).
   Se o arquivo mudou desde a ultima leitura, reler antes de editar.
+
+- **L-utf8 — Append em arquivo UTF-8 nunca via PowerShell Add-Content** (origem: NOTAS.md corrompido).
+  O PS 5.1 grava em cp1252 por padrao: um "—" vira 0x97 e quebra o decode utf-8
+  de qualquer leitor (o diagnostico morria no sync_genes). Para anexar texto em
+  arquivos UTF-8 (NOTAS.md, APRENDIZADO.md, quadro.md), usar Python
+  (`open(..., "a", encoding="utf-8")`) ou a tool de edicao — nunca Add-Content.
