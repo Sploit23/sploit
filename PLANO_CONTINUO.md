@@ -38,12 +38,18 @@ Prioridades do usuário (em palavras dele):
 - **Atrás de novidades**: pesquisar tendências e adotar o que servir.
 
 Fases da noite (uma por ciclo, nesta ordem):
-- [ ] **A — Beleza do dock + criação visual**: redesenhar o `SquadDock` da TUI
-      para ficar bonito de verdade (título, contadores por estado, badges de
-      papel, pulse quando trabalhando, cores por estado; NADA de bonecos pixel
-      — usuário reprovou 2x; beleza via texto/cores/layout). Criar também um
-      fluxo de **criação visual e guiada** de agentes (`squad create` wizard
-      bonito: quantos/pastas/nomes/papéis com feedback colorido).
+- [x] **A1 — Dock bonito (mission control)**: cabecalho com contadores vivos
+      por estado (●/✓/✕/○), spinner de pulso 500ms quando alguem trabalha,
+      badge de papel colorido por funcao (auditoria=ambar, seguranca=vermelho,
+      frontend=accent, backend=cyan), atividade em italico quando pensando/
+      postando, rodape com ultimo post. Motor `747a0b2`; typecheck tui OK;
+      build smoke OK (backup criado; troca via self-restart).
+- [ ] **A2 — Criacao visual de agentes**: `squad create` wizard bonito na CLI
+      (quantos/pastas/nomes/papeis com feedback colorido e confirmacao final);
+      a criacao e parte do "empresa no terminal desde a criacao visual".
+- [ ] **A3 — Validar o dock no binario novo**: apos self-restart, abrir a TUI
+      no projeto-demo2 (detached) e confirmar que renderiza sem crash e que o
+      spinner/contadores aparecem (validacao visual real).
 - [ ] **B — Agente de segurança (pentest)**: papel `segurança` no montar_prompt
       (testa injeção, XSS, path traversal, headers, validação de input, erros
       vazando stack; lê tudo, não edita produção; posta veredito com CVE-like

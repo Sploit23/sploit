@@ -810,3 +810,18 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   Isso prova o modelo: producao por especialidade + QA via quadro, sem
   nenhuma mudanca no motor — so prompt-contrato + o orquestrador que ja existia.
 - Genes reforçados: G-verificacao, G-idempotencia (auditor rodou suite 2x).
+
+## [2026-08-12] Modo continuo noturno - ciclo 1: dock do squad redesenhado (747a0b2)
+- **Como raciocinei**: o usuario disse que VISUAL e a coisa mais importante e
+  que quer uma "empresa de desenvolvimento no terminal" desde a criacao visual.
+  Em vez de features novas, comecei pela beleza: redesenhei o SquadDock com
+  cabecalho mission control (contadores vivos ●/✓/✕/○), spinner de pulso quando
+  alguem trabalha, badge de papel colorido por funcao (auditoria=ambar,
+  seguranca=vermelho, frontend=accent, backend=cyan), atividade em italico
+  quando pensando/postando, rodape com ultimo post. Nada de bonecos (reprovado
+  2x) - beleza via texto/cores/layout/movimento sutil.
+- **O que valeu a pena**: o spinner de 500ms da vida ao time sem custo de I/O
+  (o log continua a cada 2s; o frame so muda). Contadores no cabecalho dao a
+  leitura instantanea do estado da "empresa". Typecheck tui exit 0; build
+  smoke OK (backup criado; troca via self-restart).
+- Genes reforçados: G-verificacao.
