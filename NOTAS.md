@@ -795,3 +795,18 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   fstat do boot estourava EISDIR (o supervisor sem DETACHED funcionava).
   Removido + stdin=DEVNULL: squad.py run volta a funcionar.
 - Genes reforçados: G-causaraiz, G-isolado.
+
+## [2026-08-11] Modo Squad: papel auditor + ciclo de QA real
+- **Como raciocinei**: o usuário perguntou como um squad se organizaria com um
+  agente especialista (visual) ou um auditor. Em vez de só explicar, adicionei o
+  Auditor no demo2 e demonstrei. O papel auditor no montar_prompt inverte a
+  regra de "trabalhe SOMENTE na sua pasta": ele LE as pastas dos colegas, nao
+  edita producao, e posta veredito (feito=aprovado, bloqueado=problemas).
+- **O que valeu a pena**: o ciclo completo funcionou sozinho — Auditor achou 3
+  problemas REAIS (200 em vez de 404 em server.js:131, teste de estatisticas
+  fragil com historico=20, testes faltando) → bloqueou → o Coordenador passou a
+  correcao ao Bruno → Bruno corrigiu (32 testes) → Auditor re-auditou e aprovou.
+  E o Auditor registrou tudo na memoria propria (auditoria + re-auditoria).
+  Isso prova o modelo: producao por especialidade + QA via quadro, sem
+  nenhuma mudanca no motor — so prompt-contrato + o orquestrador que ja existia.
+- Genes reforçados: G-verificacao, G-idempotencia (auditor rodou suite 2x).
