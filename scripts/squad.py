@@ -238,33 +238,66 @@ def montar_prompt(base, cfg, a):
     quadro = quadro_path(base)
     memoria = memoria_path(base, nome)
     sp = Path(__file__).resolve()
+    e_auditor = "audit" in papel.lower() or "auditor" in nome.lower()
+    if e_auditor:
+        lugar = (
+            f"- Pasta de trabalho: {pasta} (guardar relatorios aqui)\n"
+            f"- Voce AUDITA: leia livremente as pastas dos outros agentes e o "
+            f"codigo do projeto (bash/read). NAO edite o codigo de producao.\n"
+        )
+        procedimento = (
+            f"1. Leia o quadro. Encontre o ultimo post pendente atribuido a voce, "
+            f"da forma **[{{nome}}] (pendente) ...**. Se nao houver tarefa pendente "
+            f"para voce, responda apenas \"aguardando\" e pare (NAO poste nada).\n"
+            f"2. Leia o codigo indicado na tarefa e AUDITE: bugs reais, validacoes "
+            f"faltando, limites desrespeitados, casos de borda. Aponte arquivo/linha "
+            f"quando possivel.\n"
+            f"2b. TAREFAS GRANDES: delegue. Para mapear/explorar/analisar codigo ou "
+            f"dividir trabalho grande, use a ferramenta task (subagent_type=explore "
+            f"ou general) com um prompt detalhado; espere o resultado e use-o. "
+            f"Nao faca manualmente o que um subagente pode mapear.\n"
+            f"3. Ao terminar, atualize sua memoria (append de 2-3 linhas: o que "
+            f"achou) e POSTE o veredito no quadro rodando via bash exatamente um destes:\n"
+            f"   - Aprovado:  python {sp} --dir {base} post --nome {nome} --estado feito --msg \"AUDITORIA: aprovado, N achados. RESUMO\"\n"
+            f"   - Reprovado: python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"AUDITORIA: PROBLEMAS: 1) ...; 2) ...\"\n"
+            f"   - Impedido:  python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"MOTIVO\"\n"
+            + "   Regras da mensagem: resuma em ate 25 palavras; NAO use aspas duplas nem $ nela.\n"
+            + f"4. Encerre respondendo ao usuario com o veredito em 1-2 linhas.\n"
+        )
+    else:
+        lugar = (
+            f"- Pasta de trabalho: {pasta} (trabalhe SOMENTE aqui)\n"
+        )
+        procedimento = (
+            f"1. Leia o quadro. Encontre o ultimo post pendente atribuido a voce, "
+            f"da forma **[{{nome}}] (pendente) ...**. Se nao houver tarefa pendente "
+            f"para voce, responda apenas \"aguardando\" e pare (NAO poste nada).\n"
+            f"2. Execute a tarefa na sua pasta, com o codigo existente. NAO edite "
+            f"arquivos fora dela.\n"
+            f"2b. TAREFAS GRANDES: delegue. Para mapear/explorar/analisar codigo ou "
+            f"dividir trabalho grande, use a ferramenta task (subagent_type=explore "
+            f"ou general) com um prompt detalhado; espere o resultado e use-o. "
+            f"Nao faca manualmente o que um subagente pode mapear.\n"
+            f"3. Ao terminar, atualize sua memoria (append de 2-3 linhas: o que fez/aprendeu) "
+            f"e POSTE o resultado no quadro rodando via bash exatamente um destes:\n"
+            f"   - Sucesso:  python {sp} --dir {base} post --nome {nome} --estado feito --msg \"RESUMO\"\n"
+            f"   - Parcial:  python {sp} --dir {base} post --nome {nome} --estado pendente --msg \"RESUMO\"\n"
+            f"   - Impedido: python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"MOTIVO\"\n"
+            + "   Regras da mensagem: resuma em ate 20 palavras; NAO use aspas duplas nem $ nela.\n"
+            + f"4. Encerre respondendo ao usuario com um resumo de 1-2 linhas.\n"
+        )
     return (
         f"Voce e {nome}, agente do squad do projeto \"{projeto}\""
         + (f" (papel: {papel})." if papel else ".")
         + "\n"
         + "\n"
         + "SEU LUGAR NESTA RODADA:\n"
-        + f"- Pasta de trabalho: {pasta} (trabalhe SOMENTE aqui)\n"
+        + lugar
         + f"- Quadro do squad (leia antes de tudo): {quadro}\n"
         + f"- Sua memoria de longo prazo (leia e atualize ao final): {memoria}\n"
         + "\n"
         + "PROCEDIMENTO:\n"
-        + f"1. Leia o quadro. Encontre o ultimo post pendente atribuido a voce, "
-        + f"da forma **[{{nome}}] (pendente) ...**. Se nao houver tarefa pendente "
-        + f"para voce, responda apenas \"aguardando\" e pare (NAO poste nada).\n"
-        + f"2. Execute a tarefa na sua pasta, com o codigo existente. NAO edite "
-        + f"arquivos fora dela.\n"
-        + f"2b. TAREFAS GRANDES: delegue. Para mapear/explorar/analisar codigo ou "
-        + f"dividir trabalho grande, use a ferramenta task (subagent_type=explore "
-        + f"ou general) com um prompt detalhado; espere o resultado e use-o. "
-        + f"Nao faca manualmente o que um subagente pode mapear.\n"
-        + f"3. Ao terminar, atualize sua memoria (append de 2-3 linhas: o que fez/aprendeu) "
-        + f"e POSTE o resultado no quadro rodando via bash exatamente um destes:\n"
-        + f"   - Sucesso:  python {sp} --dir {base} post --nome {nome} --estado feito --msg \"RESUMO\"\n"
-        + f"   - Parcial:  python {sp} --dir {base} post --nome {nome} --estado pendente --msg \"RESUMO\"\n"
-        + f"   - Impedido: python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"MOTIVO\"\n"
-        + "   Regras da mensagem: resuma em ate 20 palavras; NAO use aspas duplas nem $ nela.\n"
-        + f"4. Encerre respondendo ao usuario com um resumo de 1-2 linhas.\n"
+        + procedimento
     )
 
 
