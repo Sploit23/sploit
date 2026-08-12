@@ -14,6 +14,8 @@ Comandos:
   list     Lista os agentes do squad.
   check    Valida a integridade do squad.
   daily    Daily/standup: resumo do trabalho de cada agente em um dia.
+  dashboard Painel consolidado do time (visao geral + por agente + atividade 24h
+           + timeline das entregas do dia; --salvar grava squad/dashboard.md).
 
 Uso: python scripts/squad.py <comando> [opcoes]
 Ex.: python scripts/squad.py init --projeto demo
@@ -22,6 +24,7 @@ Ex.: python scripts/squad.py init --projeto demo
      python scripts/squad.py post --nome Maria --estado feito --msg "endpoint no ar"
      python scripts/squad.py status
      python scripts/squad.py daily --data 11/08/2026
+     python scripts/squad.py dashboard --salvar
 """
 
 import argparse
@@ -32,7 +35,7 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 ESTADOS = ("feito", "pendente", "bloqueado")
@@ -399,6 +402,127 @@ def cmd_daily(args):
         spark = spark.strip("\u00b7")
         print(f"  {ansi('250', 'Atividade por hora:')} {ansi('112', spark)}")
     print()
+    return 0
+
+
+def sparkline_24h(posts):
+    """Sparkline das ultimas 24h a partir do post mais recente do quadro."""
+    horarios = []
+    for p in posts:
+        try:
+            horarios.append(datetime.strptime(p["data"], "%d/%m/%Y %H:%M"))
+        except ValueError:
+            continue
+    if not horarios:
+        return ""
+    fim = max(horarios)
+    inicio = fim - timedelta(hours=23)
+    buckets = [0] * 24
+    for h in horarios:
+        i = int((h - inicio).total_seconds() // 3600)
+        i = max(0, min(23, i))
+        buckets[i] += 1
+    mx = max(buckets) or 1
+    chars = "\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588"
+    out = "".join(chars[int(n / mx * 7.99)] if n else "\u00b7" for n in buckets)
+    return out.strip("\u00b7")
+
+
+def cmd_dashboard(args):
+    """Painel consolidado do time (dashboard da 'empresa')."""
+    base = Path(args.dir).resolve()
+    cfg = load_cfg(base)
+    projeto = cfg.get("projeto", base.name)
+    posts = parse_quadro(base)
+    if not posts:
+        sys.exit(f"ERRO: quadro vazio em {base}")
+    agentes = cfg.get("agentes", [])
+    cores = cores_agentes(agentes)
+    hoje = datetime.now().strftime("%d/%m/%Y")
+    posts_hoje = [p for p in posts if p["data"].startswith(hoje)]
+    if os.name == "nt":
+        os.system("")
+
+    def cor_nome(nome):
+        c = cores.get(nome)
+        return ansi(c[1], nome) if c else nome
+
+    largura = 66
+    linhas = []
+    linhas.append("")
+    linhas.append(f"  {ansi('38', '\u2550' * largura)}")
+    titulo = f"\u25e2 SQUAD \u00b7 {projeto} \u00b7 DASHBOARD"
+    espaco = " " * max(1, largura - len(titulo) - 2)
+    linhas.append(f"  {ansi('38', '\u2551')} {ansi('226', titulo)}{espaco}{ansi('38', '\u2551')}")
+    linhas.append(f"  {ansi('38', '\u2550' * largura)}")
+
+    entregas = sum(1 for p in posts if p["estado"] == "feito")
+    bloqueados = sum(1 for p in posts if p["estado"] == "bloqueado")
+    pendencias_abertas = sum(
+        1 for a in agentes if tarefa_pendente(posts, a["nome"])[0] is not None
+    )
+    ultima = posts[-1]["data"][-5:] if posts else "\u2014"
+    linhas.append(f"  {ansi('250', 'VIS\u00c3O GERAL')}")
+    linhas.append(
+        f"  {ansi('250', 'entregas')} {ansi('34', str(entregas))}"
+        f"  {ansi('250', 'pend\u00eancias em aberto')} {ansi('214', str(pendencias_abertas))}"
+        f"  {ansi('250', 'bloqueios')} {ansi('196', str(bloqueados))}"
+        f"  {ansi('250', '\u00faltima atividade')} {ansi('112', ultima)}"
+    )
+
+    linhas.append(f"  {ansi('38', '\u2500' * largura)}")
+    for a in agentes:
+        nome = a["nome"]
+        papel = f" ({a['papel']})" if a.get("papel") else ""
+        tot = sum(1 for p in posts if p["nome"] == nome and p["estado"] == "feito")
+        hoje_n = sum(1 for p in posts_hoje if p["nome"] == nome and p["estado"] == "feito")
+        est, acao = estado_agente(posts, nome)
+        if est == "pendente" and acao == "aguardando":
+            rot = "ocioso"
+        else:
+            rot = {"feito": "pronto", "pendente": "na fila", "bloqueado": "bloqueado"}[est]
+        simb = SIMBOLO[est] if est in SIMBOLO else "\u25cb"
+        cor = ESTADO_COR.get(est, "214")
+        pl_tot = "s" if tot != 1 else ""
+        pl_hoje = "s" if hoje_n != 1 else ""
+        linhas.append(
+            f"  {ansi(cor, simb)} {cor_nome(nome)}{ansi('250', papel)}"
+            f" {ansi('250', f'\u2014 {tot} entrega{pl_tot} \u00b7 hoje {hoje_n} \u00b7 {rot}')}"
+        )
+        up = ultimo_post(posts, nome)
+        if up:
+            msg = up["msg"] if len(up["msg"]) <= 64 else up["msg"][:61] + "..."
+            linhas.append(f"    {ansi('250', '\u21b3')} {msg} {ansi('250', '(' + up['data'][-5:] + ')')}")
+
+    spark = sparkline_24h(posts)
+    linhas.append(f"  {ansi('38', '\u2500' * largura)}")
+    if spark:
+        linhas.append(f"  {ansi('250', 'ATIVIDADE 24H:')} {ansi('112', spark)}")
+    timeline = [p for p in posts_hoje if p["estado"] == "feito"][-10:]
+    if timeline:
+        linhas.append(f"  {ansi('38', '\u2500' * largura)}")
+        linhas.append(f"  {ansi('250', 'TIMELINE DE HOJE (\u00faltimas entregas)')}")
+        for p in reversed(timeline):
+            hhmm = p["data"][-5:]
+            c = cores.get(p["nome"], ("#fff", "250"))[1]
+            msg = p["msg"] if len(p["msg"]) <= 56 else p["msg"][:53] + "..."
+            nome_pad = f"{p['nome']:<10}"
+            linhas.append(f"  {ansi('112', hhmm)} {ansi(c, nome_pad)} {ansi('34', '\u2713')} {msg}")
+    linhas.append(f"  {ansi('38', '\u2550' * largura)}")
+    linhas.append("")
+    for ln in linhas:
+        print(ln)
+    if args.salvar:
+        destino = squad_dir(base) / "dashboard.md"
+        ansi_re = re.compile(r"\x1b\[[0-9;]*m")
+        simples = [ansi_re.sub("", ln) for ln in linhas if ln.strip()]
+        destino.write_text(
+            f"# Dashboard do squad \u2014 {projeto} ({hoje})\n\n"
+            + "\n".join(simples)
+            + "\n",
+            encoding="utf-8",
+        )
+        print(f"  salvo em: {destino}")
     return 0
 
 
@@ -932,6 +1056,9 @@ def main(argv=None):
     p = sub.add_parser("daily", help="daily/standup: resumo do trabalho do time em um dia")
     p.add_argument("--data", default="", help="dia em dd/mm/aaaa (padrão: hoje)")
 
+    p = sub.add_parser("dashboard", help="painel consolidado do time (dashboard da empresa)")
+    p.add_argument("--salvar", action="store_true", help="salva uma copia sem cores em squad/dashboard.md")
+
     p = sub.add_parser("view", help="palco do squad no terminal")
     p.add_argument("--watch", action="store_true", help="atualiza a cada --intervalo s")
     p.add_argument("--intervalo", type=float, default=2.0)
@@ -965,6 +1092,8 @@ def main(argv=None):
         return cmd_check(args)
     if args.cmd == "daily":
         return cmd_daily(args)
+    if args.cmd == "dashboard":
+        return cmd_dashboard(args)
     if args.cmd == "view":
         return cmd_view(args)
     if args.cmd == "web":
