@@ -8,6 +8,7 @@ conversa compartilhada em <dir>/squad/quadro.md e memorias por agente em
 Comandos:
   init     Cria a estrutura do squad (idempotente; nao sobrescreve agentes).
   add      Adiciona um agente (nome, pasta, papel).
+  create   Wizard guiado e colorido: cria o time de agentes passo a passo.
   post     Posta uma mensagem no quadro com timestamp.
   status   Mostra o feed (quadro) legivel.
   list     Lista os agentes do squad.
@@ -16,6 +17,7 @@ Comandos:
 Uso: python scripts/squad.py <comando> [opcoes]
 Ex.: python scripts/squad.py init --projeto demo
      python scripts/squad.py add --nome Maria --pasta backend --papel "API"
+     python scripts/squad.py create
      python scripts/squad.py post --nome Maria --estado feito --msg "endpoint no ar"
      python scripts/squad.py status
 """
@@ -149,6 +151,107 @@ def cmd_add(args):
             encoding="utf-8",
         )
     print(f"agente {nome} adicionado (pasta {pasta})")
+    return 0
+
+
+def cmd_create(args):
+    """Wizard guiado e colorido de criacao do time de agentes."""
+    base = Path(args.dir)
+    base.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        os.system("")
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: BLE001
+        pass
+
+    def perguntar(rotulo, padrao="", obrigatorio=False, cor="214"):
+        try:
+            resposta = input(f"  {ansi(cor, rotulo)}: ").strip()
+        except EOFError:
+            resposta = ""
+        if not resposta and padrao:
+            resposta = padrao
+        if obrigatorio and not resposta:
+            print(f"  {ansi('196', '  (!) obrigatorio')}")
+            return perguntar(rotulo, padrao, obrigatorio, cor)
+        return resposta
+
+    print()
+    print(f"  {ansi('38', '╔══════════════════════════════════════════╗')}")
+    print(f"  {ansi('38', '║')}  {ansi('226', '◢ SQUAD')} {ansi('250', '— monte o seu time de agentes')}   {ansi('38', '║')}")
+    print(f"  {ansi('38', '╚══════════════════════════════════════════╝')}")
+    print()
+
+    projeto = perguntar("Nome do projeto", padrao=base.name, cor="226")
+    try:
+        quantidade = int(perguntar("Quantos agentes", padrao="2", obrigatorio=True, cor="226"))
+        if quantidade < 1 or quantidade > 12:
+            raise ValueError
+    except ValueError:
+        print(f"  {ansi('196', '(!) digite um numero entre 1 e 12')}")
+        return 1
+
+    time = []
+    cores = list(PALETA)
+    for i in range(1, quantidade + 1):
+        print(f"  {ansi('250', f'── agente {i} de {quantidade} ──')}")
+        pasta = perguntar("Pasta do agente (ex.: frontend)", obrigatorio=True, cor="38")
+        nome = perguntar("Nome do agente (ex.: Ana)", obrigatorio=True, cor="226")
+        papel = perguntar("Papel (ex.: telas e visual; Enter = vazio)", padrao="", cor="112")
+        time.append({"nome": nome, "pasta": pasta, "papel": papel})
+        print()
+
+    cores_nome = cores_agentes([{"nome": a["nome"]} for a in time])
+    print(f"  {ansi('38', '╔══════════════════════════════════════════════════════════╗')}")
+    print(f"  {ansi('38', '║')}  {ansi('226', 'RESUMO DO TIME')}  {ansi('250', f'· {projeto}')} "
+          f"{ansi('38', '─' * (42 - len(projeto)))} {ansi('38', '║')}")
+    for a in time:
+        hexc, ansi_c = cores_nome.get(a["nome"], cor_agente(a["nome"]))
+        badge = f"[{a['papel']}]" if a.get("papel") else ""
+        print(f"  {ansi('38', '║')}  {ansi(ansi_c, '● ' + a['nome']):<14} "
+              f"{ansi('250', a['pasta']):<22} {ansi('112', badge)}")
+    print(f"  {ansi('38', '╚══════════════════════════════════════════════════════════╝')}")
+    print()
+
+    try:
+        ok = perguntar("Criar o time agora? (s/N)", padrao="n", cor="34").lower()
+    except EOFError:
+        ok = ""
+    if ok != "s":
+        print("  cancelado, nada foi criado")
+        return 0
+
+    cmd_init(
+        argparse.Namespace(
+            dir=str(base), projeto=projeto,
+        )
+    )
+    for a in time:
+        cmd_add(
+            argparse.Namespace(
+                dir=str(base), nome=a["nome"], pasta=a["pasta"], papel=a["papel"],
+            )
+        )
+        (base / a["pasta"]).mkdir(parents=True, exist_ok=True)
+
+    nomes = ", ".join(f"{a['nome']} ({a['pasta']})" for a in time)
+    cmd_post(
+        argparse.Namespace(
+            dir=str(base), nome="Coordenador", estado="feito",
+            msg=f"time formado: {nomes}",
+        )
+    )
+
+    print()
+    for a in time:
+        hexc, ansi_c = cores_nome.get(a["nome"], cor_agente(a["nome"]))
+        print(f"  {ansi('34', '✓')} {ansi(ansi_c, a['nome'])} "
+              f"{ansi('250', f'pronto — pasta {a["pasta"]}')}")
+    print(f"  {ansi('34', 'time de')} {ansi('226', str(quantidade))} "
+          f"{ansi('34', 'agentes formado em')} {ansi('226', str(base))}")
+    print(f"  {ansi('250', 'lance as tarefas com:')} "
+          f"{ansi('38', 'python scripts/squad.py --dir <projeto> post --nome <agente> --estado pendente --msg \"...\"')}")
     return 0
 
 
@@ -695,6 +798,8 @@ def main(argv=None):
     p.add_argument("--pasta", required=True)
     p.add_argument("--papel", default="")
 
+    sub.add_parser("create", help="wizard guiado: cria o time de agentes passo a passo")
+
     p = sub.add_parser("post", help="posta no quadro")
     p.add_argument("--nome", required=True)
     p.add_argument("--estado", choices=ESTADOS, default="feito")
@@ -724,6 +829,8 @@ def main(argv=None):
         return cmd_init(args)
     if args.cmd == "add":
         return cmd_add(args)
+    if args.cmd == "create":
+        return cmd_create(args)
     if args.cmd == "post":
         return cmd_post(args)
     if args.cmd == "status":
