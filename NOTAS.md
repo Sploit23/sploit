@@ -857,3 +857,21 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   procedimento de seguranca. Squad do demo2 com 6 agentes, check OK.
 - Genes reforÃ§ados: G-verificacao, G-causaraiz (o Seguranca confirmou 404/estado
   antes de aprovar).
+
+## [2026-08-12 00:20] Squad daily — a "empresa" acorda com standup (ciclo 4, fase C)
+- **Como raciocinei**: as buscas de novidades 2026 renderam agent-town/Agentshire
+  (social feed: cada agente publica um resumo diário do trabalho REAL), Microsoft
+  Conductor (contexto explícito entre agentes) e TermUI/termcn (sparklines e
+  badges como padrão de TUI bonito). O usuário reprovou bonecos 2x — a beleza
+  aceita é texto/cores/layout. Então a ideia adotada foi um STANDUP real: ler o
+  quadro e destilar por agente (entregas/pendências/bloqueios do dia + sparkline
+  de atividade por hora), não um feed fake.
+- **O que valeu a pena**: (1) reuso total do infra existente — QUADRO_RE, parse_quadro,
+  tarefa_pendente, cores_agentes, ansi, SIMBOLO — o daily é só uma leitura nova dos
+  mesmos dados; (2) --data permite dia vazio ("nenhuma atividade hoje") e dia
+  cheio; (3) lição do dia: console do tool é cp1252 e - estourou
+  UnicodeEncodeError — sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+  no topo resolveu (vale para qualquer print unicode do squad.py); (4) pluralização
+  do rodapé era o detalhe que destoava ("1 pendências").
+- **Verificado**: py_compile OK; daily real no demo2 (30 entregas · 1 pendência ·
+  1 bloqueio, 6 agentes, sparkline ??¦?); dia vazio OK. Commit `1713c2a`.
