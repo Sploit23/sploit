@@ -839,3 +839,21 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   dock no binario novo (TUI no demo2 aberta 25s+ sem crash, PID 18500) prova
   que o redesenho da fase A1 nao quebrou nada.
 - Genes reforçados: G-isolado, G-verificacao.
+
+## [2026-08-12] Modo continuo noturno - ciclo 3: agente de SEGURANCA (pentest) (aaa0952)
+- **Como raciocinei**: o usuario disse que um agente que testa vulnerabilidades
+  'abre infinitas variedades'. Reusei a estrutura do auditor generalizando o
+  e_especialista: e_seguranca (segur/pentest/vulner no papel ou Seguranca no
+  nome) com procedimento proprio - checklist de vulnerabilidades reais, probe
+  de rotas com payloads maliciosos (servidor desanexado), veredito com
+  severidades [CRITICA]/[ALTA]/[MEDIA]/[BAIXA].
+- **O que valeu a pena**: o teste isolado dos 3 perfis (seguranca/auditor/
+  producao) sem crossover antes do demo real. No demo2 o Seguranca auditou o
+  backend de verdade e postou 4 achados reais com severidade (POST /preco sem
+  limite de corpo = DoS, headers ausentes, /echo refletindo input, Content-Type
+  nao validado) e atualizou a propria memoria. Curiosidade: o usuario (ou a
+  janela do demo2 aberta) ja tinha criado Carla (visual) e Vita (vulnerabilidades)
+  - o detector 'vulner' cobre a Vita tambem, entao ela passa a receber o
+  procedimento de seguranca. Squad do demo2 com 6 agentes, check OK.
+- Genes reforçados: G-verificacao, G-causaraiz (o Seguranca confirmou 404/estado
+  antes de aprovar).

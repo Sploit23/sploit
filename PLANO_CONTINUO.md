@@ -53,11 +53,16 @@ Fases da noite (uma por ciclo, nesta ordem):
 - [x] **A3 — Validar o dock no binario novo**: TUI aberta no projeto-demo2
       (PID 18500, binario 23:14:10) viva 25s+ sem crash - redesenho da fase
       A1 validado em execucao real.
-- [ ] **B — Agente de segurança (pentest)**: papel `segurança` no montar_prompt
-      (testa injeção, XSS, path traversal, headers, validação de input, erros
-      vazando stack; lê tudo, não edita produção; posta veredito com CVE-like
-      achados). Demo real no demo2: Segurança acha vulnerabilidade → bloqueia →
-      Bruno corrige → re-auditoria aprova.
+- [x] **B — Agente de segurança (pentest)**: papel `segur`/`pentest`/`vulner`
+      no montar_prompt vira auditor de vulnerabilidades (injecao, XSS, path
+      traversal, headers, validacao, stack vazando, dados sensiveis,
+      autorizacao; probe de rotas com payloads; veredito SEGURANCA: aprovado/
+      CRITICO com [CRITICA]/[ALTA]/[MEDIA]/[BAIXA]). Testes isolados 4/4 (3
+      perfis + sem crossover); demo real no demo2: Seguranca auditou backend e
+      postou 4 achados reais (DoS por corpo sem limite, headers, /echo, CT) +
+      memoria propria. Raiz `aaa0952`; skill §5.3 adicionada.
+      Bonus: Vita (criada na janela do demo2, 'vulner' no papel) passa a
+      receber o procedimento de seguranca automaticamente.
 - [ ] **C — Novidades**: websearch de tendências 2026 (generative agents,
       orquestração, TUI, smallville/ai-town) + adoção do que servir; documentar
       decisões no DECISOES.md quando relevante.
