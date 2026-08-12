@@ -781,3 +781,17 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
 - **Pendente**: reindexar Graphify; proximos candidatos via /diagnostico --fila.
 - **Referencias**: sploit-src/packages/opencode/src/tool/shell/prompt.ts,
   scripts/{diagnostico,fila}.py, FILA_MELHORIAS.json, logs/relaunch.log
+
+## [2026-08-11] Status vivo + subagentes do squad
+- **Como raciocinei**: (1) para o dock mostrar "trabalhando de verdade" em vez
+  de símbolos, o log de cada agente (squad/logs/*.log) já captura comando,
+  edição, post e raciocínio — classei por regex no prório dock (2s) sem estado
+  novo; (2) o usuário pediu que os agentes tivessem subagentes; descobri que a
+  tool task já existe no motor e está em allow no sploit.json — provei em
+  teste real (Bruno usou explore e mapeou server.js sozinho) e ensinei no
+  prompt-contrato (montar_prompt passo 2b).
+- **O que valeu a pena**: comparar o launch do Popen do squad.py com o run
+  manual que funcionava — o DETACHED_PROCESS deixava o stdin inválido e o
+  fstat do boot estourava EISDIR (o supervisor sem DETACHED funcionava).
+  Removido + stdin=DEVNULL: squad.py run volta a funcionar.
+- Genes reforçados: G-causaraiz, G-isolado.

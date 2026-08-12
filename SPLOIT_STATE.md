@@ -484,15 +484,19 @@ pendente). Commit motor `7c281b9`.
 
 ## Próximo passo
 
-**ATUALIZAÇÃO (11/08, noite): Modo Squad — dock do squad na TUI entregue
-(`7c281b9` + `23bf0b8`); aguardando o usuário.** O usuário quer VER o time
-sempre, no terminal ("só o modo terminal que você me propôs no começo que
-sempre mostra eles vivos ali trabalhando"). Bonecos removidos (terminal e web)
-e `SquadDock` integrado no rodapé fixo da sessão (polling 2s, some sem squad/).
-**Para ver funcionando**: reiniciar o Sploit (troca do binário via
-self-restart) e abrir um projeto com squad (ex.: `Temp\sploit\projeto-demo2`).
-Skill squad/AGENTS globais também entram em vigor no próximo boot. Fila do
-harness (instrumentar G5–G9, re-medição, G-isolado) segue no PLANO_CONTINUO.md.
+**ATUALIZAÇÃO (11/08, noite): Modo Squad — dock com STATUS VIVO + subagentes
+entregues (`8d1bedb` + `eebb16d`); aguardando usuário ver no binário novo.** O
+dock agora mostra cada agente trabalhando de verdade: lê `squad/logs/<nome>.log`
+(polling 2s, últimos 8KB, strip ANSI) e classifica `rodando <cmd>`/`editando`/
+`pensando`/`postando`/`delegando subagente`/`perguntando a <alvo>` (fallback
+`aguardando`). Subagentes PROVADOS: a tool `task` está em allow no sploit.json
+— o Bruno usou `explore` sozinho e mapeou server.js; prompt-contrato ensina
+agentes a delegar (passo 2b). Bug do `squad.py run` corrigido (EISDIR =
+`DETACHED_PROCESS` deixava stdin inválido; removido + `stdin=DEVNULL`).
+**Para ver funcionando**: restart pendente (binário novo está em dist/) — depois
+fechar e reabrir um projeto com squad (ex.: `Temp\sploit\projeto-demo2`).
+Fila do harness (instrumentar G5–G9, re-medição, G-isolado) segue no
+PLANO_CONTINUO.md.
 
 **Iteração 8 — Constituição (evolução do corpo): Gerações 1–8 + Iteração B concluídas.**
 
