@@ -13,6 +13,7 @@ Comandos:
   status   Mostra o feed (quadro) legivel.
   list     Lista os agentes do squad.
   check    Valida a integridade do squad.
+  daily    Daily/standup: resumo do trabalho de cada agente em um dia.
 
 Uso: python scripts/squad.py <comando> [opcoes]
 Ex.: python scripts/squad.py init --projeto demo
@@ -20,6 +21,7 @@ Ex.: python scripts/squad.py init --projeto demo
      python scripts/squad.py create
      python scripts/squad.py post --nome Maria --estado feito --msg "endpoint no ar"
      python scripts/squad.py status
+     python scripts/squad.py daily --data 11/08/2026
 """
 
 import argparse
@@ -34,6 +36,11 @@ from datetime import datetime
 from pathlib import Path
 
 ESTADOS = ("feito", "pendente", "bloqueado")
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, ValueError):
+    pass
 
 PALETA = [
     ("#e11d48", "161"),
@@ -321,6 +328,78 @@ def cmd_check(args):
     if ok:
         print(f"OK: squad de {base} consistente ({len(cfg.get('agentes', []))} agentes)")
     return 0 if ok else 1
+
+
+def cmd_daily(args):
+    """Daily/standup: resumo do trabalho de cada agente em um dia (do quadro)."""
+    base = Path(args.dir).resolve()
+    cfg = load_cfg(base)
+    projeto = cfg.get("projeto", base.name)
+    posts = parse_quadro(base)
+    if not posts:
+        sys.exit(f"ERRO: quadro vazio em {base}")
+    data_alvo = args.data or datetime.now().strftime("%d/%m/%Y")
+    hoje = [p for p in posts if p["data"].startswith(data_alvo)]
+    agentes = cfg.get("agentes", [])
+    cores = cores_agentes(agentes)
+
+    def cor_nome(nome):
+        c = cores.get(nome)
+        return ansi(c[1], nome) if c else nome
+
+    print()
+    print(f"  {ansi('226', 'DAILY')} {ansi('250', '· ' + projeto + ' · ' + data_alvo)}")
+    print(f"  {ansi('38', '─' * 58)}")
+    total_feito = total_pend = total_bloq = 0
+    for a in agentes:
+        nome = a["nome"]
+        papel = f" ({a['papel']})" if a.get("papel") else ""
+        ps = [p for p in hoje if p["nome"] == nome]
+        feito = [p for p in ps if p["estado"] == "feito"]
+        pend = [p for p in ps if p["estado"] == "pendente"]
+        bloq = [p for p in ps if p["estado"] == "bloqueado"]
+        total_feito += len(feito)
+        total_pend += len(pend)
+        total_bloq += len(bloq)
+        plural = lambda n: "s" if n != 1 else ""  # noqa: E731
+        resumo = (
+            f"{len(feito)} entrega{plural(len(feito))}"
+            f" · {len(pend)} pendência{plural(len(pend))}"
+            f" · {len(bloq)} bloqueio{plural(len(bloq))}"
+        )
+        print(f"  {cor_nome(nome)}{ansi('250', papel)} — {ansi('250', resumo)}")
+        vistos = feito + pend + bloq
+        for p in vistos[:4]:
+            simb = SIMBOLO[p["estado"]]
+            cor = ESTADO_COR[p["estado"]]
+            msg = p["msg"] if len(p["msg"]) <= 78 else p["msg"][:75] + "..."
+            print(f"    {ansi(cor, simb)} {msg}")
+        if not vistos:
+            print(f"    {ansi('250', '—')} nenhuma atividade hoje")
+        tp, _ = tarefa_pendente(posts, nome)
+        if tp is not None and not any(q["estado"] == "pendente" for q in ps):
+            print(f"    {ansi('214', '○')} tarefa em aberto: {tp['msg']}")
+    print(f"  {ansi('38', '─' * 58)}")
+    tot = (
+        f"Total: {total_feito} entrega{plural(total_feito)}"
+        f" · {total_pend} pendência{plural(total_pend)}"
+        f" · {total_bloq} bloqueio{plural(total_bloq)}"
+    )
+    print(f"  {ansi('250', tot)}")
+    if hoje:
+        horas = [0] * 24
+        for p in hoje:
+            try:
+                horas[int(p["data"].split()[1].split(":")[0])] += 1
+            except (ValueError, IndexError):
+                pass
+        mx = max(horas) or 1
+        chars = "\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588"
+        spark = "".join(chars[int(h / mx * 7.99)] if h else "\u00b7" for h in horas)
+        spark = spark.strip("\u00b7")
+        print(f"  {ansi('250', 'Atividade por hora:')} {ansi('112', spark)}")
+    print()
+    return 0
 
 
 def binario_sploit():
@@ -850,6 +929,9 @@ def main(argv=None):
     for c in ("status", "list", "check"):
         sub.add_parser(c, help=f"{c} do squad")
 
+    p = sub.add_parser("daily", help="daily/standup: resumo do trabalho do time em um dia")
+    p.add_argument("--data", default="", help="dia em dd/mm/aaaa (padrão: hoje)")
+
     p = sub.add_parser("view", help="palco do squad no terminal")
     p.add_argument("--watch", action="store_true", help="atualiza a cada --intervalo s")
     p.add_argument("--intervalo", type=float, default=2.0)
@@ -881,6 +963,8 @@ def main(argv=None):
         return cmd_list(args)
     if args.cmd == "check":
         return cmd_check(args)
+    if args.cmd == "daily":
+        return cmd_daily(args)
     if args.cmd == "view":
         return cmd_view(args)
     if args.cmd == "web":
