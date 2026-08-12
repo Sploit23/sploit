@@ -254,6 +254,10 @@ def montar_prompt(base, cfg, a):
         + f"para voce, responda apenas \"aguardando\" e pare (NAO poste nada).\n"
         + f"2. Execute a tarefa na sua pasta, com o codigo existente. NAO edite "
         + f"arquivos fora dela.\n"
+        + f"2b. TAREFAS GRANDES: delegue. Para mapear/explorar/analisar codigo ou "
+        + f"dividir trabalho grande, use a ferramenta task (subagent_type=explore "
+        + f"ou general) com um prompt detalhado; espere o resultado e use-o. "
+        + f"Nao faca manualmente o que um subagente pode mapear.\n"
         + f"3. Ao terminar, atualize sua memoria (append de 2-3 linhas: o que fez/aprendeu) "
         + f"e POSTE o resultado no quadro rodando via bash exatamente um destes:\n"
         + f"   - Sucesso:  python {sp} --dir {base} post --nome {nome} --estado feito --msg \"RESUMO\"\n"
@@ -287,12 +291,12 @@ def cmd_run(args):
         with log.open("wb") as fh:
             p = subprocess.Popen(
                 [exe, "run", prompt, "--dir", str(pasta), "--continue", "--title", f"squad: {nome}"],
+                stdin=subprocess.DEVNULL,
                 stdout=fh,
                 stderr=fh,
                 creationflags=(
                     subprocess.CREATE_NEW_PROCESS_GROUP
                     | subprocess.CREATE_NO_WINDOW
-                    | subprocess.DETACHED_PROCESS
                 ),
             )
         print(f"lançado: {nome} (PID {p.pid}) -> {log}")
