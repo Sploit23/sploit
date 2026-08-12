@@ -81,6 +81,16 @@ Fases da noite (uma por ciclo, nesta ordem):
       (helper `sparkline_24h` compartilhado com o daily) e timeline das
       entregas de hoje; `--salvar` grava `squad/dashboard.md` sem ANSI.
       Validado no demo2 (32 entregas, timeline 10 posts, ▁▃█▁); py_compile OK.
+- [x] **F — Blindagem**: `scripts/squad_test.py` (zero dependências, assert
+      puro): parse, tarefas, estados, sparkline, daily, dashboard, perfis de
+      prompt, validações, celebração — 12/12 passam (commit `27276ac`).
+- [x] **G — Celebrar**: quando a fila zera sem órfãs, o supervisor posta do
+      Coordenador `✨ fila concluída: N entregas · M bloqueios · dashboard: ...`
+      (helper `postar_celebracao`, testado; commit `4f923d5`) — o dock mostra
+      a celebração no rodapé e a empresa fecha o dia sozinha.
+- [ ] **H — Medir o corpo**: re-medição G5–G9 (`medicao_mutacoes.py` com
+      `--desde`, mutações ativas desde 09/08 16:24 UTC), diagnóstico + push
+      nuvem, Graphify reindex.
 - [ ] **E — Encerramento**: relato do modo contínuo em NOTAS.md, SPLOIT_STATE.md
       atualizado, diagnóstico + sync nuvem, reindex Graphify, garantir tree
       limpa.
