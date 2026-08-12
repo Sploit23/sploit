@@ -69,8 +69,11 @@ Fases da noite (uma por ciclo, nesta ordem):
       entregas/pendências/bloqueios do dia + sparkline de atividade por hora;
       raiz `1713c2a`, validado no demo2 — 30 entregas · 1 pendência · 1
       bloqueio; `--data` para dia vazio OK; `sys.stdout.reconfigure(utf-8)`
-      corrigiu UnicodeEncodeError no console cp1252). Pendente da fase C:
-      **sparkline de atividade no dock da TUI** (motor — a 2ª ideia adotada).
+      corrigiu UnicodeEncodeError no console cp1252). **Sparkline 24h no dock**
+      (motor `c567368`, typecheck tui OK, build smoke OK): rodapé do dock mostra
+      o pulso do time nas últimas 24h (janela deslizante a partir do último
+      post, buckets por hora, ▁▂▃▄▅▆▇█). Ativação no binário via self-restart +
+      validação visual pendentes.
 - [ ] **D — "Empresa" de verdade**: painel do time (entregas por agente,
       histórico do quadro, daily, métricas de atividade), talvez `squad
       dashboard`/relatório bonito para o usuário ver ao acordar.
