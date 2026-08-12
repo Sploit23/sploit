@@ -353,6 +353,19 @@ servidor real, atualizou a memória e postou `(feito)` — sozinho, PID 856,
 processo saiu ao ficar idle. Skill squad §5.1 + memórias atualizadas. Commit
 `edd2427` (viewer) + este (run).
 
+**Supervisor de fila — `squad supervisor` (11/08)** ✔: monitora o quadro a
+cada `--intervalo`s, lança quem tem tarefa em aberto, relança em progresso e
+encerra sozinho quando a fila zera (3 tentativas por agente; órfã loga e
+segue). Detecção refinada em 3 iterações: (1) último post do agente — não
+pegava tarefas do coordenador; (2) `nome in msg` — falso positivo (post
+velho do MVP "Ana primeiro, Bruno depois" lançou a Ana 2x); (3) final: post
+pendente do agente OU `Nome:` no texto E **sem resposta do agente depois**
+(quadro é append-only: posts pendentes do coordenador já respondidos não
+relançam). Boneco corrigido (pixel único `█` — `██` distorcia as proporções;
+usuário reclamou). Validado real: 2 tarefas entregues numa rodada só
+(GET /health + /versao) + ciclo final limpo (tarefa → lançou Bruno → `(feito)`
+→ fila vazia → encerrou). Skill §5.1 atualizada.
+
 **Modo contínuo autônomo** ✔ (preparado; ex-"modo noturno" — renomeado a
   pedido do usuário em 11/08): permissões auto-approve no `sploit.json` (bash
   `*`, tools allow, external_directory allow) + PLANO_CONTINUO.md com o

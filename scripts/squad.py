@@ -39,7 +39,6 @@ SPRITE = [
     " 111111 ",
     "  1111  ",
     "   11   ",
-    "   11   ",
     " 111111 ",
     " 11  11 ",
     " 111111 ",
@@ -312,6 +311,84 @@ def cmd_run(args):
     return 0
 
 
+def cmd_supervisor(args):
+    """Monitora o quadro: lança quem tem tarefa pendente e relança até a fila zerar."""
+    base = Path(args.dir).resolve()
+    cfg = load_cfg(base)
+    exe = binario_sploit()
+    logs = squad_dir(base) / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:  # noqa: BLE001
+        pass
+    procs = {}
+    marcas = {}
+    tent = {}
+    idle = 0
+    print(f"supervisor ativo em {base} (intervalo {args.intervalo}s; Ctrl+C encerra)")
+    try:
+        while True:
+            posts = parse_quadro(base)
+            n = len(posts)
+            lancou = False
+            for a in cfg.get("agentes", []):
+                nome = a["nome"]
+                pp = procs.get(nome)
+                if pp is not None:
+                    rc = pp.poll()
+                    if rc is None:
+                        continue
+                    del procs[nome]
+                    if tarefa_pendente(posts, nome)[0] is None:
+                        tent[nome] = 0
+                    print(f"[{now()}] {nome} terminou (exit {rc})")
+                    continue
+                tp, _ = tarefa_pendente(posts, nome)
+                if tp is None:
+                    continue
+                if marcas.get(nome) == n:
+                    continue
+                if tent.get(nome, 0) >= 3:
+                    print(f"[{now()}] {nome}: tentativas esgotadas, tarefa orfa")
+                    continue
+                pasta = Path(base) / a["pasta"]
+                pasta.mkdir(parents=True, exist_ok=True)
+                prompt = montar_prompt(base, cfg, a)
+                log = logs / f"{nome}.log"
+                fh = log.open("ab")
+                pp = subprocess.Popen(
+                    [exe, "run", prompt, "--dir", str(pasta), "--continue", "--title", f"squad: {nome}"],
+                    stdout=fh,
+                    stderr=fh,
+                    creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW),
+                )
+                procs[nome] = pp
+                marcas[nome] = n
+                tent[nome] = tent.get(nome, 0) + 1
+                lancou = True
+                print(f"[{now()}] {nome} lancado (PID {pp.pid}, tentativa {tent[nome]})")
+            if procs or lancou:
+                idle = 0
+            else:
+                idle += 1
+                if idle >= 3:
+                    pend = [
+                        a["nome"]
+                        for a in cfg.get("agentes", [])
+                        if tarefa_pendente(posts, a["nome"])[0] is not None
+                    ]
+                    msg = "fila vazia; supervisor encerrando"
+                    if pend:
+                        msg += f" (orfas: {pend})"
+                    print(f"[{now()}] {msg}")
+                    break
+            time.sleep(args.intervalo)
+    except KeyboardInterrupt:
+        print("\nsupervisor encerrado pelo usuario")
+    return 0
+
+
 def cor_agente(nome):
     if nome == "Coordenador":
         return ("#94a3b8", "250")
@@ -358,6 +435,34 @@ def ultimo_post(posts, nome):
     return None
 
 
+def tarefa_pendente(posts, nome):
+    """Último post pendente em aberto: é do agente ou o menciona ('Nome: ...')
+    e NÃO há resposta do agente depois dele (senão já foi tratado)."""
+    rx = re.compile(re.escape(nome) + r"\s*:")
+    for i in range(len(posts) - 1, -1, -1):
+        p = posts[i]
+        if p["estado"] != "pendente":
+            continue
+        if p["nome"] != nome and not rx.search(p["msg"]):
+            continue
+        if any(q["nome"] == nome for q in posts[i + 1 :]):
+            continue
+        return p, i
+    return None, -1
+
+
+def estado_agente(posts, nome):
+    """Estado do agente no palco: trabalhando (pendente) se há tarefa em aberto."""
+    up = ultimo_post(posts, nome)
+    tp, i_tp = tarefa_pendente(posts, nome)
+    i_up = posts.index(up) if up else -1
+    if tp is not None and i_tp >= i_up:
+        return "pendente", tp["msg"]
+    if up:
+        return up["estado"], up["msg"]
+    return "pendente", "aguardando"
+
+
 def ansi(cod, texto):
     return f"\x1b[38;5;{cod}m{texto}\x1b[0m"
 
@@ -368,9 +473,9 @@ def render_boneco_terminal(cor_ansi):
         out = ""
         for ch in row:
             if ch == "1":
-                out += ansi(cor_ansi, "\u2588\u2588")
+                out += ansi(cor_ansi, "\u2588")
             else:
-                out += "  "
+                out += " "
         linhas.append(out)
     return linhas
 
@@ -391,10 +496,8 @@ def construir_palco(cfg, posts, base=""):
         for a in agentes:
             nome = a["nome"]
             hexc, ansi_c = cores.get(nome, cor_agente(nome))
-            up = ultimo_post(posts, nome)
-            estado = up["estado"] if up else "pendente"
+            estado, acao = estado_agente(posts, nome)
             simb = SIMBOLO.get(estado, "\u25cb")
-            acao = (up["msg"] if up else "aguardando")
             if len(acao) > 24:
                 acao = acao[:23] + "\u2026"
             b = render_boneco_terminal(ansi_c)
@@ -449,15 +552,15 @@ def dados_api(base, cfg):
     for a in agentes:
         nome = a["nome"]
         hexc, _ = cores.get(nome, cor_agente(nome))
-        up = ultimo_post(posts, nome)
+        status, acao = estado_agente(posts, nome)
         lista.append(
             {
                 "nome": nome,
                 "pasta": a["pasta"],
                 "papel": a.get("papel", ""),
                 "cor": hexc,
-                "status": up["estado"] if up else "aguardando",
-                "acao": up["msg"] if up else "aguardando",
+                "status": status,
+                "acao": acao,
             }
         )
     return {"projeto": cfg.get("projeto", Path(base).name), "agentes": lista, "posts": posts}
@@ -502,11 +605,11 @@ PAGINA_HTML = """<!doctype html>
 <div class="feed" id="feed"></div>
 <script>
 const SPRITE = [
-  "  1111  ", " 111111 ", " 111111 ", "  1111  ", "   11   ",
+  "  1111  ", " 111111 ", " 111111 ", "  1111  ",
   "   11   ", " 111111 ", " 11  11 ", " 111111 ",
 ];
 function boneco(canvas, cor) {
-  const px = 6, w = 8 * px, h = 9 * px;
+  const px = 5, w = 8 * px, h = 8 * px;
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, w, h);
@@ -623,6 +726,9 @@ def main(argv=None):
     p = sub.add_parser("run", help="lança os agentes como sessões headless do Sploit")
     p.add_argument("--nome", default="", help="agente específico (padrão: todos)")
 
+    p = sub.add_parser("supervisor", help="monitora o quadro e relança agentes até a fila zerar")
+    p.add_argument("--intervalo", type=float, default=5.0, help="checagem em segundos (padrão: 5)")
+
     args = ap.parse_args(argv)
 
     if args.cmd == "init":
@@ -645,6 +751,8 @@ def main(argv=None):
         return cmd_web(args)
     if args.cmd == "run":
         return cmd_run(args)
+    if args.cmd == "supervisor":
+        return cmd_supervisor(args)
     return 0
 
 

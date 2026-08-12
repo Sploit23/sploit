@@ -121,6 +121,14 @@ O usuário quer **ver** os agentes conversando e trabalhando. Opções:
       testou no servidor real, atualizou `memoria/Bruno.md` e postou `(feito)`
       — tudo sozinho, processo saiu ao ficar idle. Sessão persistente por
       agente via `--continue` (pasta exclusiva = última sessão do dir).
+- [x] **Supervisor de fila (11/08, `squad supervisor`)**: monitora o quadro e
+      relança agentes até a fila zerar (encerra sozinho; 3 tentativas por
+      agente para evitar loop). Detecção de tarefa em aberto: post pendente
+      do agente ou `Nome:` no texto SEM resposta do agente depois (posts
+      pendentes já respondidos não relançam). Boneco corrigido: pixel único
+      `█` (proporção quadrada; antes `██` distorcia). Validado real: 2 tarefas
+      entregues numa rodada (GET /health + /versao) + ciclo final limpo
+      (tarefa nova → Bruno lançado → `(feito)` → fila vazia → encerrou).
 - [ ] Fazer a criação interativa de verdade (quantos/pastas/nomes) na TUI
 - [ ] Agentes com ciclos longos: supervisor que relança o agente quando há
       tarefa pendente (hoje o coordenador chama `squad run` por rodada)

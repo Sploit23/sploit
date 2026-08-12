@@ -6,6 +6,29 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-11] Supervisor de fila — squad supervisor (ciclos até a fila zerar)
+- **Como raciocinei**: o `squad run` lançava uma rodada e acabava — faltava a
+  parte "o time trabalha sozinho até terminar". O supervisor é um loop de
+  polling sobre o quadro: lança quem tem tarefa em aberto, relança quando o
+  agente reporta progresso, e encerra quando a fila zera. Aprendizado de
+  design no caminho: (1) **detecção de tarefa é semântica, não sintática** —
+  a 1ª versão olhava o último post do AGENTE (não pegava tarefas postadas pelo
+  coordenador); a 2ª usou `nome in msg` (falso positivo com "Ana primeiro,
+  Bruno depois" do post velho do MVP — lançou a Ana 2x à toa); a final exige
+  `Nome:` + **sem resposta do agente depois** (posts pendentes antigos do
+  coordenador já respondidos nunca são fechados no quadro append-only — sem
+  essa regra, o Bruno era relançado para tarefas que ele já tinha entregue);
+  (2) **buffer do Python**: com stdout redirecionado, print não flusha — o
+  log do supervisor aparecia só no fim (fix `line_buffering=True`);
+  (3) **boneco feio**: `██` (2 chars/pixel) distorce proporções — pixel único
+  `█` e sprite de 8 linhas; o usuário confirmou que era grande/estranho.
+- **O que valeu a pena**: validar real em 3 rodadas — a 1ª (suja) ainda
+  entregou: o Bruno fez GET /health E /versao numa rodada só (eficiente!); o
+  teste final limpo provou o fluxo inteiro: tarefa nova → supervisor lançou →
+  `(feito)` → fila vazia → encerrou sozinho.
+- **Próximo**: criação interativa na TUI; view no TUI; limites (custos) por
+  rodada do supervisor.
+
 ## [2026-08-11] "Agentes rodando de verdade" — squad run (sessões headless)
 - **Como raciocinei**: a visualização estava pronta, mas o status só mudava se
   alguém postasse — o usuário queria ver os agentes TRABALHANDO. A chave foi
