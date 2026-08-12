@@ -33,17 +33,6 @@ from pathlib import Path
 
 ESTADOS = ("feito", "pendente", "bloqueado")
 
-SPRITE = [
-    "  1111  ",
-    " 111111 ",
-    " 111111 ",
-    "  1111  ",
-    "   11   ",
-    " 111111 ",
-    " 11  11 ",
-    " 111111 ",
-]
-
 PALETA = [
     ("#e11d48", "161"),
     ("#2563eb", "27"),
@@ -467,19 +456,6 @@ def ansi(cod, texto):
     return f"\x1b[38;5;{cod}m{texto}\x1b[0m"
 
 
-def render_boneco_terminal(cor_ansi):
-    linhas = []
-    for row in SPRITE:
-        out = ""
-        for ch in row:
-            if ch == "1":
-                out += ansi(cor_ansi, "\u2588")
-            else:
-                out += " "
-        linhas.append(out)
-    return linhas
-
-
 def construir_palco(cfg, posts, base=""):
     L = []
     projeto = cfg.get("projeto", Path(base).name if base else "?")
@@ -492,23 +468,18 @@ def construir_palco(cfg, posts, base=""):
     if not agentes:
         L.append("(nenhum agente no squad)")
     else:
-        blocos = []
         for a in agentes:
             nome = a["nome"]
             hexc, ansi_c = cores.get(nome, cor_agente(nome))
             estado, acao = estado_agente(posts, nome)
             simb = SIMBOLO.get(estado, "\u25cb")
-            if len(acao) > 24:
-                acao = acao[:23] + "\u2026"
-            b = render_boneco_terminal(ansi_c)
-            b.append(ansi(ansi_c, nome))
-            b.append(a["pasta"])
-            b.append(ansi(ESTADO_COR.get(estado, "214"), f"{simb} {estado}"))
-            b.append("   " + acao)
-            blocos.append(b)
-        altura = len(blocos[0])
-        for i in range(altura):
-            L.append("   ".join(b[i] for b in blocos))
+            papel = f" \u00b7 {a['papel']}" if a.get("papel") else ""
+            if len(acao) > 46:
+                acao = acao[:45] + "\u2026"
+            L.append(
+                f"  {ansi(ansi_c, nome)}  {a['pasta']}{papel}  "
+                f"{ansi(ESTADO_COR.get(estado, '214'), f'{simb} {estado}')}  {acao}"
+            )
 
     L.append("-" * 64)
     L.append("\x1b[1mConversa (quadro)\x1b[0m")
@@ -582,9 +553,8 @@ PAGINA_HTML = """<!doctype html>
   .time { color: #64748b; font-size: 11px; }
   .palco { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
   .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px;
-          padding: 14px 16px; min-width: 190px; }
-  .card .boneco { text-align: center; margin-bottom: 6px; }
-  .card .nome { font-weight: bold; font-size: 15px; }
+          padding: 14px 16px; min-width: 200px; }
+  .card .nome { font-weight: bold; font-size: 17px; margin-bottom: 2px; }
   .card .pasta { color: #94a3b8; font-size: 12px; }
   .card .status { font-size: 12px; margin: 6px 0; }
   .card .acao { font-size: 11px; color: #cbd5e1; background: #0f172a;
@@ -604,21 +574,6 @@ PAGINA_HTML = """<!doctype html>
 <div class="palco" id="palco"></div>
 <div class="feed" id="feed"></div>
 <script>
-const SPRITE = [
-  "  1111  ", " 111111 ", " 111111 ", "  1111  ",
-  "   11   ", " 111111 ", " 11  11 ", " 111111 ",
-];
-function boneco(canvas, cor) {
-  const px = 5, w = 8 * px, h = 8 * px;
-  canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, w, h);
-  SPRITE.forEach((linha, y) => {
-    [...linha].forEach((ch, x) => {
-      if (ch === "1") { ctx.fillStyle = cor; ctx.fillRect(x * px, y * px, px, px); }
-    });
-  });
-}
 const SIMB = { feito: "✓", pendente: "○", bloqueado: "✕", aguardando: "○" };
 async function tick() {
   try {
@@ -632,17 +587,12 @@ async function tick() {
     for (const a of d.agentes) {
       const c = document.createElement("div");
       c.className = "card" + (a.status === "pendente" ? " trabalhando" : "");
-      const cv = document.createElement("canvas");
-      cv.className = "boneco";
       c.innerHTML =
-        "<div class='boneco'></div>" +
         "<div class='nome' style='color:" + a.cor + "'>" + a.nome + "</div>" +
         "<div class='pasta'>" + a.pasta + (a.papel ? " · " + a.papel : "") + "</div>" +
         "<div class='status'>" + SIMB[a.status] + " " + a.status + "</div>" +
         "<div class='acao'></div>";
-      c.querySelector(".boneco").appendChild(cv);
       c.querySelector(".acao").textContent = a.acao;
-      boneco(cv, a.cor);
       palco.appendChild(c);
     }
     const feed = document.getElementById("feed");
