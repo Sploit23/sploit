@@ -103,6 +103,14 @@ O usuário quer **ver** os agentes conversando e trabalhando. Opções:
       `Temp\sploit\projeto-demo2`: Ana (frontend) e Bruno (backend) entregaram a
       feature via CLI + subagentes com persona; POST /preco 19.90 → 200
       {ok:true,preco:19.9}; quadro com 3 posts; check consistente.
+- [x] **Visualização do time (11/08, "mostrar eles trabalhando")**: `squad view`
+      (palco no terminal: boneco pixel por agente com cor própria sem colisão,
+      nome, pasta, status ✓/○/✕, balão com o último post + conversa; `--watch`
+      ao vivo) e `squad web --port` (página HTML standalone com os mesmos
+      bonecos em canvas, cartões + feed, polling 2s — dá para ver de longe).
+      O Coordenador é cinza (não rouba a cena). Decisão: bonecos desenhados por
+      código (matriz + cor), sem assets de terceiros — os sprites do ai-town
+      (Smallville) são de terceiros (licença própria); pegamos a IDEIA.
 - [ ] Fazer a criação interativa de verdade (quantos/pastas/nomes) na TUI
 - [ ] Transformar agentes de subagentes efêmeros em sessões próprias
       persistentes (rodar de fato como processos headless + auto-approve)

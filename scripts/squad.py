@@ -22,11 +22,44 @@ Ex.: python scripts/squad.py init --projeto demo
 
 import argparse
 import json
+import os
+import re
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
 ESTADOS = ("feito", "pendente", "bloqueado")
+
+SPRITE = [
+    "  1111  ",
+    " 111111 ",
+    " 111111 ",
+    "  1111  ",
+    "   11   ",
+    "   11   ",
+    " 111111 ",
+    " 11  11 ",
+    " 111111 ",
+]
+
+PALETA = [
+    ("#e11d48", "161"),
+    ("#2563eb", "27"),
+    ("#16a34a", "34"),
+    ("#d97706", "214"),
+    ("#7c3aed", "93"),
+    ("#0891b2", "38"),
+    ("#db2777", "199"),
+    ("#65a30d", "112"),
+]
+
+SIMBOLO = {"feito": "\u2713", "pendente": "\u25cb", "bloqueado": "\u2715"}
+ESTADO_COR = {"feito": "34", "pendente": "214", "bloqueado": "196"}
+
+QUADRO_RE = re.compile(
+    r"^\*\*\[(.+)\] \((feito|pendente|bloqueado)\) (.*?)\s+[-\u2014]\s+\[(.+)\]\*\*$"
+)
 
 HEADER = (
     "# Quadro do squad - {projeto}\n"
@@ -197,6 +230,286 @@ def cmd_check(args):
     return 0 if ok else 1
 
 
+def cor_agente(nome):
+    if nome == "Coordenador":
+        return ("#94a3b8", "250")
+    idx = sum(ord(c) for c in nome) % len(PALETA)
+    return PALETA[idx]
+
+
+def cores_agentes(agentes):
+    cores = {"Coordenador": ("#94a3b8", "250")}
+    usadas = set()
+    for a in agentes:
+        nome = a["nome"]
+        idx = sum(ord(c) for c in nome) % len(PALETA)
+        while idx in usadas:
+            idx = (idx + 1) % len(PALETA)
+        usadas.add(idx)
+        cores[nome] = PALETA[idx]
+    return cores
+
+
+def parse_quadro(base):
+    q = quadro_path(base)
+    if not q.exists():
+        return []
+    posts = []
+    for ln in q.read_text(encoding="utf-8").splitlines():
+        m = QUADRO_RE.match(ln)
+        if m:
+            posts.append(
+                {
+                    "nome": m.group(1),
+                    "estado": m.group(2),
+                    "msg": m.group(3),
+                    "data": m.group(4),
+                }
+            )
+    return posts
+
+
+def ultimo_post(posts, nome):
+    for p in reversed(posts):
+        if p["nome"] == nome:
+            return p
+    return None
+
+
+def ansi(cod, texto):
+    return f"\x1b[38;5;{cod}m{texto}\x1b[0m"
+
+
+def render_boneco_terminal(cor_ansi):
+    linhas = []
+    for row in SPRITE:
+        out = ""
+        for ch in row:
+            if ch == "1":
+                out += ansi(cor_ansi, "\u2588\u2588")
+            else:
+                out += "  "
+        linhas.append(out)
+    return linhas
+
+
+def construir_palco(cfg, posts, base=""):
+    L = []
+    projeto = cfg.get("projeto", Path(base).name if base else "?")
+    titulo = f"SQUAD \u00b7 {projeto}"
+    L.append("\x1b[1m" + titulo + "\x1b[0m")
+    L.append("-" * 64)
+
+    agentes = cfg.get("agentes", [])
+    cores = cores_agentes(agentes)
+    if not agentes:
+        L.append("(nenhum agente no squad)")
+    else:
+        blocos = []
+        for a in agentes:
+            nome = a["nome"]
+            hexc, ansi_c = cores.get(nome, cor_agente(nome))
+            up = ultimo_post(posts, nome)
+            estado = up["estado"] if up else "pendente"
+            simb = SIMBOLO.get(estado, "\u25cb")
+            acao = (up["msg"] if up else "aguardando")
+            if len(acao) > 24:
+                acao = acao[:23] + "\u2026"
+            b = render_boneco_terminal(ansi_c)
+            b.append(ansi(ansi_c, nome))
+            b.append(a["pasta"])
+            b.append(ansi(ESTADO_COR.get(estado, "214"), f"{simb} {estado}"))
+            b.append("   " + acao)
+            blocos.append(b)
+        altura = len(blocos[0])
+        for i in range(altura):
+            L.append("   ".join(b[i] for b in blocos))
+
+    L.append("-" * 64)
+    L.append("\x1b[1mConversa (quadro)\x1b[0m")
+    for p in posts[-8:]:
+        hexc, ansi_c = cores.get(p["nome"], cor_agente(p["nome"]))
+        L.append(
+            f"{ansi(ansi_c, p['nome'] + ':')} {p['msg']} "
+            f"[{p['data']}]"
+        )
+    L.append("-" * 64)
+    L.append("squad view --watch | squad web --port 4199")
+    return "\n".join(L) + "\n"
+
+
+def cmd_view(args):
+    base = args.dir
+    cfg = load_cfg(base)
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: BLE001
+        pass
+    if os.name == "nt":
+        os.system("")
+    try:
+        while True:
+            if args.watch:
+                os.system("cls" if os.name == "nt" else "clear")
+            sys.stdout.write(construir_palco(cfg, parse_quadro(base), base))
+            if not args.watch:
+                return 0
+            time.sleep(args.intervalo)
+    except KeyboardInterrupt:
+        return 0
+
+
+def dados_api(base, cfg):
+    posts = parse_quadro(base)
+    agentes = cfg.get("agentes", [])
+    cores = cores_agentes(agentes)
+    lista = []
+    for a in agentes:
+        nome = a["nome"]
+        hexc, _ = cores.get(nome, cor_agente(nome))
+        up = ultimo_post(posts, nome)
+        lista.append(
+            {
+                "nome": nome,
+                "pasta": a["pasta"],
+                "papel": a.get("papel", ""),
+                "cor": hexc,
+                "status": up["estado"] if up else "aguardando",
+                "acao": up["msg"] if up else "aguardando",
+            }
+        )
+    return {"projeto": cfg.get("projeto", Path(base).name), "agentes": lista, "posts": posts}
+
+
+PAGINA_HTML = """<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQUAD</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0f172a; color: #e2e8f0;
+         font-family: ui-monospace, Consolas, monospace; padding: 24px; }
+  h1 { margin: 0 0 4px; font-size: 18px; }
+  .sub { color: #64748b; font-size: 12px; margin-bottom: 20px; }
+  .time { color: #64748b; font-size: 11px; }
+  .palco { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+          padding: 14px 16px; min-width: 190px; }
+  .card .boneco { text-align: center; margin-bottom: 6px; }
+  .card .nome { font-weight: bold; font-size: 15px; }
+  .card .pasta { color: #94a3b8; font-size: 12px; }
+  .card .status { font-size: 12px; margin: 6px 0; }
+  .card .acao { font-size: 11px; color: #cbd5e1; background: #0f172a;
+                border-radius: 8px; padding: 6px 8px; min-height: 30px; }
+  .card.trabalhando { border-color: #facc15; box-shadow: 0 0 0 1px #facc15; }
+  .card.trabalhando .acao::after { content: " ..."; animation: pisca 1s steps(2) infinite; }
+  @keyframes pisca { 50% { opacity: 0; } }
+  .feed { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; }
+  .feed .linha { padding: 6px 0; border-bottom: 1px solid #1e293b; font-size: 13px; }
+  .feed .linha:last-child { border-bottom: none; }
+  .feed .est { font-size: 11px; color: #64748b; }
+</style>
+</head>
+<body>
+<h1>SQUAD</h1>
+<div class="sub" id="sub">carregando...</div>
+<div class="palco" id="palco"></div>
+<div class="feed" id="feed"></div>
+<script>
+const SPRITE = [
+  "  1111  ", " 111111 ", " 111111 ", "  1111  ", "   11   ",
+  "   11   ", " 111111 ", " 11  11 ", " 111111 ",
+];
+function boneco(canvas, cor) {
+  const px = 6, w = 8 * px, h = 9 * px;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, w, h);
+  SPRITE.forEach((linha, y) => {
+    [...linha].forEach((ch, x) => {
+      if (ch === "1") { ctx.fillStyle = cor; ctx.fillRect(x * px, y * px, px, px); }
+    });
+  });
+}
+const SIMB = { feito: "✓", pendente: "○", bloqueado: "✕", aguardando: "○" };
+async function tick() {
+  try {
+    const r = await fetch("/api");
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    document.getElementById("sub").textContent =
+      "SQUAD · " + d.projeto + " — " + d.agentes.length + " agentes";
+    const palco = document.getElementById("palco");
+    palco.innerHTML = "";
+    for (const a of d.agentes) {
+      const c = document.createElement("div");
+      c.className = "card" + (a.status === "pendente" ? " trabalhando" : "");
+      const cv = document.createElement("canvas");
+      cv.className = "boneco";
+      c.innerHTML =
+        "<div class='boneco'></div>" +
+        "<div class='nome' style='color:" + a.cor + "'>" + a.nome + "</div>" +
+        "<div class='pasta'>" + a.pasta + (a.papel ? " · " + a.papel : "") + "</div>" +
+        "<div class='status'>" + SIMB[a.status] + " " + a.status + "</div>" +
+        "<div class='acao'></div>";
+      c.querySelector(".boneco").appendChild(cv);
+      c.querySelector(".acao").textContent = a.acao;
+      boneco(cv, a.cor);
+      palco.appendChild(c);
+    }
+    const feed = document.getElementById("feed");
+    feed.innerHTML = d.posts.slice(-10).map(p =>
+      "<div class='linha'><b>" + p.nome + "</b> <span class='est'>[" + p.estado + "]</span> " +
+      p.msg + " <span class='time'>" + p.data + "</span></div>"
+    ).join("");
+  } catch (e) { /* servidor ainda subindo */ }
+}
+tick();
+setInterval(tick, 2000);
+</script>
+</body>
+</html>
+"""
+
+
+def cmd_web(args):
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    base = args.dir
+    cfg = load_cfg(base)
+
+    class Handler(BaseHTTPRequestHandler):
+        def _send(self, code, ctype, body):
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self):
+            if self.path in ("/api", "/api/"):
+                data = json.dumps(dados_api(base, cfg), ensure_ascii=False).encode("utf-8")
+                self._send(200, "application/json; charset=utf-8", data)
+            elif self.path == "/favicon.ico":
+                self._send(204, "text/plain", b"")
+            else:
+                self._send(200, "text/html; charset=utf-8", PAGINA_HTML.encode("utf-8"))
+
+        def log_message(self, *a):  # noqa: D401
+            pass
+
+    srv = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
+    print(f"SQUAD web em http://localhost:{args.port} (Ctrl+C para encerrar)")
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        return 0
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="squad.py", description="CLI do modo squad")
     ap.add_argument("--dir", default=".", help="diretorio do projeto (padrao: .)")
@@ -218,6 +531,13 @@ def main(argv=None):
     for c in ("status", "list", "check"):
         sub.add_parser(c, help=f"{c} do squad")
 
+    p = sub.add_parser("view", help="palco do squad no terminal")
+    p.add_argument("--watch", action="store_true", help="atualiza a cada --intervalo s")
+    p.add_argument("--intervalo", type=float, default=2.0)
+
+    p = sub.add_parser("web", help="palco do squad na web (HTML + API)")
+    p.add_argument("--port", type=int, default=4199)
+
     args = ap.parse_args(argv)
 
     if args.cmd == "init":
@@ -234,6 +554,10 @@ def main(argv=None):
         return cmd_list(args)
     if args.cmd == "check":
         return cmd_check(args)
+    if args.cmd == "view":
+        return cmd_view(args)
+    if args.cmd == "web":
+        return cmd_web(args)
     return 0
 
 

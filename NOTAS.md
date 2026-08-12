@@ -6,6 +6,34 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-11] Visualização do squad — "mostrar eles trabalhando" (view + web)
+- **Como raciocinei**: o usuário pediu a parte que falta para "não consigo mais
+  programar sem o Sploit": a pessoa VER o time trabalhando. Pesquisei o que
+  existe open source (ele lembrou de agentes com bonecos conversando — é o
+  Smallville/Generative Agents de Stanford e o ai-town da a16z, MIT). Os
+  SPIRITES pixel do ai-town são assets de terceiros (licença própria), então
+  peguei a IDEIA e desenhei o boneco em código: matriz 8x9 + cor derivada do
+  nome do agente — zero dependência, funciona no terminal (blocos ANSI) e na
+  web (canvas 2D) com o MESMO desenho.
+- **O que valeu a pena**: (1) bonecos por código (SPRITE + paleta) deram
+  identidade própria ao Sploit e custo zero de licença; (2) o quadro já era o
+  "sangue" — o viewer é um leitor (parse da regex `**[nome] (estado) msg -
+  [data]**`), nada de estado novo; (3) a cor por hash colidiu (Maria e Pedro
+  ficaram iguais) → `cores_agentes` resolve colisão (anda na paleta até achar
+  cor livre) — detalhe que faz diferença visual; (4) o Coordenador em cinza
+  resolve o medo do usuário ("parece que sempre vai ser o sploit a estrela");
+  (5) erros reais pegos na validação: encoding cp1252 do console Windows
+  (fix `sys.stdout.reconfigure(utf-8)` + os.system("") p/ VT) e travessão
+  "—" no quadro da PoC (regex tolerante a `-`/`—`).
+- **Verificado**: py_compile OK; `view` no projeto-demo2 (Ana/Bruno ✓) e no
+  projeto-demo (João/Maria/Pedro com cores âmbar/verde/roxo distintas); `web`
+  real: `/api` 200 (projeto, 2 agentes, 3 posts, cores/status corretos) e
+  `/` 200 (HTML 3.7 KB); servidor encerrado.
+- **Próximo**: criar agentes de verdade na TUI (fluxo interativo); agentes
+  como sessões persistentes (aí o "aguardando" é literalmente verdade).
+- **Referências**: scripts/squad.py (SPRITE/PALETA/view/web), skill squad §6,
+  ai-town (a16z, MIT) e Generative Agents (Stanford) como referência de design.
+
 ## [2026-08-11] Relato do modo contínuo — Modo Squad: MVP entregue pronto
 
 **Alvo** (pedido do usuário): "pode implementar, e me entregue pronto, só me

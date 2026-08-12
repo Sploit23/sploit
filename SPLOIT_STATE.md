@@ -328,6 +328,17 @@ Memórias atualizadas (SQUAD.md status, PLANO_CONTINUO alvo concluído,
 NOTAS.md relato). **Ciclo contínuo ENCERRADO — aguardando o usuário.**
 Atenção: skill/AGENTS global entram em vigor no próximo boot (não hot-reload).
 
+**Visualização do squad — "mostrar eles trabalhando" (11/08)** ✔: o usuário
+quer VER o time (inspirado nos "bonecos conversando" que viu — Smallville/
+Generative Agents, ai-town a16z). Pesquisados os open source; os sprites são
+de terceiros (licença própria) → bonecos desenhados em CÓDIGO (matriz 8x9 +
+cor por agente sem colisão). `squad view` (palco no terminal: boneco + nome +
+pasta + status ✓/○/✕ + balão com último post + conversa; `--watch` ao vivo) e
+`squad web --port 4199` (HTML standalone, canvas, cartões + feed, polling 2s).
+Coordenador em cinza (não rouba a cena). Validado: py_compile; view nos 2
+demos (cores âmbar/verde/roxo distintas); web real (/api 200, / 200, servidor
+encerrado). Skill squad §6 atualizada + NOTAS.md nota de evolução.
+
 **Modo contínuo autônomo** ✔ (preparado; ex-"modo noturno" — renomeado a
   pedido do usuário em 11/08): permissões auto-approve no `sploit.json` (bash
   `*`, tools allow, external_directory allow) + PLANO_CONTINUO.md com o
