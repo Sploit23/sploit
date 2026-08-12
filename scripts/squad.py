@@ -689,9 +689,11 @@ def postar_celebracao(base, posts):
     """Posta o resumo da fila no quadro (quando ela zera sem orfas)."""
     feitos = sum(1 for p in posts if p["estado"] == "feito")
     bloqueados = sum(1 for p in posts if p["estado"] == "bloqueado")
+    pl = "s" if feitos != 1 else ""
+    plb = "s" if bloqueados != 1 else ""
     linha = (
         f"**[Coordenador] (feito) \u2728 fila conclu\u00edda: "
-        f"{feitos} entregas \u00b7 {bloqueados} bloqueios "
+        f"{feitos} entrega{pl} \u00b7 {bloqueados} bloqueio{plb} "
         f"\u00b7 dashboard: python squad.py dashboard - "
         f"[{now()}]**\n"
     )

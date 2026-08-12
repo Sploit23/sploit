@@ -199,11 +199,12 @@ def test_celebracao():
     )
     posts = sq.parse_quadro(base)
     linha = sq.postar_celebracao(base, posts)
-    assert "fila conclu\u00edda: 2 entregas \u00b7 1 bloqueios" in linha, linha
+    assert "fila conclu\u00edda: 2 entregas \u00b7 1 bloqueio" in linha, linha
     quadro = (base / "squad" / "quadro.md").read_text(encoding="utf-8")
     assert "Coordenador] (feito)" in quadro, "celebracao nao foi escrita no quadro"
     posts2 = sq.parse_quadro(base)
     assert len(posts2) == 4, "celebracao deveria entrar como novo post"
+    assert all("entregas" not in p["msg"] for p in posts2[:3]), "plural nao deveria mudar posts antigos"
 
 
 def test_cmd_check_integrado():
