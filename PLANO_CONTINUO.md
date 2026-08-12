@@ -21,21 +21,47 @@ detectar ausência + trabalho autônomo, o Sploit entra em modo contínuo sozinh
 
 ## Alvo atual
 
-**Modo Squad — MVP "entregue pronto"** (11/08, acionado pelo usuário: "pode
-implementar e me entregue pronto"). Ciclos:
-1. [x] `scripts/squad.py` (CLI: init/add/post/status/list/check) + testes fake
-      (idempotência do init, duplicado bloqueado, agente inexistente bloqueado,
-      feed legível, check OK). Commit `f0519ed`.
-2. [x] Skill global `squad` em `~/.config/sploit/skills/squad/SKILL.md` (fluxo de
-      criação interativa quantos/pastas/nomes + orquestração via quadro) +
-      gatilho no `~/.config/sploit/AGENTS.md` ("crie agentes"/"squad" → skill).
-3. [x] Teste ponta a ponta (projeto-demo2: Ana/Bruno via CLI + subagentes com
-      persona; POST /preco 19.90 → 200 {ok:true,preco:19.9}; check OK) +
-      memórias atualizadas (SQUAD.md, SPLOIT_STATE, NOTAS.md com o relato).
-      **ALVO CONCLUÍDO — ciclo contínuo encerrado (relato em NOTAS.md).**
+**ALVO NOTURNO (11/08 → 12/08): "Sploit Dev Company — uma empresa de
+desenvolvimento no terminal"** (acionado pelo usuário: "vamos entrar no modo
+noturno, total liberdade, não pare até eu acordar, vá atrás de novidades,
+acabou uma tarefa se dê mais tarefas").
 
-Fases futuras (fora do escopo, documentar no SQUAD.md): view TUI dedicada;
-agentes como sessões/processos persistentes de verdade.
+Prioridades do usuário (em palavras dele):
+- **VISUAL é o mais importante**: "deixar bonito para que as pessoas gostem do
+  que estão vendo". Ele ama ver os agentes vivos, criá-los, auditar — "posso ter
+  uma empresa de desenvolvimento no meu terminal desde a criação visual,
+  auditoria, etc."
+- **Novo papel: agente de segurança** — "um agente que testa vulnerabilidades"
+  ("abre infinitas variedades").
+- **Criação visual**: "desde a criação visual" — criar agentes deve ser bonito
+  e guiado.
+- **Atrás de novidades**: pesquisar tendências e adotar o que servir.
+
+Fases da noite (uma por ciclo, nesta ordem):
+- [ ] **A — Beleza do dock + criação visual**: redesenhar o `SquadDock` da TUI
+      para ficar bonito de verdade (título, contadores por estado, badges de
+      papel, pulse quando trabalhando, cores por estado; NADA de bonecos pixel
+      — usuário reprovou 2x; beleza via texto/cores/layout). Criar também um
+      fluxo de **criação visual e guiada** de agentes (`squad create` wizard
+      bonito: quantos/pastas/nomes/papéis com feedback colorido).
+- [ ] **B — Agente de segurança (pentest)**: papel `segurança` no montar_prompt
+      (testa injeção, XSS, path traversal, headers, validação de input, erros
+      vazando stack; lê tudo, não edita produção; posta veredito com CVE-like
+      achados). Demo real no demo2: Segurança acha vulnerabilidade → bloqueia →
+      Bruno corrige → re-auditoria aprova.
+- [ ] **C — Novidades**: websearch de tendências 2026 (generative agents,
+      orquestração, TUI, smallville/ai-town) + adoção do que servir; documentar
+      decisões no DECISOES.md quando relevante.
+- [ ] **D — "Empresa" de verdade**: painel do time (entregas por agente,
+      histórico do quadro, daily, métricas de atividade), talvez `squad
+      dashboard`/relatório bonito para o usuário ver ao acordar.
+- [ ] **E — Encerramento**: relato do modo contínuo em NOTAS.md, SPLOIT_STATE.md
+      atualizado, diagnóstico + sync nuvem, reindex Graphify, garantir tree
+      limpa.
+
+Ciclos anteriores (MVP do squad, concluídos): f0519ed → skill squad → demo2
+ponta a ponta → `squad run`/supervisor → dock na TUI → auditor + ciclo QA
+(936cd2e). Detalhe em SQUAD.md/SPLOIT_STATE.md.
 
 ## Protocolo do ciclo
 
