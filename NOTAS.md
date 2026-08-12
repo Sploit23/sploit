@@ -875,3 +875,20 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   do rodapé era o detalhe que destoava ("1 pendências").
 - **Verificado**: py_compile OK; daily real no demo2 (30 entregas · 1 pendência ·
   1 bloqueio, 6 agentes, sparkline ??¦?); dia vazio OK. Commit `1713c2a`.
+
+## [2026-08-12 01:00] Sparkline 24h no dock (ciclo 5, fase C) — a 2a ideia da pesquisa
+- **Como raciocinei**: a fase C adotou 2 ideias das buscas 2026 — o squad daily
+  (ciclo 4, raiz) e o sparkline de atividade (TermUI/termcn), que é o toque
+  "vivo" que o usuario ama: o rodape do dock agora mostra o pulso do time nas
+  ultimas 24h em vez de só a data do último post. Reusei a logica do daily
+  (buckets por hora) mas com janela deslizante de 24h a partir do post mais
+  recente — sempre cheio, sempre recente, strip de pontos iniciais.
+- **O que valeu a pena**: (1) parse de data do quadro compartilhado no mesmo
+  regex do squad.py (dd/mm/yyyy HH:MM); (2) type guard no filter para o TS
+  aceitar d is Date (padrão do repo); (3) rodapé do dock segue num texto só
+  — mudança mínima, impacto visual alto.
+- **Verificado**: typecheck tui exit 0; build smoke 0.1.0-sploit OK (backup
+  criado; cópia do exe em uso — troca via self-restart). Commit motor
+  c567368.
+- **Pendente**: ativar no binário via self-restart e validar visualmente no
+  demo2 (o resto da fase C fecha com isso; fase D = painel do time/dashboard).
