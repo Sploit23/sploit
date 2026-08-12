@@ -74,9 +74,13 @@ Fases da noite (uma por ciclo, nesta ordem):
       o pulso do time nas últimas 24h (janela deslizante a partir do último
       post, buckets por hora, ▁▂▃▄▅▆▇█). Ativação no binário via self-restart +
       validação visual pendentes.
-- [ ] **D — "Empresa" de verdade**: painel do time (entregas por agente,
-      histórico do quadro, daily, métricas de atividade), talvez `squad
-      dashboard`/relatório bonito para o usuário ver ao acordar.
+- [x] **D — "Empresa" de verdade**: `squad dashboard` (raiz `a6e3f73`):
+      painel consolidado — banner com caixa, visão geral (entregas/pendências
+      em aberto/bloqueios/última atividade), card por agente (cor, papel,
+      entregas totais e de hoje, estado atual, último post), sparkline 24h
+      (helper `sparkline_24h` compartilhado com o daily) e timeline das
+      entregas de hoje; `--salvar` grava `squad/dashboard.md` sem ANSI.
+      Validado no demo2 (32 entregas, timeline 10 posts, ▁▃█▁); py_compile OK.
 - [ ] **E — Encerramento**: relato do modo contínuo em NOTAS.md, SPLOIT_STATE.md
       atualizado, diagnóstico + sync nuvem, reindex Graphify, garantir tree
       limpa.
