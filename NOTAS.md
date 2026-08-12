@@ -6,6 +6,31 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-11] Dock do squad na TUI — "sempre mostra eles vivos ali trabalhando"
+- **Como raciocinei**: o usuário pediu para remover os bonecos ("ta muito feio,
+  nada ver") e, ao ver a versão web, disse "não quero ver no web, só o modo
+  terminal que você me propôs no começo que sempre mostra eles vivos ali
+  trabalhando" — a opção (A) terminal, que ele já tinha escolhido lá no início.
+  Em vez de outro comando CLI, o certo era o dock DENTRO do Sploit: a TUI da
+  sessão já é onde o usuário vive, e o diretório da sessão já vem no objeto
+  `session` do SDK. Explorei a TUI com um subagente (sem React/Ink — é
+  SolidJS + @opentui; `createEffect` + `setInterval` + `onCleanup` é o padrão
+  de polling do projeto, e `Bun.file()` o padrão de leitura).
+- **O que valeu a pena**: (1) `SquadDock` em `routes/session/squad-dock.tsx` —
+  replica a lógica do squad.py (parse do quadro com o mesmo regex, `estadoAgente`
+  com `tarefaPendente` = último pendente em aberto), polling de 2s, some quando
+  o diretório não tem squad/ (silencioso, zero custo em projetos normais);
+  (2) cores por hash estável do nome sobre a paleta do tema (é o padrão do TUI,
+  não ANSI); (3) integração numa linha no rodapé fixo da rota da sessão;
+  (4) o usuário rejeitou os bonecos 2x (pixel, depois web) — lição: para
+  painel de status, lista limpa > decoração; (5) a web (`squad web`) continua
+  existindo no CLI, mas o foco virou o dock nativo.
+- **Verificado**: typecheck tui OK (0 erros); build smoke `0.1.0-sploit` OK
+  (backup criado; cópia do exe em uso — troca via self-restart pendente).
+  Commits: motor `7c281b9` + raiz `23bf0b8` (remoção dos bonecos).
+- **Próximo**: validar visualmente no binário novo (abrir um projeto com
+  squad); criação interativa na TUI; limits por rodada do supervisor.
+
 ## [2026-08-11] Supervisor de fila — squad supervisor (ciclos até a fila zerar)
 - **Como raciocinei**: o `squad run` lançava uma rodada e acabava — faltava a
   parte "o time trabalha sozinho até terminar". O supervisor é um loop de

@@ -366,6 +366,21 @@ usuário reclamou). Validado real: 2 tarefas entregues numa rodada só
 (GET /health + /versao) + ciclo final limpo (tarefa → lançou Bruno → `(feito)`
 → fila vazia → encerrou). Skill §5.1 atualizada.
 
+**Dock do squad na TUI (11/08)** ✔: usuário reprovou os bonecos 2x ("ta muito
+feio, nada ver"; "não quero ver no web, só o modo terminal que você me propôs
+no começo que sempre mostra eles vivos ali trabalhando"). Bonecos removidos do
+`squad.py` (terminal e web — commit raiz `23bf0b8`) e o **dock entrou na TUI
+do Sploit**: `SquadDock` em `routes/session/squad-dock.tsx` — painel fixo no
+rodapé da sessão (SolidJS + @opentui, padrão `createEffect`+`setInterval`+
+`onCleanup` do projeto, leitura com `Bun.file`), lê `squad/squad.json` +
+`quadro.md` do diretório da sessão (polling 2s), replica a lógica do squad.py
+(parse do quadro com o mesmo regex; `estadoAgente` = tarefa pendente em aberto),
+mostra por agente: nome colorido (hash estável sobre a paleta do tema), pasta,
+símbolo ✓/○/✕ e a tarefa/último post; some sozinho sem squad/. Integrado numa
+linha no rodapé fixo da rota (`session/index.tsx:1234`). Typecheck tui OK (0
+erros); build smoke `0.1.0-sploit` OK (backup criado; troca via self-restart
+pendente). Commit motor `7c281b9`.
+
 **Modo contínuo autônomo** ✔ (preparado; ex-"modo noturno" — renomeado a
   pedido do usuário em 11/08): permissões auto-approve no `sploit.json` (bash
   `*`, tools allow, external_directory allow) + PLANO_CONTINUO.md com o
@@ -469,14 +484,15 @@ usuário reclamou). Validado real: 2 tarefas entregues numa rodada só
 
 ## Próximo passo
 
-**ATUALIZAÇÃO (11/08, noite): Modo Squad — MVP entregue pronto e ciclo
-contínuo ENCERRADO (aguardando o usuário).** CLI `scripts/squad.py` (`f0519ed`)
-+ skill global `squad` + teste ponta a ponta real (Ana/Bruno, POST /preco
-200) concluídos; relato completo em NOTAS.md ("Relato do modo contínuo").
-Ao voltar, o usuário só precisa REINICIAR o Sploit para a skill squad entrar
-em vigor; daí em diante, "crie agentes para cada área" dispara o fluxo.
-Fila do harness (instrumentar G5–G9, re-medição, G-isolado) segue intacta
-no PLANO_CONTINUO.md.
+**ATUALIZAÇÃO (11/08, noite): Modo Squad — dock do squad na TUI entregue
+(`7c281b9` + `23bf0b8`); aguardando o usuário.** O usuário quer VER o time
+sempre, no terminal ("só o modo terminal que você me propôs no começo que
+sempre mostra eles vivos ali trabalhando"). Bonecos removidos (terminal e web)
+e `SquadDock` integrado no rodapé fixo da sessão (polling 2s, some sem squad/).
+**Para ver funcionando**: reiniciar o Sploit (troca do binário via
+self-restart) e abrir um projeto com squad (ex.: `Temp\sploit\projeto-demo2`).
+Skill squad/AGENTS globais também entram em vigor no próximo boot. Fila do
+harness (instrumentar G5–G9, re-medição, G-isolado) segue no PLANO_CONTINUO.md.
 
 **Iteração 8 — Constituição (evolução do corpo): Gerações 1–8 + Iteração B concluídas.**
 
@@ -788,6 +804,10 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   enviado e sessão retomada sozinha. Commit motor `52be6d1` (G9) + raiz
   `3c68a54` (memória). Re-medição de G5–G9 a partir de agora com a mutação
   ATIVA de verdade.
+- **Dock do squad na TUI** ✔: typecheck tui OK (0 erros); build smoke
+  `0.1.0-sploit` OK (backup `sploit.exe.bak` criado; cópia do exe falhou em uso —
+  esperado, troca via self-restart pendente); commits motor `7c281b9` + raiz
+  `23bf0b8`. Validação visual pendente: reiniciar e abrir um projeto com squad.
 
 ## Armadilhas
 

@@ -132,4 +132,11 @@ O usuário quer **ver** os agentes conversando e trabalhando. Opções:
 - [ ] Fazer a criação interativa de verdade (quantos/pastas/nomes) na TUI
 - [ ] Agentes com ciclos longos: supervisor que relança o agente quando há
       tarefa pendente (hoje o coordenador chama `squad run` por rodada)
-- [ ] View dedicada no TUI (feed do quadro ao vivo) — usuário escolheu (A) terminal
+- [x] **Dock do squad na TUI (11/08, "sempre mostra eles vivos ali trabalhando")**:
+      `SquadDock` em `routes/session/squad-dock.tsx` — painel fixo no rodapé da
+      sessão do Sploit que lê `squad/squad.json` + `quadro.md` do diretório da
+      sessão (polling 2s) e mostra cada agente: nome colorido, pasta, símbolo
+      de estado (✓/○/✕) e a tarefa/último post. Some sozinho quando não há
+      squad. Bonecos pixel removidos (terminal e web) — o usuário reprovou
+      2x ("ta muito feio, nada ver"; "não quero ver no web, só o modo terminal").
+      Commits: motor `7c281b9` + raiz `23bf0b8` (remoção dos bonecos).
