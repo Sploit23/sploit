@@ -892,3 +892,22 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   c567368.
 - **Pendente**: ativar no binário via self-restart e validar visualmente no
   demo2 (o resto da fase C fecha com isso; fase D = painel do time/dashboard).
+
+## [2026-08-12 01:40] Squad dashboard — o painel da empresa (fase D)
+- **Como raciocinei**: a fase D pediu "relatorio bonito para o usuario ver ao
+  acordar". O daily (ciclo 4) já fazia o standup por agente; o dashboard sobe
+  um degrau: banner com caixa (mesmo estilo do wizard create), visao geral
+  (entregas/pendencias abertas/bloqueios/ultima atividade), card por agente com
+  estado atual e ultimo post, sparkline 24h (helper compartilhado sparkline_24h)
+  e timeline das entregas de hoje. --salvar grava squad/dashboard.md sem ANSI
+  (regex de strip) para o usuario ler no celular/editor.
+- **O que valeu a pena**: (1) reuso total: parse_quadro, estado_agente,
+  tarefa_pendente, ultimo_post, cores_agentes, SIMBOLO, ESTADO_COR — dashboard
+  e daily sao apenas leituras novas dos mesmos dados; (2) lição de Python:
+  f-string aninhado com aspas escapadas {\"...\"} e a sintaxe do 3.12+ — mais
+  seguro extrair para variavel (pl_tot/pl_hoje, nome_pad); (3) alinhamento de
+  coluna colorida: pad no texto PURO antes de aplicar o ansi() (se pad a string
+  ja colorida, os escapes inflam o len).
+- **Verificado**: py_compile OK; dashboard real no demo2 (32 entregas, 0 pendencias
+  abertas, timeline com 10 posts do dia, sparkline ??¦?); --salvar gerou
+  squad/dashboard.md; commit raiz `a6e3f73`.
