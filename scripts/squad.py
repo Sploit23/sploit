@@ -341,8 +341,50 @@ def montar_prompt(base, cfg, a):
     quadro = quadro_path(base)
     memoria = memoria_path(base, nome)
     sp = Path(__file__).resolve()
-    e_auditor = "audit" in papel.lower() or "auditor" in nome.lower()
-    if e_auditor:
+    pl = papel.lower()
+    e_auditor = "audit" in pl or "auditor" in nome.lower()
+    e_seguranca = (
+        "segur" in pl or "pentest" in pl or "vulner" in pl or "seguranca" in nome.lower()
+    )
+    if e_seguranca:
+        lugar = (
+            f"- Pasta de trabalho: {pasta} (guardar relatorios aqui)\n"
+            f"- Voce e o ESPECIALISTA EM SEGURANCA (pentest): leia livremente as "
+            f"pastas dos outros agentes e o codigo do projeto (bash/read). "
+            f"NAO edite o codigo de producao.\n"
+        )
+        procedimento = (
+            f"1. Leia o quadro. Encontre o ultimo post pendente atribuido a voce, "
+            f"da forma **[{{nome}}] (pendente) ...**. Se nao houver tarefa pendente "
+            f"para voce, responda apenas \"aguardando\" e pare (NAO poste nada).\n"
+            f"2. Leia o codigo indicado na tarefa e AUDITE SEGURANCA, procurando "
+            f"vulnerabilidades REAIS e acionaveis:\n"
+            f"   - injecao (SQL/NoSQL/comando) a partir de entradas do usuario;\n"
+            f"   - XSS (refletido/armazenado) e HTML sem escape;\n"
+            f"   - path traversal e acesso a arquivos fora da area permitida;\n"
+            f"   - headers de seguranca ausentes (CSP, X-Content-Type-Options, "
+            f"X-Frame-Options, etc.);\n"
+            f"   - validacao fraca de input (tipos/tamanhos/formatos invalidos aceitos);\n"
+            f"   - stack trace ou detalhes internos vazando em erros/logs;\n"
+            f"   - dados sensiveis (senha/token) logados ou em texto puro;\n"
+            f"   - autenticacao/autorizacao fraca (rota protegida acessivel sem checagem).\n"
+            f"   Se possivel, rode os testes ou o servidor (bash, sempre desanexado) e "
+            f"PROBE as rotas com payloads maliciosos para CONFIRMAR o comportamento "
+            f"real. NUNCA deixe servidor rodando ao terminar.\n"
+            f"2b. TAREFAS GRANDES: delegue. Para mapear/explorar/analisar codigo ou "
+            f"dividir trabalho grande, use a ferramenta task (subagent_type=explore "
+            f"ou general) com um prompt detalhado; espere o resultado e use-o. "
+            f"Nao faca manualmente o que um subagente pode mapear.\n"
+            f"3. Ao terminar, atualize sua memoria (append de 2-3 linhas: o que "
+            f"achou) e POSTE o veredito no quadro rodando via bash exatamente um destes:\n"
+            f"   - Aprovado:  python {sp} --dir {base} post --nome {nome} --estado feito --msg \"SEGURANCA: aprovado, N achados. RESUMO\"\n"
+            f"   - Reprovado: python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"SEGURANCA: CRITICO: 1) [ALTA] descricao (arquivo:linha); 2) ...\"\n"
+            f"   - Impedido:  python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"MOTIVO\"\n"
+            + "   Regras da mensagem: resuma em ate 25 palavras; marque cada achado "
+            + "com [CRITICA]/[ALTA]/[MEDIA]/[BAIXA]; NAO use aspas duplas nem $ nela.\n"
+            + f"4. Encerre respondendo ao usuario com o veredito em 1-2 linhas.\n"
+        )
+    elif e_auditor:
         lugar = (
             f"- Pasta de trabalho: {pasta} (guardar relatorios aqui)\n"
             f"- Voce AUDITA: leia livremente as pastas dos outros agentes e o "
