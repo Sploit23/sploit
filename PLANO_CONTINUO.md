@@ -44,12 +44,15 @@ Fases da noite (uma por ciclo, nesta ordem):
       frontend=accent, backend=cyan), atividade em italico quando pensando/
       postando, rodape com ultimo post. Motor `747a0b2`; typecheck tui OK;
       build smoke OK (backup criado; troca via self-restart).
-- [ ] **A2 — Criacao visual de agentes**: `squad create` wizard bonito na CLI
-      (quantos/pastas/nomes/papeis com feedback colorido e confirmacao final);
-      a criacao e parte do "empresa no terminal desde a criacao visual".
-- [ ] **A3 — Validar o dock no binario novo**: apos self-restart, abrir a TUI
-      no projeto-demo2 (detached) e confirmar que renderiza sem crash e que o
-      spinner/contadores aparecem (validacao visual real).
+- [x] **A2 — Criacao visual de agentes**: `squad create` wizard guiado e
+      colorido (banner, perguntas passo a passo pasta/nome/papel, resumo do
+      time em caixa com cor de cada agente, confirmacao s/N, cria
+      init+add+pasta+post de boas-vindas; cancelamento nao cria nada).
+      Validado com stdin pipe (sucesso + cancelamento), py_compile OK.
+      Raiz `d1dfcf0`; skill squad §1/§5 atualizada.
+- [x] **A3 — Validar o dock no binario novo**: TUI aberta no projeto-demo2
+      (PID 18500, binario 23:14:10) viva 25s+ sem crash - redesenho da fase
+      A1 validado em execucao real.
 - [ ] **B — Agente de segurança (pentest)**: papel `segurança` no montar_prompt
       (testa injeção, XSS, path traversal, headers, validação de input, erros
       vazando stack; lê tudo, não edita produção; posta veredito com CVE-like

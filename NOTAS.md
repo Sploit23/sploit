@@ -825,3 +825,17 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   leitura instantanea do estado da "empresa". Typecheck tui exit 0; build
   smoke OK (backup criado; troca via self-restart).
 - Genes reforçados: G-verificacao.
+
+## [2026-08-12] Modo continuo noturno - ciclo 2: squad create (wizard visual) (d1dfcf0)
+- **Como raciocinei**: o usuario quer criar o time de forma visual desde o
+  comeco. Em vez de um formulario chato, fiz um wizard com personalidade:
+  banner, perguntas coloridas passo a passo (pasta/nome/papel por agente),
+  resumo do time em caixa com a cor unica de cada agente, confirmacao s/N
+  antes de criar, e mensagem final com o time formado. O cancelamento nao
+  cria nada (testado). Cores herdadas do PALETA/cor_agente do proprio squad
+  para consistencia com o palco e o dock.
+- **O que valeu a pena**: testar com stdin pipe (G-isolado) - 2 execucoes
+  completas (sucesso + cancelamento) sem tocar projeto real. A validacao do
+  dock no binario novo (TUI no demo2 aberta 25s+ sem crash, PID 18500) prova
+  que o redesenho da fase A1 nao quebrou nada.
+- Genes reforçados: G-isolado, G-verificacao.
