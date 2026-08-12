@@ -911,3 +911,21 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
 - **Verificado**: py_compile OK; dashboard real no demo2 (32 entregas, 0 pendencias
   abertas, timeline com 10 posts do dia, sparkline ??¦?); --salvar gerou
   squad/dashboard.md; commit raiz `a6e3f73`.
+
+## [2026-08-12 02:10] Fase F+G: testes do squad.py + celebracao da fila
+- **Como raciocinei**: a noite entregou muito código de script sem blindagem —
+  o certo era testes. Criei scripts/squad_test.py (zero dependencias, assert
+  puro, fixtures em tempdir) cobrindo parse, tarefas, estados, sparkline,
+  daily, dashboard, perfis de prompt e validacoes. Depois, a ideia do
+  "celebrate" do agent-town virou real: quando o supervisor detecta fila vazia
+  sem orfas, posta do Coordenador a celebracao (N entregas · M bloqueios ·
+  dica do dashboard) — o dock mostra isso no rodape e a empresa "fecha o dia"
+  sozinha.
+- **O que valeu a pena**: (1) teste de unidade achou bug MEU, nao do codigo:
+  passei o path do quadro ao parse_quadro (que espera o base) — 5 testes
+  falhando por causa da chamada, nao da logica; (2) extrair postar_celebracao
+  como helper tornou o teste possivel sem rodar o loop do supervisor;
+  (3) redirecionar stdout com redirect_stdout é suficiente para assertions de
+  saida (daily/dashboard).
+- **Verificado**: py_compile OK; 12/12 testes passam (11 + celebracao);
+  commit `4f923d5`.
