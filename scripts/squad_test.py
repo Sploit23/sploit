@@ -187,6 +187,25 @@ def test_post_valida_agente_e_estado():
         pass
 
 
+def test_celebracao():
+    hoje = sq.now()
+    base, _ = novo_squad(
+        posts=[
+            ("Ana", "feito", "tela pronta", hoje),
+            ("Bruno", "feito", "API no ar", hoje),
+            ("Bruno", "bloqueado", "sem credenciais", hoje),
+        ],
+        agentes=AGENTES[:2],
+    )
+    posts = sq.parse_quadro(base)
+    linha = sq.postar_celebracao(base, posts)
+    assert "fila conclu\u00edda: 2 entregas \u00b7 1 bloqueios" in linha, linha
+    quadro = (base / "squad" / "quadro.md").read_text(encoding="utf-8")
+    assert "Coordenador] (feito)" in quadro, "celebracao nao foi escrita no quadro"
+    posts2 = sq.parse_quadro(base)
+    assert len(posts2) == 4, "celebracao deveria entrar como novo post"
+
+
 def test_cmd_check_integrado():
     base, _ = novo_squad(agentes=AGENTES)
     for a in AGENTES:
@@ -206,6 +225,7 @@ TESTS = [
     test_dashboard_saida_e_salvar,
     test_montar_prompt_perfis,
     test_post_valida_agente_e_estado,
+    test_celebracao,
     test_cmd_check_integrado,
 ]
 

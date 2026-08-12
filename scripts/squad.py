@@ -685,6 +685,21 @@ def cmd_run(args):
     return 0
 
 
+def postar_celebracao(base, posts):
+    """Posta o resumo da fila no quadro (quando ela zera sem orfas)."""
+    feitos = sum(1 for p in posts if p["estado"] == "feito")
+    bloqueados = sum(1 for p in posts if p["estado"] == "bloqueado")
+    linha = (
+        f"**[Coordenador] (feito) \u2728 fila conclu\u00edda: "
+        f"{feitos} entregas \u00b7 {bloqueados} bloqueios "
+        f"\u00b7 dashboard: python squad.py dashboard - "
+        f"[{now()}]**\n"
+    )
+    with quadro_path(base).open("a", encoding="utf-8") as fh:
+        fh.write(linha)
+    return linha.rstrip()
+
+
 def cmd_supervisor(args):
     """Monitora o quadro: lança quem tem tarefa pendente e relança até a fila zerar."""
     base = Path(args.dir).resolve()
@@ -756,6 +771,8 @@ def cmd_supervisor(args):
                     if pend:
                         msg += f" (orfas: {pend})"
                     print(f"[{now()}] {msg}")
+                    if not pend:
+                        print(postar_celebracao(base, posts))
                     break
             time.sleep(args.intervalo)
     except KeyboardInterrupt:
