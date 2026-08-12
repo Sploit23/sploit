@@ -88,9 +88,18 @@ Fases da noite (uma por ciclo, nesta ordem):
       Coordenador `✨ fila concluída: N entregas · M bloqueios · dashboard: ...`
       (helper `postar_celebracao`, testado; commit `4f923d5`) — o dock mostra
       a celebração no rodapé e a empresa fecha o dia sozinha.
-- [ ] **H — Medir o corpo**: re-medição G5–G9 (`medicao_mutacoes.py` com
-      `--desde`, mutações ativas desde 09/08 16:24 UTC), diagnóstico + push
-      nuvem, Graphify reindex.
+- [x] **H — Medir o corpo**: verificação pós-edição **2,5% (baseline natural) →
+      8,8%** desde a ativação das mutações e **5,3%** na janela da noite
+      (`medicao_mutacoes.py --desde`); edições em centrais 2 (amostra pequena,
+      0 com grafo — top-15 são os SDKs gerados, o trabalho da noite foi em
+      periféricos); Graphify reindexado (28941 nós, 55870 arestas, 2424
+      comunidades); diagnóstico OK (8 HARNESS pré-fix | 20 AGENTE; ripgrep já
+      corrigido no melh-8); genes: G-verificacao 27 obs, G-idempotencia 7;
+      **incidente L-utf8**: NOTAS.md corrompido pelo Add-Content cp1252,
+      reconstruído em UTF-8 (commit `4f641b1`).
+- [ ] **I — Prova real da celebração**: rodar o supervisor num squad temporário
+      com 1 tarefa até a fila zerar e confirmar o post `✨ fila concluída` no
+      quadro (e2e real, não só unit).
 - [ ] **E — Encerramento**: relato do modo contínuo em NOTAS.md, SPLOIT_STATE.md
       atualizado, diagnóstico + sync nuvem, reindex Graphify, garantir tree
       limpa.

@@ -924,3 +924,24 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   saida (daily/dashboard).
 - **Verificado**: py_compile OK; 12/12 testes passam (11 + celebracao);
   commit `4f923d5`.
+
+
+## [2026-08-12 02:30] Incidente de encoding e licao L-utf8 (fase H)
+- **Como raciocinei**: o diagnostico da fase H morreu no sync_genes com
+  UnicodeDecodeError (byte 0x97 = em-dash cp1252) no NOTAS.md. Causa raiz: os
+  appends da noite foram via Add-Content do PS 5.1, que grava em cp1252 por
+  padrao, dentro de um arquivo UTF-8. O primeiro byte invalido estava exatamente
+  no inicio da 1a nota da noite (62083) - o arquivo estava perfeito antes.
+  Reparo: cabeca limpa via git (20384a3~1:NOTAS.md) + notas da noite reescritas
+  em UTF-8 puro via Python. Licao gravada no APRENDIZADO (L-utf8).
+- **O que valeu a pena**: (1) o git salvou o dia - a cabeca pre-noite estava
+  intacta no commit anterior ao primeiro append; (2) a deteccao foi precisa:
+  procurar o PRIMEIRO byte invalido (nao tentar decodificar tudo); (3) licao
+  transformada em regra: append em UTF-8 sempre via Python open(a, utf-8) ou a
+  tool de edicao, nunca Add-Content (como ja dizia para quadro.md).
+- **Verificado**: NOTAS.md reconstruido (66144 bytes, utf-8 valido); diagnostico
+  rodou ate o fim ([GENES] destilados, [OK] licoes na nuvem); medicacao real:
+  verificacao pos-edicao 2,5% (baseline natural) -> 8,8% desde a ativacao das
+  mutacoes e 5,3% na janela da noite; Graphify reindexado (28941 nos, 55870
+  arestas, 2424 comunidades); genes: G-verificacao 27 obs, G-idempotencia 7.
+  Commit `4f641b1`.
