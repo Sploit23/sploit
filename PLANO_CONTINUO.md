@@ -63,9 +63,14 @@ Fases da noite (uma por ciclo, nesta ordem):
       memoria propria. Raiz `aaa0952`; skill §5.3 adicionada.
       Bonus: Vita (criada na janela do demo2, 'vulner' no papel) passa a
       receber o procedimento de seguranca automaticamente.
-- [ ] **C — Novidades**: websearch de tendências 2026 (generative agents,
-      orquestração, TUI, smallville/ai-town) + adoção do que servir; documentar
-      decisões no DECISOES.md quando relevante.
+- [x] **C — Novidades**: websearch de tendências 2026 (agent-town/Agentshire
+      "social feed", Microsoft Conductor/Velocity orquestração, TermUI/termcn
+      sparklines+badges). **Adotada: `squad daily`** (standup real por agente:
+      entregas/pendências/bloqueios do dia + sparkline de atividade por hora;
+      raiz `1713c2a`, validado no demo2 — 30 entregas · 1 pendência · 1
+      bloqueio; `--data` para dia vazio OK; `sys.stdout.reconfigure(utf-8)`
+      corrigiu UnicodeEncodeError no console cp1252). Pendente da fase C:
+      **sparkline de atividade no dock da TUI** (motor — a 2ª ideia adotada).
 - [ ] **D — "Empresa" de verdade**: painel do time (entregas por agente,
       histórico do quadro, daily, métricas de atividade), talvez `squad
       dashboard`/relatório bonito para o usuário ver ao acordar.
