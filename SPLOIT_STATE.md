@@ -485,18 +485,19 @@ pendente). Commit motor `7c281b9`.
 ## Próximo passo
 
 **ATUALIZAÇÃO (11/08, noite): Modo Squad — dock com STATUS VIVO + subagentes
-entregues (`8d1bedb` + `eebb16d`); aguardando usuário ver no binário novo.** O
-dock agora mostra cada agente trabalhando de verdade: lê `squad/logs/<nome>.log`
-(polling 2s, últimos 8KB, strip ANSI) e classifica `rodando <cmd>`/`editando`/
-`pensando`/`postando`/`delegando subagente`/`perguntando a <alvo>` (fallback
-`aguardando`). Subagentes PROVADOS: a tool `task` está em allow no sploit.json
-— o Bruno usou `explore` sozinho e mapeou server.js; prompt-contrato ensina
-agentes a delegar (passo 2b). Bug do `squad.py run` corrigido (EISDIR =
-`DETACHED_PROCESS` deixava stdin inválido; removido + `stdin=DEVNULL`).
-**Para ver funcionando**: restart pendente (binário novo está em dist/) — depois
-fechar e reabrir um projeto com squad (ex.: `Temp\sploit\projeto-demo2`).
-Fila do harness (instrumentar G5–G9, re-medição, G-isolado) segue no
-PLANO_CONTINUO.md.
+entregues (`8d1bedb` + `eebb16d`) + papel auditor/QA (`936cd2e`); aguardando
+usuário ver no binário novo.** O dock mostra cada agente trabalhando de verdade
+(leitura de `squad/logs/<nome>.log`, polling 2s, atividade classificada:
+rodando/editando/pensando/postando/delegando/perguntando). **Ciclo de QA real
+demonstrado no demo2 (22:54-23:00)**: Auditor achou 3 problemas reais no
+backend do Bruno (200 em vez de 404, teste frágil com histórico=20, testes
+ausentes) → bloqueou → coordenador passou a correção → Bruno corrigiu (32
+testes) → Auditor re-auditou e APROVOU; tudo na memória do próprio auditor.
+Skill squad §5.2 (auditor) + §6 (dock na TUI) atualizadas; bonecos/web viraram
+legado (usuário reprovou). **Para ver funcionando**: restart pendente (binário
+novo em dist/) — depois fechar e reabrir um projeto com squad (ex.:
+`Temp\sploit\projeto-demo2`). Fila do harness (instrumentar G5–G9,
+re-medição, G-isolado) segue no PLANO_CONTINUO.md.
 
 **Iteração 8 — Constituição (evolução do corpo): Gerações 1–8 + Iteração B concluídas.**
 

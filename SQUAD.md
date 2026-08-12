@@ -140,3 +140,16 @@ O usuário quer **ver** os agentes conversando e trabalhando. Opções:
       squad. Bonecos pixel removidos (terminal e web) — o usuário reprovou
       2x ("ta muito feio, nada ver"; "não quero ver no web, só o modo terminal").
       Commits: motor `7c281b9` + raiz `23bf0b8` (remoção dos bonecos).
+- [x] **Agente auditor (QA) e ciclo de re-auditoria (11/08, "como um time se
+      organiza com um especialista?")**: `squad.py add --papel "especialista em
+      auditoria..."` — o `montar_prompt` detecta "audit" no papel e inverte as
+      regras: o auditor LÊ as pastas dos colegas, não edita produção, e posta
+      veredito (`(feito)`=aprovado com resumo, `(bloqueado)`=problemas com
+      arquivo/linha). Ciclo completo real no demo2 (22:54-23:00): Auditor
+      bloqueou com 3 problemas REAIS (rota desconhecida 200 em vez de 404 em
+      server.js:131, teste de estatísticas frágil com histórico=20, testes de
+      404/corrompido ausentes) → Coordenador passou a correção ao Bruno →
+      Bruno corrigiu (32 testes OK) → Auditor re-auditou e APROVOU (0 achados,
+      suite determinística rodada 2x). Auditor registrou auditoria e
+      re-auditoria na memória própria. Commit `936cd2e` (squad.py) + skill
+      squad §5.2 e §6 (dock) atualizadas.
