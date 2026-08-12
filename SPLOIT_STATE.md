@@ -339,6 +339,20 @@ Coordenador em cinza (não rouba a cena). Validado: py_compile; view nos 2
 demos (cores âmbar/verde/roxo distintas); web real (/api 200, / 200, servidor
 encerrado). Skill squad §6 atualizada + NOTAS.md nota de evolução.
 
+**Agentes rodando de verdade — `squad run` (11/08)** ✔: cada agente do squad
+vira uma **sessão headless real do Sploit** — `sploit run --dir <pasta-do-
+agente> --continue` em processo desanexado (log `squad/logs/<nome>.log`);
+o `--continue` retoma a última sessão do dir (pasta exclusiva = conversa
+persistente por agente, sem estado extra). O agente lê o quadro, executa na
+própria pasta, atualiza a PRÓPRIA memória (`squad/memoria/<nome>.md`) e posta
+o resultado sozinho — o palco muda de verdade. Zero mudança no motor (run já
+era headless; permissões allow do sploit.json valem; risco único de edição
+concorrente mitigado por pasta exclusiva). Validado ponta a ponta real: Bruno
+(projeto-demo2) implementou GET /status (200, reflete precoAtual), testou no
+servidor real, atualizou a memória e postou `(feito)` — sozinho, PID 856,
+processo saiu ao ficar idle. Skill squad §5.1 + memórias atualizadas. Commit
+`edd2427` (viewer) + este (run).
+
 **Modo contínuo autônomo** ✔ (preparado; ex-"modo noturno" — renomeado a
   pedido do usuário em 11/08): permissões auto-approve no `sploit.json` (bash
   `*`, tools allow, external_directory allow) + PLANO_CONTINUO.md com o

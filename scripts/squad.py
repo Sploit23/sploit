@@ -24,6 +24,8 @@ import argparse
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -228,6 +230,86 @@ def cmd_check(args):
     if ok:
         print(f"OK: squad de {base} consistente ({len(cfg.get('agentes', []))} agentes)")
     return 0 if ok else 1
+
+
+def binario_sploit():
+    """Localiza o binario do Sploit: junto ao script (repo) ou no PATH."""
+    raiz = Path(__file__).resolve().parent.parent
+    exe = raiz / "sploit.exe"
+    if exe.exists():
+        return str(exe)
+    achou = shutil.which("sploit")
+    return achou or "sploit"
+
+
+def montar_prompt(base, cfg, a):
+    nome = a["nome"]
+    papel = a.get("papel", "")
+    projeto = cfg.get("projeto", Path(base).name)
+    pasta = Path(base) / a["pasta"]
+    quadro = quadro_path(base)
+    memoria = memoria_path(base, nome)
+    sp = Path(__file__).resolve()
+    return (
+        f"Voce e {nome}, agente do squad do projeto \"{projeto}\""
+        + (f" (papel: {papel})." if papel else ".")
+        + "\n"
+        + "\n"
+        + "SEU LUGAR NESTA RODADA:\n"
+        + f"- Pasta de trabalho: {pasta} (trabalhe SOMENTE aqui)\n"
+        + f"- Quadro do squad (leia antes de tudo): {quadro}\n"
+        + f"- Sua memoria de longo prazo (leia e atualize ao final): {memoria}\n"
+        + "\n"
+        + "PROCEDIMENTO:\n"
+        + f"1. Leia o quadro. Encontre o ultimo post pendente atribuido a voce, "
+        + f"da forma **[{{nome}}] (pendente) ...**. Se nao houver tarefa pendente "
+        + f"para voce, responda apenas \"aguardando\" e pare (NAO poste nada).\n"
+        + f"2. Execute a tarefa na sua pasta, com o codigo existente. NAO edite "
+        + f"arquivos fora dela.\n"
+        + f"3. Ao terminar, atualize sua memoria (append de 2-3 linhas: o que fez/aprendeu) "
+        + f"e POSTE o resultado no quadro rodando via bash exatamente um destes:\n"
+        + f"   - Sucesso:  python {sp} --dir {base} post --nome {nome} --estado feito --msg \"RESUMO\"\n"
+        + f"   - Parcial:  python {sp} --dir {base} post --nome {nome} --estado pendente --msg \"RESUMO\"\n"
+        + f"   - Impedido: python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"MOTIVO\"\n"
+        + "   Regras da mensagem: resuma em ate 20 palavras; NAO use aspas duplas nem $ nela.\n"
+        + f"4. Encerre respondendo ao usuario com um resumo de 1-2 linhas.\n"
+    )
+
+
+def cmd_run(args):
+    base = Path(args.dir).resolve()
+    cfg = load_cfg(base)
+    alvo = args.nome.strip() if args.nome else None
+    alvos = [
+        a
+        for a in cfg.get("agentes", [])
+        if alvo is None or a["nome"] == alvo
+    ]
+    if not alvos:
+        sys.exit(f"ERRO: nenhum agente encontrado (alvo: {alvo or 'todos'})")
+    exe = binario_sploit()
+    logs = squad_dir(base) / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    for a in alvos:
+        nome = a["nome"]
+        pasta = Path(base) / a["pasta"]
+        pasta.mkdir(parents=True, exist_ok=True)
+        prompt = montar_prompt(base, cfg, a)
+        log = logs / f"{nome}.log"
+        with log.open("wb") as fh:
+            p = subprocess.Popen(
+                [exe, "run", prompt, "--dir", str(pasta), "--continue", "--title", f"squad: {nome}"],
+                stdout=fh,
+                stderr=fh,
+                creationflags=(
+                    subprocess.CREATE_NEW_PROCESS_GROUP
+                    | subprocess.CREATE_NO_WINDOW
+                    | subprocess.DETACHED_PROCESS
+                ),
+            )
+        print(f"lançado: {nome} (PID {p.pid}) -> {log}")
+    print(f"{len(alvos)} agente(s) lançado(s); acompanhe com: squad view --watch")
+    return 0
 
 
 def cor_agente(nome):
@@ -538,6 +620,9 @@ def main(argv=None):
     p = sub.add_parser("web", help="palco do squad na web (HTML + API)")
     p.add_argument("--port", type=int, default=4199)
 
+    p = sub.add_parser("run", help="lança os agentes como sessões headless do Sploit")
+    p.add_argument("--nome", default="", help="agente específico (padrão: todos)")
+
     args = ap.parse_args(argv)
 
     if args.cmd == "init":
@@ -558,6 +643,8 @@ def main(argv=None):
         return cmd_view(args)
     if args.cmd == "web":
         return cmd_web(args)
+    if args.cmd == "run":
+        return cmd_run(args)
     return 0
 
 

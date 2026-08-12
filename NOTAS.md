@@ -6,6 +6,31 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-11] "Agentes rodando de verdade" — squad run (sessões headless)
+- **Como raciocinei**: a visualização estava pronta, mas o status só mudava se
+  alguém postasse — o usuário queria ver os agentes TRABALHANDO. A chave foi
+  descobrir (via exploração do motor) que o `sploit run` já é headless por
+  padrão: sai sozinho ao ficar idle e as permissões `allow` do sploit.json
+  valem sem prompt. Cada agente do squad vira um PROCESSO real: `sploit run
+  --dir <pasta-do-agente> --continue` — e como a pasta é exclusiva do agente,
+  o `--continue` (última sessão sem parent do dir) é determinístico e retoma
+  a conversa anterior: persistência sem estado extra no squad.json.
+- **O que valeu a pena**: (1) zero mudança no motor — o harness já tinha tudo
+  (headless, permissões, WAL multi-processo; o único risco é edição
+  concorrente do mesmo arquivo, resolvido por pasta exclusiva por agente);
+  (2) o contrato do agente vai no PROMPT (leia o quadro → execute na sua
+  pasta → poste via `squad.py post` → atualize sua memória) — o próprio
+  agente headless escreve no quadro com o CLI existente, nada de código novo
+  no motor; (3) o teste real provou o ciclo: Bruno implementou GET /status,
+  testou no servidor real, atualizou `memoria/Bruno.md` (aprendizado por
+  agente!) e postou `(feito)` sozinho; processo saiu ao ficar idle.
+- **Verificado**: py_compile OK; post da tarefa → `squad run --nome Bruno`
+  (PID 856) → log mostra leitura da memória, implementação, teste real 200,
+  memória atualizada → quadro com `(feito)` → palco mostra ✓; processo
+  encerrado sozinho.
+- **Próximo**: supervisor de ciclos (relançar agente quando houver pendente),
+  criação interativa na TUI, view no TUI.
+
 ## [2026-08-11] Visualização do squad — "mostrar eles trabalhando" (view + web)
 - **Como raciocinei**: o usuário pediu a parte que falta para "não consigo mais
   programar sem o Sploit": a pessoa VER o time trabalhando. Pesquisei o que

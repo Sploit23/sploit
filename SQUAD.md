@@ -111,7 +111,17 @@ O usuário quer **ver** os agentes conversando e trabalhando. Opções:
       O Coordenador é cinza (não rouba a cena). Decisão: bonecos desenhados por
       código (matriz + cor), sem assets de terceiros — os sprites do ai-town
       (Smallville) são de terceiros (licença própria); pegamos a IDEIA.
+- [x] **Agentes rodando de verdade (11/08, `squad run`)**: cada agente vira uma
+      **sessão headless real do Sploit** (`sploit run --dir <pasta> --continue`,
+      processo desanexado, log em `squad/logs/<nome>.log`). O coordenador posta
+      a tarefa (estado `pendente`) e o agente lê o quadro, executa na própria
+      pasta, atualiza a PRÓPRIA memória e posta o resultado — o status do palco
+      muda de verdade (○ trabalhando → ✓ feito). Validado ponta a ponta real:
+      Bruno implementou `GET /status` no backend (200, reflete precoAtual),
+      testou no servidor real, atualizou `memoria/Bruno.md` e postou `(feito)`
+      — tudo sozinho, processo saiu ao ficar idle. Sessão persistente por
+      agente via `--continue` (pasta exclusiva = última sessão do dir).
 - [ ] Fazer a criação interativa de verdade (quantos/pastas/nomes) na TUI
-- [ ] Transformar agentes de subagentes efêmeros em sessões próprias
-      persistentes (rodar de fato como processos headless + auto-approve)
+- [ ] Agentes com ciclos longos: supervisor que relança o agente quando há
+      tarefa pendente (hoje o coordenador chama `squad run` por rodada)
 - [ ] View dedicada no TUI (feed do quadro ao vivo) — usuário escolheu (A) terminal
