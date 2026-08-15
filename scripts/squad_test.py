@@ -242,6 +242,49 @@ def test_teto_supervisor_lancamentos_tem_prioridade_sobre_tempo():
     assert sq.teto_supervisor(5, inicio=0.0, args=args, agora=120.0 * 60) == "lancamentos"
 
 
+class _ResultadoFake:
+    def __init__(self, returncode, stdout="", stderr=""):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def test_verificar_integracao_sem_comando_e_ok():
+    base, cfg = novo_squad(agentes=AGENTES[:1])
+    ok, saida = sq.verificar_integracao(base, cfg)
+    assert ok is True and saida == ""
+
+
+def test_verificar_integracao_passa():
+    base, cfg = novo_squad(agentes=AGENTES[:1])
+    cfg["verificar"] = "bun test"
+    ok, saida = sq.verificar_integracao(base, cfg, runner=lambda cmd: _ResultadoFake(0, stdout="tudo ok"))
+    assert ok is True
+    assert "tudo ok" in saida
+
+
+def test_verificar_integracao_falha():
+    base, cfg = novo_squad(agentes=AGENTES[:1])
+    cfg["verificar"] = "bun test"
+    ok, saida = sq.verificar_integracao(
+        base, cfg, runner=lambda cmd: _ResultadoFake(1, stdout="", stderr="2 testes quebrados")
+    )
+    assert ok is False
+    assert "2 testes quebrados" in saida
+
+
+def test_verificar_integracao_timeout():
+    base, cfg = novo_squad(agentes=AGENTES[:1])
+    cfg["verificar"] = "bun test"
+
+    def estoura(cmd):
+        raise sq.subprocess.TimeoutExpired(cmd, 600)
+
+    ok, saida = sq.verificar_integracao(base, cfg, runner=estoura)
+    assert ok is False
+    assert "timeout" in saida
+
+
 def test_cmd_check_integrado():
     base, _ = novo_squad(agentes=AGENTES)
     for a in AGENTES:
@@ -267,6 +310,10 @@ TESTS = [
     test_teto_supervisor_bate_por_tempo,
     test_teto_supervisor_zero_desliga_o_respectivo_teto,
     test_teto_supervisor_lancamentos_tem_prioridade_sobre_tempo,
+    test_verificar_integracao_sem_comando_e_ok,
+    test_verificar_integracao_passa,
+    test_verificar_integracao_falha,
+    test_verificar_integracao_timeout,
     test_cmd_check_integrado,
 ]
 

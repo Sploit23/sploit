@@ -5,6 +5,14 @@ Gerencia o squad de um projeto: configuracoes em <dir>/squad/squad.json,
 conversa compartilhada em <dir>/squad/quadro.md e memorias por agente em
 <dir>/squad/memoria/<nome>.md.
 
+Campos opcionais do squad.json (nao quebram squads existentes se ausentes):
+  "verificar": comando de shell (ex.: "bun test") que o supervisor roda
+      no diretorio do projeto antes de declarar a fila concluida.
+  "integrador": nome de um agente do squad que recebe uma tarefa pendente
+      automatica quando "verificar" falha, pra corrigir a integracao.
+      Sem "integrador", uma falha de "verificar" so bloqueia e avisa
+      (precisa de humano).
+
 Comandos:
   init     Cria a estrutura do squad (idempotente; nao sobrescreve agentes).
   add      Adiciona um agente (nome, pasta, papel).
@@ -702,6 +710,30 @@ def postar_celebracao(base, posts):
     return linha.rstrip()
 
 
+def verificar_integracao(base, cfg, runner=None):
+    """Roda o comando de verificacao opcional (squad.json -> "verificar") antes
+    de declarar o squad pronto. Sem "verificar" configurado, considera ok
+    (comportamento de antes, squads existentes nao quebram).
+
+    `runner` e injetavel pra teste (evita depender de subprocess de verdade);
+    por padrao roda `cmd` via shell no diretorio `base`.
+    """
+    cmd = cfg.get("verificar")
+    if not cmd:
+        return True, ""
+    correr = runner or (
+        lambda cmd: subprocess.run(
+            cmd, shell=True, cwd=str(base), capture_output=True, text=True, timeout=600
+        )
+    )
+    try:
+        r = correr(cmd)
+    except subprocess.TimeoutExpired:
+        return False, "verificacao expirou (timeout de 10min)"
+    saida = ((r.stdout or "") + "\n" + (r.stderr or "")).strip()
+    return r.returncode == 0, saida
+
+
 def teto_supervisor(total_lancamentos, inicio, args, agora=None):
     """Decide se o supervisor deve parar de lancar agentes novos.
 
@@ -733,6 +765,7 @@ def cmd_supervisor(args):
     marcas = {}
     tent = {}
     idle = 0
+    tent_integracao = 0
     total_lancamentos = 0
     inicio = time.monotonic()
     teto_atingido = None  # None | "lancamentos" | "tempo"
@@ -813,13 +846,36 @@ def cmd_supervisor(args):
                         for a in cfg.get("agentes", [])
                         if tarefa_pendente(posts, a["nome"])[0] is not None
                     ]
-                    msg = "fila vazia; supervisor encerrando"
                     if pend:
-                        msg += f" (orfas: {pend})"
-                    print(f"[{now()}] {msg}")
-                    if not pend:
+                        print(f"[{now()}] fila vazia; supervisor encerrando (orfas: {pend})")
+                        break
+                    ok, saida = verificar_integracao(base, cfg)
+                    if ok:
+                        print(f"[{now()}] fila vazia; supervisor encerrando")
                         print(postar_celebracao(base, posts))
-                    break
+                        break
+                    resumo = " ".join(saida.split())[:200] or "verificacao falhou"
+                    alvo = cfg.get("integrador")
+                    tent_integracao += 1
+                    if alvo and tent_integracao <= 3:
+                        linha = (
+                            f"**[Coordenador] (pendente) {alvo}: integracao falhou "
+                            f"({tent_integracao}/3) - {resumo} - [{now()}]**\n"
+                        )
+                        print(f"[{now()}] integracao falhou (tentativa {tent_integracao}/3) - delegando pra {alvo}")
+                        with quadro_path(base).open("a", encoding="utf-8") as fh:
+                            fh.write(linha)
+                        idle = 0
+                    else:
+                        linha = (
+                            f"**[Coordenador] (bloqueado) integracao falhou apos verificacoes "
+                            f"- {resumo} - [{now()}]**\n"
+                        )
+                        with quadro_path(base).open("a", encoding="utf-8") as fh:
+                            fh.write(linha)
+                        motivo = "sem integrador configurado" if not alvo else "integrador esgotou as tentativas"
+                        print(f"[{now()}] integracao continua falhando ({motivo}) - supervisor encerrando, precisa de humano")
+                        break
             time.sleep(args.intervalo)
     except KeyboardInterrupt:
         print("\nsupervisor encerrado pelo usuario")
