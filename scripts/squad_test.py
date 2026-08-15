@@ -207,6 +207,41 @@ def test_celebracao():
     assert all("entregas" not in p["msg"] for p in posts2[:3]), "plural nao deveria mudar posts antigos"
 
 
+def _args_teto(max_lancamentos=30, max_minutos=120.0):
+    return type("A", (), {"max_lancamentos": max_lancamentos, "max_minutos": max_minutos})()
+
+
+def test_teto_supervisor_segue_dentro_do_limite():
+    args = _args_teto(max_lancamentos=30, max_minutos=120.0)
+    assert sq.teto_supervisor(5, inicio=0.0, args=args, agora=10.0) is None
+
+
+def test_teto_supervisor_bate_por_lancamentos():
+    args = _args_teto(max_lancamentos=30, max_minutos=120.0)
+    assert sq.teto_supervisor(30, inicio=0.0, args=args, agora=10.0) == "lancamentos"
+    # nao deve deixar passar do teto so porque nao bateu em cheio
+    assert sq.teto_supervisor(31, inicio=0.0, args=args, agora=10.0) == "lancamentos"
+
+
+def test_teto_supervisor_bate_por_tempo():
+    args = _args_teto(max_lancamentos=30, max_minutos=120.0)
+    passou_2h = 120.0 * 60
+    assert sq.teto_supervisor(1, inicio=0.0, args=args, agora=passou_2h) == "tempo"
+    assert sq.teto_supervisor(1, inicio=0.0, args=args, agora=passou_2h - 1) is None
+
+
+def test_teto_supervisor_zero_desliga_o_respectivo_teto():
+    args = _args_teto(max_lancamentos=0, max_minutos=0)
+    # mesmo com numeros gigantes, teto=0 significa "sem teto" nesse eixo
+    assert sq.teto_supervisor(10_000, inicio=0.0, args=args, agora=10_000_000.0) is None
+
+
+def test_teto_supervisor_lancamentos_tem_prioridade_sobre_tempo():
+    args = _args_teto(max_lancamentos=5, max_minutos=120.0)
+    # bate os dois ao mesmo tempo — o motivo relatado deve ser o primeiro checado
+    assert sq.teto_supervisor(5, inicio=0.0, args=args, agora=120.0 * 60) == "lancamentos"
+
+
 def test_cmd_check_integrado():
     base, _ = novo_squad(agentes=AGENTES)
     for a in AGENTES:
@@ -227,6 +262,11 @@ TESTS = [
     test_montar_prompt_perfis,
     test_post_valida_agente_e_estado,
     test_celebracao,
+    test_teto_supervisor_segue_dentro_do_limite,
+    test_teto_supervisor_bate_por_lancamentos,
+    test_teto_supervisor_bate_por_tempo,
+    test_teto_supervisor_zero_desliga_o_respectivo_teto,
+    test_teto_supervisor_lancamentos_tem_prioridade_sobre_tempo,
     test_cmd_check_integrado,
 ]
 

@@ -702,6 +702,22 @@ def postar_celebracao(base, posts):
     return linha.rstrip()
 
 
+def teto_supervisor(total_lancamentos, inicio, args, agora=None):
+    """Decide se o supervisor deve parar de lancar agentes novos.
+
+    Retorna None (segue normal), "lancamentos" (bateu o teto de sessoes
+    lancadas na rodada inteira) ou "tempo" (bateu o teto de minutos de
+    parede). Os agentes ja em andamento nao sao interrompidos — so para
+    de lancar gente nova.
+    """
+    if args.max_lancamentos and total_lancamentos >= args.max_lancamentos:
+        return "lancamentos"
+    agora = time.monotonic() if agora is None else agora
+    if args.max_minutos and (agora - inicio) >= args.max_minutos * 60:
+        return "tempo"
+    return None
+
+
 def cmd_supervisor(args):
     """Monitora o quadro: lança quem tem tarefa pendente e relança até a fila zerar."""
     base = Path(args.dir).resolve()
@@ -717,12 +733,26 @@ def cmd_supervisor(args):
     marcas = {}
     tent = {}
     idle = 0
-    print(f"supervisor ativo em {base} (intervalo {args.intervalo}s; Ctrl+C encerra)")
+    total_lancamentos = 0
+    inicio = time.monotonic()
+    teto_atingido = None  # None | "lancamentos" | "tempo"
+    print(
+        f"supervisor ativo em {base} (intervalo {args.intervalo}s; "
+        f"teto {args.max_lancamentos or 'sem'} lancamentos, "
+        f"{args.max_minutos or 'sem'} min; Ctrl+C encerra)"
+    )
     try:
         while True:
             posts = parse_quadro(base)
             n = len(posts)
             lancou = False
+            if teto_atingido is None:
+                teto_atingido = teto_supervisor(total_lancamentos, inicio, args)
+                if teto_atingido:
+                    print(
+                        f"[{now()}] teto de {teto_atingido} atingido — parando de lancar "
+                        f"agentes novos (os em andamento seguem ate terminar sozinhos)"
+                    )
             for a in cfg.get("agentes", []):
                 nome = a["nome"]
                 pp = procs.get(nome)
@@ -734,6 +764,8 @@ def cmd_supervisor(args):
                     if tarefa_pendente(posts, nome)[0] is None:
                         tent[nome] = 0
                     print(f"[{now()}] {nome} terminou (exit {rc})")
+                    continue
+                if teto_atingido:
                     continue
                 tp, _ = tarefa_pendente(posts, nome)
                 if tp is None:
@@ -757,8 +789,20 @@ def cmd_supervisor(args):
                 procs[nome] = pp
                 marcas[nome] = n
                 tent[nome] = tent.get(nome, 0) + 1
+                total_lancamentos += 1
                 lancou = True
-                print(f"[{now()}] {nome} lancado (PID {pp.pid}, tentativa {tent[nome]})")
+                print(f"[{now()}] {nome} lancado (PID {pp.pid}, tentativa {tent[nome]}, total {total_lancamentos})")
+            if teto_atingido and not procs:
+                pend = [
+                    a["nome"]
+                    for a in cfg.get("agentes", [])
+                    if tarefa_pendente(posts, a["nome"])[0] is not None
+                ]
+                msg = f"supervisor encerrando por teto de {teto_atingido}"
+                if pend:
+                    msg += f" (fila ainda tem trabalho pendente: {pend})"
+                print(f"[{now()}] {msg}")
+                break
             if procs or lancou:
                 idle = 0
             else:
@@ -1090,6 +1134,18 @@ def main(argv=None):
 
     p = sub.add_parser("supervisor", help="monitora o quadro e relança agentes até a fila zerar")
     p.add_argument("--intervalo", type=float, default=5.0, help="checagem em segundos (padrão: 5)")
+    p.add_argument(
+        "--max-lancamentos",
+        type=int,
+        default=30,
+        help="teto de sessões lançadas na rodada inteira, não só por tarefa (padrão: 30; 0 desliga)",
+    )
+    p.add_argument(
+        "--max-minutos",
+        type=float,
+        default=120.0,
+        help="teto de tempo de parede pro supervisor inteiro, em minutos (padrão: 120; 0 desliga)",
+    )
 
     args = ap.parse_args(argv)
 
