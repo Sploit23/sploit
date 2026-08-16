@@ -295,6 +295,9 @@ def cmd_post(args):
     with q.open("a", encoding="utf-8") as fh:
         fh.write(linha)
     print(linha.rstrip())
+    if args.estado == "pendente" and not supervisor_ativo(base):
+        pid = lancar_supervisor_auto(base)
+        print(f"supervisor auto-lançado (PID {pid}) — squad/logs/supervisor.log")
     return 0
 
 
@@ -544,6 +547,66 @@ def binario_sploit():
     return achou or "sploit"
 
 
+def supervisor_pid_path(base):
+    return squad_dir(base) / "supervisor.pid"
+
+
+def processo_vivo(pid):
+    """Confere se um PID ainda esta rodando (sem depender de psutil)."""
+    if not pid:
+        return False
+    if os.name == "nt":
+        try:
+            r = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                capture_output=True, text=True, timeout=5,
+            )
+            return str(pid) in r.stdout
+        except Exception:  # noqa: BLE001
+            return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def ler_supervisor_pid(base):
+    p = supervisor_pid_path(base)
+    if not p.exists():
+        return None
+    try:
+        return int(p.read_text(encoding="utf-8").strip())
+    except (ValueError, OSError):
+        return None
+
+
+def supervisor_ativo(base):
+    return processo_vivo(ler_supervisor_pid(base))
+
+
+def lancar_supervisor_auto(base):
+    """Sobe um `squad supervisor` desanexado se nenhum ja estiver rodando pra
+    este squad. Chamado por `post` pra fila nunca ficar orfa so porque
+    ninguem lembrou de rodar `squad run`/`supervisor` na mao."""
+    base_abs = Path(base).resolve()
+    logs = squad_dir(base_abs) / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    log = logs / "supervisor.log"
+    with log.open("ab") as fh:
+        p = subprocess.Popen(
+            [sys.executable, str(Path(__file__).resolve()), "--dir", str(base_abs), "supervisor"],
+            stdin=subprocess.DEVNULL,
+            stdout=fh,
+            stderr=fh,
+            creationflags=(
+                subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+            ) if os.name == "nt" else 0,
+        )
+    supervisor_pid_path(base_abs).write_text(str(p.pid), encoding="utf-8")
+    return p.pid
+
+
 def montar_prompt(base, cfg, a):
     nome = a["nome"]
     papel = a.get("papel", "")
@@ -551,7 +614,12 @@ def montar_prompt(base, cfg, a):
     pasta = Path(base) / a["pasta"]
     quadro = quadro_path(base)
     memoria = memoria_path(base, nome)
-    sp = Path(__file__).resolve()
+    # Barra normal (nao contrabarra) e path entre aspas: o agente roda isso
+    # via bash (Git Bash no Windows) — contrabarra de Path do Windows sem
+    # aspas vira sequencia de escape e o script "some" (ex.: C:\Users vira
+    # CUsers), quebrando o post do resultado no quadro.
+    sp = str(Path(__file__).resolve()).replace("\\", "/")
+    base_cmd = str(Path(base).resolve()).replace("\\", "/")
     pl = papel.lower()
     e_auditor = "audit" in pl or "auditor" in nome.lower()
     e_seguranca = (
@@ -588,9 +656,9 @@ def montar_prompt(base, cfg, a):
             f"Nao faca manualmente o que um subagente pode mapear.\n"
             f"3. Ao terminar, atualize sua memoria (append de 2-3 linhas: o que "
             f"achou) e POSTE o veredito no quadro rodando via bash exatamente um destes:\n"
-            f"   - Aprovado:  python {sp} --dir {base} post --nome {nome} --estado feito --msg \"SEGURANCA: aprovado, N achados. RESUMO\"\n"
-            f"   - Reprovado: python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"SEGURANCA: CRITICO: 1) [ALTA] descricao (arquivo:linha); 2) ...\"\n"
-            f"   - Impedido:  python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"MOTIVO\"\n"
+            f"   - Aprovado:  python \"{sp}\" --dir \"{base_cmd}\" post --nome {nome} --estado feito --msg \"SEGURANCA: aprovado, N achados. RESUMO\"\n"
+            f"   - Reprovado: python \"{sp}\" --dir \"{base_cmd}\" post --nome {nome} --estado bloqueado --msg \"SEGURANCA: CRITICO: 1) [ALTA] descricao (arquivo:linha); 2) ...\"\n"
+            f"   - Impedido:  python \"{sp}\" --dir \"{base_cmd}\" post --nome {nome} --estado bloqueado --msg \"MOTIVO\"\n"
             + "   Regras da mensagem: resuma em ate 25 palavras; marque cada achado "
             + "com [CRITICA]/[ALTA]/[MEDIA]/[BAIXA]; NAO use aspas duplas nem $ nela.\n"
             + f"4. Encerre respondendo ao usuario com o veredito em 1-2 linhas.\n"
@@ -614,9 +682,9 @@ def montar_prompt(base, cfg, a):
             f"Nao faca manualmente o que um subagente pode mapear.\n"
             f"3. Ao terminar, atualize sua memoria (append de 2-3 linhas: o que "
             f"achou) e POSTE o veredito no quadro rodando via bash exatamente um destes:\n"
-            f"   - Aprovado:  python {sp} --dir {base} post --nome {nome} --estado feito --msg \"AUDITORIA: aprovado, N achados. RESUMO\"\n"
-            f"   - Reprovado: python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"AUDITORIA: PROBLEMAS: 1) ...; 2) ...\"\n"
-            f"   - Impedido:  python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"MOTIVO\"\n"
+            f"   - Aprovado:  python \"{sp}\" --dir \"{base_cmd}\" post --nome {nome} --estado feito --msg \"AUDITORIA: aprovado, N achados. RESUMO\"\n"
+            f"   - Reprovado: python \"{sp}\" --dir \"{base_cmd}\" post --nome {nome} --estado bloqueado --msg \"AUDITORIA: PROBLEMAS: 1) ...; 2) ...\"\n"
+            f"   - Impedido:  python \"{sp}\" --dir \"{base_cmd}\" post --nome {nome} --estado bloqueado --msg \"MOTIVO\"\n"
             + "   Regras da mensagem: resuma em ate 25 palavras; NAO use aspas duplas nem $ nela.\n"
             + f"4. Encerre respondendo ao usuario com o veredito em 1-2 linhas.\n"
         )
@@ -636,9 +704,9 @@ def montar_prompt(base, cfg, a):
             f"Nao faca manualmente o que um subagente pode mapear.\n"
             f"3. Ao terminar, atualize sua memoria (append de 2-3 linhas: o que fez/aprendeu) "
             f"e POSTE o resultado no quadro rodando via bash exatamente um destes:\n"
-            f"   - Sucesso:  python {sp} --dir {base} post --nome {nome} --estado feito --msg \"RESUMO\"\n"
-            f"   - Parcial:  python {sp} --dir {base} post --nome {nome} --estado pendente --msg \"RESUMO\"\n"
-            f"   - Impedido: python {sp} --dir {base} post --nome {nome} --estado bloqueado --msg \"MOTIVO\"\n"
+            f"   - Sucesso:  python \"{sp}\" --dir \"{base_cmd}\" post --nome {nome} --estado feito --msg \"RESUMO\"\n"
+            f"   - Parcial:  python \"{sp}\" --dir \"{base_cmd}\" post --nome {nome} --estado pendente --msg \"RESUMO\"\n"
+            f"   - Impedido: python \"{sp}\" --dir \"{base_cmd}\" post --nome {nome} --estado bloqueado --msg \"MOTIVO\"\n"
             + "   Regras da mensagem: resuma em ate 20 palavras; NAO use aspas duplas nem $ nela.\n"
             + f"4. Encerre respondendo ao usuario com um resumo de 1-2 linhas.\n"
         )
@@ -757,6 +825,7 @@ def cmd_supervisor(args):
     exe = binario_sploit()
     logs = squad_dir(base) / "logs"
     logs.mkdir(parents=True, exist_ok=True)
+    supervisor_pid_path(base).write_text(str(os.getpid()), encoding="utf-8")
     try:
         sys.stdout.reconfigure(line_buffering=True)
     except Exception:  # noqa: BLE001
@@ -879,6 +948,13 @@ def cmd_supervisor(args):
             time.sleep(args.intervalo)
     except KeyboardInterrupt:
         print("\nsupervisor encerrado pelo usuario")
+    finally:
+        pidp = supervisor_pid_path(base)
+        try:
+            if pidp.exists() and pidp.read_text(encoding="utf-8").strip() == str(os.getpid()):
+                pidp.unlink()
+        except OSError:
+            pass
     return 0
 
 

@@ -130,8 +130,63 @@ O usuário quer **ver** os agentes conversando e trabalhando. Opções:
       entregues numa rodada (GET /health + /versao) + ciclo final limpo
       (tarefa nova → Bruno lançado → `(feito)` → fila vazia → encerrou).
 - [ ] Fazer a criação interativa de verdade (quantos/pastas/nomes) na TUI
-- [ ] Agentes com ciclos longos: supervisor que relança o agente quando há
-      tarefa pendente (hoje o coordenador chama `squad run` por rodada)
+- [x] **Auto-lançamento do supervisor (16/08, "o status fica parado")**:
+      achado real (usuário abriu `squad/` em `Desktop\testes` e o dock ficava
+      com o spinner girando sem nada acontecer) — o SquadDock é só leitor
+      passivo do quadro/logs, e nada disparava o `supervisor`/`run` sozinho;
+      dependia do coordenador lembrar de rodar na mão. Agora `squad.py post
+      --estado pendente` checa se há um supervisor vivo (`squad/supervisor.pid`
+      + `tasklist`/`os.kill(pid,0)`) e, se não houver, lança um desanexado
+      (log em `squad/logs/supervisor.log`); o supervisor grava o próprio PID
+      ao subir e apaga o arquivo ao encerrar (fila zerada ou Ctrl+C). Dedup
+      testado: dois posts pendentes em sequência só lançam um supervisor.
+- [x] **Path do Windows quebrava o `post` final do agente (16/08, mesma sessão
+      de teste)**: com o auto-lançamento acima, o Bruno rodou de verdade e fez
+      o trabalho (criou `natal/README.md`), mas o comando de exemplo do
+      `montar_prompt` — `python {sp} --dir {base} post ...` com `sp`/`base` em
+      path do Windows (`C:\Users\...`) sem aspas — quebrava no Git Bash: barra
+      invertida antes de letra é sequência de escape, então
+      `C:\Users\Hp\Desktop\sploit\scripts\squad.py` virava
+      `CUsersHpDesktopsploitscriptssquad.py` e o Python não achava o arquivo.
+      O agente terminava o trabalho real mas nunca conseguia postar `(feito)`
+      — o quadro (e o dock) ficavam presos pra sempre com o post antigo.
+      Afetava **todo** squad rodando em Windows. Corrigido: `montar_prompt`
+      agora gera os comandos de exemplo com barra normal (`/`) e path entre
+      aspas (`python "C:/Users/.../squad.py" --dir "C:/Users/..." post ...`).
+      Validado real: rodada nova do Bruno pós-fix postou `(feito)` sozinho.
+- [x] **Post de nascimento errado deixava agente preso em "trabalhando" para
+      sempre (16/08)**: o squad de teste tinha `**[Marcos] (pendente) Pronto
+      para coordenar...**` como primeiro post do Marcos — `pendente` sinaliza
+      tarefa em aberto, então o supervisor relançava o Marcos à toa (ele lia o
+      quadro, via que não tinha tarefa real, respondia "aguardando" sem
+      postar) até esgotar as 3 tentativas e desistir — post nunca resolvido,
+      dock preso em ● para sempre. Skill `squad` §1 atualizada: post de
+      nascimento é **sempre `(feito)`**, nunca `(pendente)`.
+- [x] **Skill do squad usava caminho relativo pro `squad.py` (16/08)**: o
+      `SKILL.md` global mandava checar `scripts/squad.py` relativo ao projeto
+      — funciona rodando de dentro do repo do sploit, mas quebra em qualquer
+      outro diretório (ex.: `Desktop\testes`), onde o caminho não existe. O
+      coordenador provavelmente concluía "o script não existe" e caía no
+      fallback manual, perdendo TUDO que dependia do `squad.py` (auto-launch
+      do supervisor incluso). Corrigido: skill agora referencia o caminho
+      **absoluto** `C:/Users/Hp/Desktop/sploit/scripts/squad.py`, seguindo o
+      mesmo padrão que o `sploit.jsonc` global já usa pra outras ferramentas
+      do repo (ex. o MCP do graphify).
+- [x] **Dock sumia com `sploit --continue` fora do projeto (16/08, "os agentes
+      sumiram")**: `SquadDock`/`SquadSetupBanner` (`routes/session/index.tsx`)
+      recebiam `directory={session()?.directory}` — um valor **congelado no
+      banco** na criação daquela sessão específica. `--continue` retoma a
+      sessão raiz mais recente **globalmente** (`app.tsx`, sem filtro de
+      diretório), então se a última sessão usada foi de outro projeto, o dock
+      renderizava com a pasta errada (ou nenhuma) mesmo com o terminal "na"
+      pasta do squad. Corrigido: os dois componentes agora recebem
+      `paths.cwd` (`useTuiPaths()`, contexto `TuiPathsProvider` — a pasta real
+      de onde o Sploit foi aberto, imutável durante o processo, já usada por
+      `squad-notifications.ts` via `api.state.path.directory`) em vez de
+      `session()?.directory`. Rebuildado (`build-sploit.ps1`) e reinstalado
+      (`install-sploit.ps1`) no binário global — mudança de TS só vale depois
+      de recompilar, diferente dos fixes anteriores (doc/script, já globais e
+      ativos na hora).
 - [x] **Dock do squad na TUI (11/08, "sempre mostra eles vivos ali trabalhando")**:
       `SquadDock` em `routes/session/squad-dock.tsx` — painel fixo no rodapé da
       sessão do Sploit que lê `squad/squad.json` + `quadro.md` do diretório da

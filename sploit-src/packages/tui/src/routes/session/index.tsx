@@ -1232,8 +1232,11 @@ export function Session() {
                 </For>
               </scrollbox>
               <box flexShrink={0}>
-                <SquadSetupBanner directory={session()?.directory} />
-                <SquadDock directory={session()?.directory} />
+                {/* Pasta real onde o Sploit foi aberto, não a do histórico da
+                    sessão retomada — com `--continue` a sessão pode ser de
+                    outro projeto (o dock some se seguir session().directory). */}
+                <SquadSetupBanner directory={paths.cwd} />
+                <SquadDock directory={paths.cwd} />
                 <Show when={permissions().length > 0}>
                   <PermissionPrompt
                     request={permissions()[0]}
