@@ -552,6 +552,40 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
     ),
   )
 
+  // Auto-update: no boot, checa no GitHub se há release mais novo do Sploit.
+  // Se houver, reusa o fluxo do evento installation.update-available (abaixo).
+  let updateChecked = false
+  createEffect(() => {
+    if (!ready() || updateChecked || process.env.SPLOIT_DISABLE_UPDATE_CHECK) return
+    updateChecked = true
+    const check = async () => {
+      try {
+        const response = await sdk.fetch("https://api.github.com/repos/Sploit23/sploit/releases/latest", {
+          headers: { Accept: "application/json" },
+        })
+        if (!response.ok) return
+        const data = (await response.json()) as { tag_name?: string }
+        const latest = data.tag_name?.replace(/^v/, "")
+        if (!latest || !isVersionGreater(latest, InstallationVersion)) return
+        // pequena espera para não atropelar a primeira pintura da TUI
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+        const skipped = kv.get("skipped_version")
+        if (skipped && !isVersionGreater(latest, skipped)) return
+        sdk.event.emit("event", {
+          directory: "global",
+          payload: {
+            id: "sploit-boot-update",
+            type: "installation.update-available",
+            properties: { version: latest },
+          },
+        })
+      } catch {
+        // sem rede no boot: silencioso
+      }
+    }
+    void check()
+  })
+
   const connected = useConnected()
   const currentWorktreeWorkspace = createMemo(() => {
     const workspaceID = project.workspace.current()
@@ -1041,8 +1075,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
 
     const choice = await DialogConfirm.show(
       dialog,
-      `Update Available`,
-      `A new release v${version} is available. Would you like to update now?`,
+      `Atualização disponível`,
+      `Existe uma versão nova do Sploit (v${version}). Atualizar agora?`,
       "skip",
     )
 
@@ -1055,7 +1089,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
 
     toast.show({
       variant: "info",
-      message: `Updating to v${version}...`,
+      message: `Atualizando para v${version}...`,
       duration: 30000,
     })
 
@@ -1064,8 +1098,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
     if (result.error || !result.data?.success) {
       toast.show({
         variant: "error",
-        title: "Update Failed",
-        message: "Update failed",
+        title: "Falha na atualização",
+        message: "Falha na atualização",
         duration: 10000,
       })
       return
@@ -1073,8 +1107,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
 
     await DialogAlert.show(
       dialog,
-      "Update Complete",
-      `Successfully updated to Sploit v${result.data.version}. Please restart the application.`,
+      "Atualização concluída",
+      `Sploit atualizado para v${result.data.version}. Feche o Sploit para aplicar (ele reabrirá sozinho).`,
     )
 
     void exit()
