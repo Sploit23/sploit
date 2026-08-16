@@ -186,7 +186,7 @@ export function SquadDock(props: { directory?: string }) {
         const ultimo = data().posts.length > 0 ? data().posts[data().posts.length - 1].data : undefined
         const spark = sparkline(data().posts)
         return (
-          <box width={32} height="100%" flexDirection="column" {...SplitBorder} borderColor={theme.border}>
+          <box width={42} height="100%" flexDirection="column" {...SplitBorder} borderColor={theme.border}>
             <scrollbox flexGrow={1} backgroundColor={theme.backgroundPanel}>
               <box flexShrink={0} flexDirection="column" gap={1} paddingTop={1} paddingBottom={1} paddingLeft={2} paddingRight={1}>
                 <box flexDirection="column">
@@ -219,7 +219,6 @@ export function SquadDock(props: { directory?: string }) {
                 <For each={exibidos}>
                   {({ a, l }) => {
                     const est = dadosEstado(l)
-                    const badge = a.papel ? `${a.pasta} · ${a.papel}` : a.pasta
                     return (
                       <box
                         flexDirection="column"
@@ -239,13 +238,19 @@ export function SquadDock(props: { directory?: string }) {
                           <text fg={est.fg} wrapMode="none">
                             {est.icone}
                           </text>
-                          <text fg={corPara(a.nome)} attributes={TextAttributes.BOLD} wrapMode="none" truncate>
+                          <text fg={corPara(a.nome)} attributes={TextAttributes.BOLD} wrapMode="none">
                             {a.nome}
                           </text>
+                          <text
+                            fg={corPapel(a.papel ?? "")}
+                            attributes={TextAttributes.DIM}
+                            wrapMode="none"
+                            flexShrink={1}
+                            truncate
+                          >
+                            {a.pasta}
+                          </text>
                         </box>
-                        <text fg={corPapel(a.papel ?? "")} attributes={TextAttributes.DIM} wrapMode="none" truncate>
-                          {"  " + badge}
-                        </text>
                         <text fg={est.fg} wrapMode="none">
                           {"  " + l.rotulo}
                         </text>
