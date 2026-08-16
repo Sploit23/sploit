@@ -95,12 +95,10 @@ export const globalHandlers = HttpApiBuilder.group(RootHttpApi, "global", (handl
     })
 
     const upgrade = Effect.fn("GlobalHttpApi.upgrade")(function* (ctx: { payload: typeof GlobalUpgradeInput.Type }) {
-      const method = yield* installation.method()
+      let method = yield* installation.method()
       if (method === "unknown") {
-        return {
-          status: 400,
-          body: { success: false as const, error: "Unknown installation method" },
-        }
+        // Binario do Sploit: se a deteccao falhar, trata como instalacao propria.
+        method = "sploit"
       }
       const target = ctx.payload.target || (yield* installation.latest(method))
       const result = yield* installation.upgrade(method, target).pipe(

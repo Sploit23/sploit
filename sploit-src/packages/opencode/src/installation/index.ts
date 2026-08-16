@@ -9,13 +9,18 @@ import { errorMessage } from "@/util/error"
 import { ChildProcess } from "effect/unstable/process"
 import { AppProcess } from "@sploit-ai/core/process"
 import path from "path"
+import os from "os"
+import { mkdir, stat, writeFile } from "node:fs/promises"
 import { makeRuntime } from "@sploit-ai/core/effect/runtime"
 import semver from "semver"
 import { InstallationChannel, InstallationVersion } from "@sploit-ai/core/installation/version"
 import { NpmConfig } from "@sploit-ai/core/npm-config"
 import { InstallationEvent } from "@sploit-ai/schema/installation-event"
 
-export type Method = "curl" | "npm" | "yarn" | "pnpm" | "bun" | "brew" | "scoop" | "choco" | "unknown"
+export type Method = "curl" | "sploit" | "npm" | "yarn" | "pnpm" | "bun" | "brew" | "scoop" | "choco" | "unknown"
+
+// Repo de releases do Sploit (binário próprio, distribuído como GitHub Release).
+export const SPLOIT_REPO = "Sploit23/sploit"
 
 export type ReleaseType = "patch" | "minor" | "major"
 
@@ -164,6 +169,80 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
       Effect.mapError(() => new UpgradeFailedError({ stderr: upgradeFailure("curl") })),
     )
 
+    // Atualizacao do binario do Sploit via GitHub Release.
+    // Roda em background (Effect.runFork): baixa o asset, extrai e deixa um
+    // script aguardando o processo atual sair para trocar o exe e relaunch.
+    const fsTry = <A,>(tryFn: () => Promise<A>) => Effect.tryPromise({ try: tryFn, catch: () => undefined })
+
+    const upgradeSploit = Effect.fnUntraced(function* (target: string) {
+      const url = `https://github.com/${SPLOIT_REPO}/releases/download/v${target}/sploit-${target}.zip`
+      const updateDir = path.join(os.tmpdir(), "sploit-update")
+      const zipPath = path.join(updateDir, `sploit-${target}.zip`)
+      const extractDir = path.join(updateDir, `sploit-${target}`)
+      yield* fsTry(() => mkdir(updateDir, { recursive: true })).pipe(Effect.ignore)
+      yield* fsTry(() => mkdir(extractDir, { recursive: true })).pipe(Effect.ignore)
+
+      const response = yield* httpOk.execute(HttpClientRequest.get(url).pipe(HttpClientRequest.acceptJson))
+      const body = yield* response.arrayBuffer
+      yield* fsTry(() => writeFile(zipPath, new Uint8Array(body)))
+
+      const extract = yield* run([
+        "powershell.exe",
+        "-NoProfile",
+        "-Command",
+        `$ErrorActionPreference='Stop'; Expand-Archive -LiteralPath '${zipPath}' -DestinationPath '${extractDir}' -Force`,
+      ])
+      if (extract.code !== 0) {
+        return yield* new UpgradeFailedError({ stderr: `Falha ao extrair o release baixado: ${extract.stderr}` })
+      }
+
+      const newExe = path.join(extractDir, "sploit.exe")
+      const exeExists = yield* Effect.tryPromise({
+        try: () => stat(newExe).then(() => true),
+        catch: () => false,
+      })
+      if (!exeExists) {
+        return yield* new UpgradeFailedError({ stderr: "sploit.exe nao encontrado no release baixado" })
+      }
+
+      const exePath = process.execPath
+      const metaPath = path.join(updateDir, "sploit-update.json")
+      yield* fsTry(() =>
+        writeFile(metaPath, JSON.stringify({ pid: process.pid, exe: exePath, newExe, args: process.argv.slice(1) })),
+      )
+
+      const scriptPath = path.join(updateDir, "sploit-update.ps1")
+      const script = [
+        "$ErrorActionPreference = 'Stop'",
+        `$data = Get-Content -LiteralPath '${metaPath}' -Raw | ConvertFrom-Json`,
+        "$deadline = (Get-Date).AddMinutes(3)",
+        "while ((Get-Process -Id $data.pid -ErrorAction SilentlyContinue) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 300 }",
+        "if (Test-Path -LiteralPath $data.exe) { Copy-Item -LiteralPath $data.exe -Destination ($data.exe + '.bak') -Force }",
+        "Move-Item -LiteralPath $data.newExe -Destination $data.exe -Force",
+        "if ($data.args.Count -gt 0) { Start-Process -FilePath $data.exe -ArgumentList $data.args } else { Start-Process -FilePath $data.exe }",
+      ].join("\n")
+      yield* fsTry(() => writeFile(scriptPath, script, "utf8"))
+
+      const launched = yield* run([
+        "cmd.exe",
+        "/c",
+        "start",
+        '""',
+        "/b",
+        "powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        `"${scriptPath}"`,
+      ])
+      if (launched.code !== 0) {
+        return yield* new UpgradeFailedError({
+          stderr: `Falha ao iniciar o script de atualizacao: ${launched.stderr}`,
+        })
+      }
+    })
+
     const result: Interface = {
       info: Effect.fn("Installation.info")(function* () {
         return {
@@ -175,6 +254,10 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
         if (process.execPath.includes(path.join(".sploit", "bin"))) return "curl" as Method
         if (process.execPath.includes(path.join(".local", "bin"))) return "curl" as Method
         const exec = process.execPath.toLowerCase()
+
+        // Instalação do Sploit (install-sploit.ps1 -> %LOCALAPPDATA%\Sploit\bin)
+        // ou binário buildado da raiz do repo (dev). Ambos atualizam via GitHub Release.
+        if (exec.includes("sploit")) return "sploit" as Method
 
         const checks: Array<{ name: Method; command: () => Effect.Effect<string> }> = [
           { name: "npm", command: () => text(["npm", "list", "-g", "--depth=0"]) },
@@ -254,6 +337,16 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
           return data.version
         }
 
+        if (detectedMethod === "sploit") {
+          const response = yield* httpOk.execute(
+            HttpClientRequest.get(`https://api.github.com/repos/${SPLOIT_REPO}/releases/latest`).pipe(
+              HttpClientRequest.acceptJson,
+            ),
+          )
+          const data = yield* HttpClientResponse.schemaBodyJson(GitHubRelease)(response)
+          return data.tag_name.replace(/^v/, "")
+        }
+
         const response = yield* httpOk.execute(
           HttpClientRequest.get("https://api.github.com/repos/anomalyco/opencode/releases/latest").pipe(
             HttpClientRequest.acceptJson,
@@ -267,6 +360,15 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
         switch (m) {
           case "curl":
             upgradeResult = yield* upgradeCurl(target)
+            break
+          case "sploit":
+            // Baixa e troca o binario em background; o upgrade retorna na hora.
+            Effect.runFork(
+              upgradeSploit(target).pipe(
+                Effect.catchCause((cause) => Effect.logError("sploit upgrade falhou", cause)),
+              ),
+            )
+            upgradeResult = { code: 0, stdout: "", stderr: "" }
             break
           case "npm":
             upgradeResult = yield* run(["npm", "install", "-g", `opencode-ai@${target}`])
