@@ -1180,3 +1180,28 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   e stderr de comando nativo (git) vira exceção com $ErrorActionPreference =
   "Stop" — envolver com EA temporário. Idempotência: pular build/pack quando o
   zip já existe (-Force refaz).
+
+## [2026-08-16] Big-pickle "out-of-the-box" pros amigos (sem API key)
+- **Como raciocinei**: o usuário quer que o Sploit dos amigos funcione "igual o
+  opencode vem instalado" — sem configurar modelo nem API key — e que a IA
+  própria entre depois, por fora. Em vez de assumir que isso exigia mudança no
+  motor, testei empiricamente em ambiente 100% limpo (XDG_* em temp, cwd
+  neutro, sem auth): o provider "opencode" do motor já autoloada os modelos
+  free (cost.input=0) com apiKey "public" e o default cai sozinho em
+  opencode/big-pickle. Ou seja: o mecanismo já existia; o que faltava era
+  TORNÁ-LO EXPLÍCITO (determinístico) no instalador, para não depender de
+  mudanças no catálogo de modelos. Escopo mínimo: gravar
+  agent.plan/build.model + small_model = opencode/big-pickle no sploit.jsonc
+  que o install-sploit.ps1 gera.
+- **O que valeu a pena**: (1) testar SEM config (env limpo + rodada headless)
+  antes de escrever código — confirmou o comportamento e poupou mudança de
+  motor; (2) validar o instalador isolado apontando USERPROFILE/LOCALAPPDATA
+  para temp e conferir o sploit.jsonc gerado; (3) rodada final headless COM o
+  config gerado confirmou providerID=opencode na prática (o 429 foi só a cota
+  free do IP esgotada — já esperada). Princípio reforçado: "config é contrato" —
+  gravar o modelo no arquivo do usuário (com Add-Member quando o campo não
+  existe) em vez de editar o motor.
+- **O que fica pendente** (perguntar ao usuário): trocar o sploit.json raiz dele
+  (github-copilot) para big-pickle e publicar a v0.1.2-sploit com o instalador
+  novo. Teste real do auto-update (0.1.0 → 0.1.1) continua dependendo do
+  reinício do Sploit por ele.

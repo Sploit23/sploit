@@ -546,10 +546,42 @@ pendente). Commit motor   `7c281b9`.
   temporário nas seções git); 404 do GET da API é erro TERMINANTE no
   `Invoke-RestMethod` do PS 5.1 (`-ErrorAction SilentlyContinue` não pega →
   `try/catch`); idempotência (pula build/pack se o zip existe, `-Force` refaz).
+- **Big-pickle out-of-the-box (16/08) — amigos sem API key** ✔: pedido do
+  usuário — o Sploit dos amigos deve usar o **big-pickle via o servidor da
+  opencode** (OpenCode Zen, gratuito, sem chave), "igual o opencode vem
+  instalado"; ninguém cria API; quando a cota free do servidor acabar, o amigo
+  vai para o opencode pago. **Descoberta**: o motor JÁ faz isso — em ambiente
+  100% limpo (sem config/auth) o default resolve `opencode/big-pickle`
+  (provider autoloada modelos `cost.input=0` com `apiKey:"public"`; validado
+  em sessão headless real: `build · big-pickle`, requests chegando no
+  `https://opencode.ai/zen/v1`, 429 = cota free do IP, não auth). `fmm-local`
+  no debug v2 é só o config do projeto (`.sploit/sploit.json`), não viaja.
+  **Mudanças**: `install-sploit.ps1` agora grava no `sploit.jsonc` global
+  `agent.plan/build.model = "opencode/big-pickle"` + `small_model`
+  (explícito = à prova de mudanças no catálogo; fácil de trocar quando o dono
+  tiver a própria IA); mensagens finais e `LEIA-ME` (pack-dist) documentam o
+  zero-config e a saída para o opencode pago quando a free acabar. Validado:
+  parse OK, instalador isolado gerou o sploit.jsonc correto, sessão headless
+  com esse config usou big-pickle.
 
 ## Próximo passo
 
-**ATUALIZAÇÃO (16/08): GitHub agora é o projeto real — repo limpo e sincronizado.**
+**ATUALIZAÇÃO (16/08): big-pickle out-of-the-box implementado — falta commitar/pushar e decidir os 2 pontos abaixo.**
+- ✅ **Big-pickle para os amigos (sem API key)**: default explícito
+  `opencode/big-pickle` gravado pelo `install-sploit.ps1` no `sploit.jsonc`
+  (plan/build/small) + LEIA-ME/mensagens atualizados (zero-config, cota free,
+  saída para opencode pago). Motor já resolvia sozinho para big-pickle em
+  ambiente limpo; agora é determinístico. Validado: instalador isolado + sessão
+  headless usando o config gerado (confirmou `providerID=opencode`).
+- ⏳ **COMMITAR + PUSHAR** os 3 scripts (commit raiz) + memória (SPLOIT_STATE/NOTAS).
+- ⏳ **DECISÃO do usuário 1**: trocar o `sploit.json` raiz (github-copilot
+  gpt-4.1) para `opencode/big-pickle`? (sessão atual já roda big-pickle).
+- ⏳ **DECISÃO do usuário 2**: publicar `v0.1.2-sploit` com o instalador/LEIA-ME
+  atualizados (a release v0.1.1 ainda tem o instalador antigo, que funciona —
+  o default já era big-pickle, mas sem documentação).
+- ⏳ **TESTE REAL do auto-update (você)**: reiniciar o Sploit → boot check deve
+  detectar `0.1.1-sploit` e oferecer atualização (diálogo PT-BR) → baixar →
+  fechar → swap com `.bak` → relaunch em 0.1.1-sploit.
 - ✅ Repo local unificado: `sploit-src` era um repo git aninhado (submodule 160000,
   motor com 121 commits, sem remote). Fundido no repo raiz como árvore normal
   (`.git` interno preservado em `sploit-src/.git`, ignorado pelo `.gitignore`;
