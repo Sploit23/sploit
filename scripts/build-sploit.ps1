@@ -1,4 +1,11 @@
 # Recompila o sploit.exe a partir do sploit-src (fork do opencode).
+#
+# Parametros:
+#   -Version   Versao do binario (ex.: 0.1.1-sploit). Padrao: 0.1.0-sploit.
+param(
+    [string]$Version = "0.1.0-sploit"
+)
+
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $bun = "$env:APPDATA\npm\bun.cmd"
@@ -8,7 +15,7 @@ if (-not (Test-Path $bun)) {
 
 Push-Location "$root\sploit-src\packages\opencode"
 try {
-    $env:OPENCODE_VERSION = "0.1.0-sploit"
+    $env:OPENCODE_VERSION = $Version
     $env:OPENCODE_CHANNEL = "sploit"
     & $bun run script/build.ts --single --skip-install --skip-embed-web-ui
     if ($LASTEXITCODE -ne 0) {
@@ -21,7 +28,7 @@ try {
         Write-Host "backup criado: sploit.exe.bak"
     }
     Copy-Item "dist\sploit-windows-x64\bin\sploit.exe" "$root\sploit.exe" -Force
-    Write-Host "sploit.exe atualizado"
+    Write-Host "sploit.exe atualizado (v$Version)"
 }
 finally {
     Pop-Location

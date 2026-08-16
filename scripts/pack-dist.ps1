@@ -8,8 +8,11 @@
 #   powershell -ExecutionPolicy Bypass -File pack-dist.ps1 [-SkipBuild] [-Version <tag>]
 #
 # Parametros:
-#   -SkipBuild   Nao recompilar (usa o sploit.exe atual da raiz)
-#   -Version     Etiqueta do pacote (padrao: data-hora). Vira nome do zip.
+#   -SkipBuild          Nao recompilar (usa o sploit.exe atual da raiz)
+#   -Version            Etiqueta do pacote (padrao: data-hora). Vira nome do zip.
+#   -SkipConhecimento   Nao embutir a config do conhecimento coletivo
+#                       (conhecimento.txt). Use em release PUBLICO do GitHub,
+#                       onde a senha da nuvem NAO pode vazar.
 #
 # Saida:
 #   dist/sploit-<version>/   pasta do pacote
@@ -17,7 +20,8 @@
 
 param(
     [switch]$SkipBuild,
-    [string]$Version = ""
+    [string]$Version = "",
+    [switch]$SkipConhecimento
 )
 
 $ErrorActionPreference = "Stop"
@@ -72,8 +76,10 @@ Copy-Item (Join-Path $root "scripts\INSTALAR.cmd") (Join-Path $pkgDir "INSTALAR.
 # Config do conhecimento coletivo embutida: se o dono ja tem a config da nuvem
 # (~/.config/sploit/conhecimento.json), grava um "conhecimento.txt" no pacote
 # para o amigo instalar sem digitar nada (install-sploit.ps1 detecta sozinho).
+# Ignorada em release publico (-SkipConhecimento): a senha da nuvem NAO pode
+# ir para o GitHub.
 $cfJson = Join-Path $configDir "conhecimento.json"
-if (Test-Path $cfJson) {
+if (-not $SkipConhecimento -and (Test-Path $cfJson)) {
     $cf = Get-Content $cfJson -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($cf.url) {
         $cfTxt = "url=$($cf.url)`n"
@@ -82,6 +88,9 @@ if (Test-Path $cfJson) {
         $cfTxt | Set-Content -Path (Join-Path $pkgDir "conhecimento.txt") -Encoding UTF8
         Write-Host "==> Conhecimento coletivo embutido no pacote (conhecimento.txt)" -ForegroundColor Green
     }
+} elseif ($SkipConhecimento) {
+    Write-Host "==> Config do conhecimento coletivo NAO embutida (release publico)." -ForegroundColor Yellow
+    Write-Host "        O amigo instala sem conhecimento coletivo ou digita a URL/senha depois." -ForegroundColor Yellow
 } else {
     Write-Host "==> [AVISO] Sem config de nuvem em $cfJson - o pacote nao embute a config do conhecimento." -ForegroundColor Yellow
     Write-Host "        Para embutir, rode o install-sploit.ps1 -CloudflareURL <url> -Senha <senha> no seu PC primeiro." -ForegroundColor Yellow
