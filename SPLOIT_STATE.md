@@ -566,22 +566,24 @@ pendente). Commit motor   `7c281b9`.
 
 ## Próximo passo
 
-**ATUALIZAÇÃO (16/08): big-pickle out-of-the-box implementado — falta commitar/pushar e decidir os 2 pontos abaixo.**
+**ATUALIZAÇÃO (16/08): v0.1.2-sploit publicada com big-pickle documentado — resta o teste real do auto-update.**
 - ✅ **Big-pickle para os amigos (sem API key)**: default explícito
   `opencode/big-pickle` gravado pelo `install-sploit.ps1` no `sploit.jsonc`
   (plan/build/small) + LEIA-ME/mensagens atualizados (zero-config, cota free,
   saída para opencode pago). Motor já resolvia sozinho para big-pickle em
   ambiente limpo; agora é determinístico. Validado: instalador isolado + sessão
   headless usando o config gerado (confirmou `providerID=opencode`).
-- ⏳ **COMMITAR + PUSHAR** os 3 scripts (commit raiz) + memória (SPLOIT_STATE/NOTAS).
-- ⏳ **DECISÃO do usuário 1**: trocar o `sploit.json` raiz (github-copilot
-  gpt-4.1) para `opencode/big-pickle`? (sessão atual já roda big-pickle).
-- ⏳ **DECISÃO do usuário 2**: publicar `v0.1.2-sploit` com o instalador/LEIA-ME
-  atualizados (a release v0.1.1 ainda tem o instalador antigo, que funciona —
-  o default já era big-pickle, mas sem documentação).
-- ⏳ **TESTE REAL do auto-update (você)**: reiniciar o Sploit → boot check deve
-  detectar `0.1.1-sploit` e oferecer atualização (diálogo PT-BR) → baixar →
-  fechar → swap com `.bak` → relaunch em 0.1.1-sploit.
+- ✅ **`sploit.json` raiz trocado** para `opencode/big-pickle` (commit `7424422`,
+  pushado) — alinhado ao instalador dos amigos.
+- ✅ **`v0.1.2-sploit` publicada e validada**: build smoke OK, zip 48,1 MB,
+  asset em `.../releases/download/v0.1.2-sploit/sploit-0.1.2-sploit.zip`.
+  Validação da release BAIXADA (não do zip local): `sploit.exe` = 0.1.2-sploit,
+  SEM conhecimento.txt, `install-sploit.ps1` com `opencode/big-pickle`,
+  LEIA-ME com a seção "Modelo de IA". Tag `v0.1.2-sploit` pushada.
+- ⏳ **TESTE REAL do auto-update (você)**: `sploit.exe` da raiz restaurado para
+  0.1.0-sploit (com auto-update); ao reiniciar o Sploit, o boot check deve
+  detectar a `v0.1.2-sploit` e oferecer atualização (diálogo PT-BR) → baixar →
+  fechar → swap com `.bak` → relaunch em 0.1.2-sploit.
 - ✅ Repo local unificado: `sploit-src` era um repo git aninhado (submodule 160000,
   motor com 121 commits, sem remote). Fundido no repo raiz como árvore normal
   (`.git` interno preservado em `sploit-src/.git`, ignorado pelo `.gitignore`;

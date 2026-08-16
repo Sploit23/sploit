@@ -1205,3 +1205,22 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   (github-copilot) para big-pickle e publicar a v0.1.2-sploit com o instalador
   novo. Teste real do auto-update (0.1.0 → 0.1.1) continua dependendo do
   reinício do Sploit por ele.
+
+## [2026-08-16] Decisões do usuário aplicadas: sploit.json raiz → big-pickle + v0.1.2 publicada
+- **Como raciocinei**: o usuário aprovou as duas opções que propus. Em vez de
+  misturar as duas coisas, fiz em ordem segura: (1) editei o sploit.json raiz
+  (plan/build/small → opencode/big-pickle), validei o JSON e commitei em
+  separado (config é commit próprio); (2) salvei o binário 0.1.0 atual em temp
+  ANTES de rodar o release (o build sobrescreve o sploit.exe da raiz) e
+  restaurei depois; (3) rodei release.ps1 com o token do GCM (padrão já
+  estabelecido) — o script fez build+pack+push+tag+release+asset em 1 chamada.
+- **O que valeu a pena**: validar a release baixando o zip DA URL PÚBLICA (não o
+  local) — foi aí que confirmei de fato o instalador/LEIA-ME novos dentro do
+  pacote dos amigos (install-sploit.ps1 com opencode/big-pickle, seção "Modelo
+  de IA", sem conhecimento.txt). A ordem "salvar binário → release → restaurar
+  binário" preservou a capacidade de testar o auto-update (boot agora oferece a
+  v0.1.2). Confirmação de versão do exe antes e depois evita surpresa de
+  binário trocado.
+- **Nota**: o release.ps1 usa `git add -A` + push no meio do fluxo — por isso a
+  config do sploit.json foi commitada ANTES, para não "vazar" no release.
+  Dist/.gitignore continua segurando o zip do build.
