@@ -116,13 +116,23 @@ if ($gh) {
 } elseif ($env:GITHUB_TOKEN) {
     Write-Host "==> Publicando release via API (GITHUB_TOKEN) ..." -ForegroundColor Cyan
     $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = "application/vnd.github+json" }
-    $release = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$repo/releases/tags/$tag" -Headers $headers -ErrorAction SilentlyContinue
+    $release = $null
+    try {
+        $release = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$repo/releases/tags/$tag" -Headers $headers
+    } catch {
+        $release = $null
+    }
     if (-not $release -or -not $release.id) {
         $body = @{ tag_name = $tag; name = "Sploit v$Version"; body = "Sploit v$Version" } | ConvertTo-Json
         $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$repo/releases" -Headers $headers -Body $body
     }
     $assetName = "sploit-$Version.zip"
-    $asset = Invoke-RestMethod -Method Post -Uri "https://uploads.github.com/repos/$repo/releases/$($release.id)/assets?name=$assetName" -Headers $headers -ContentType "application/zip" -InFile $zipPath -ErrorAction SilentlyContinue
+    $asset = $null
+    try {
+        $asset = Invoke-RestMethod -Method Post -Uri "https://uploads.github.com/repos/$repo/releases/$($release.id)/assets?name=$assetName" -Headers $headers -ContentType "application/zip" -InFile $zipPath
+    } catch {
+        $asset = $null
+    }
     if (-not $asset -or -not $asset.id) {
         Write-Host "==> Asset pode ja existir; conferindo ..." -ForegroundColor Yellow
         $existing = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$repo/releases/$($release.id)/assets" -Headers $headers
