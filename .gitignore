@@ -30,6 +30,13 @@ sploit-web.secret
 # Claude Code (config local, não compartilhar)
 .claude/settings.local.json
 
+# Repo aninhado do motor (fundido como pastas reais no repo unico)
+sploit-src/.git/
+sploit-src/.gitmodules
+
+# Artefatos pessoais do motor (nao distribuir)
+sploit-src/artifacts/
+
 # Node / Bun (opencode-src)
 node_modules/
 **/node_modules/
