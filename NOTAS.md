@@ -6,6 +6,24 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-15] Restart do binário novo + commits do motor — validação visual em vista
+- **Como raciocinei**: retomada com `--continue`, o passo pendente do estado era
+  ativar o binário novo (fix Copilot + squad setup). Em vez de rodar o self-restart
+  direto, primeiro validei o que estava em aberto: typecheck core/opencode/tui (0
+  erros), testes novos (squad 10, retry/copilot/reminders 82), e aí sim commitei —
+  3 commits atômicos no motor (squad setup, retry, reminders) e 2 na raiz (memória+
+  config, scripts). Depois o build: o `build-sploit.ps1` recompilou o dist mas NÃO
+  conseguiu copiar pro `sploit.exe` (processo em uso) — isso é esperado e é
+  exatamente pra isso que o self-restart existe (troca após matar o processo).
+- **O que valeu a pena**: separar as mudanças por escopo antes de commitar (o
+  reminders.ts era refactor distinto da persistência, não do retry); conferir o
+  `relaunch.log` depois (não só o output do script) para confirmar que o binário
+  foi atualizado e o processo novo está vivo; e usar `-ResumePrompt` para que a
+  validação do banner/wizard seja enviada automaticamente na sessão nova.
+- **Entregue**: sploit.exe atualizado do dist (smoke OK), relançado com prompt de
+  validação; 5 commits (3 motor `ef95257`/`50a223d`/`273a7e7`, 2 raiz
+  `cc91dbb`/`a435885`). Tree limpa nos dois repos.
+
 ## [2026-08-15] Copilot free "parou de novo" — causa raiz no bucket de utility models + fix no retry
 - **Como raciocinei**: a sessão "home" (gpt-4o) morria no meio do turno com
   `AI_APICallError: Sorry, you've exceeded your rate limit for utility models.` Em vez

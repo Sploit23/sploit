@@ -518,20 +518,22 @@ pendente). Commit motor   `7c281b9`.
 
 ## Próximo passo
 
-**ATUALIZAÇÃO (15/08): Copilot free "parou de novo" — causa raiz + fix do retry
-prontos. Restart pendente (ativa o fix do Copilot + o setup de squad juntos).**
-- O binário novo (dist) contém: **fix do retry do Copilot** (rate limit de utility
-  models agora retenta com backoff em vez de matar o turno) + **setup automático de
-  squad** (banner + wizard). Reiniciar via self-restart já envia a validação:
-  `scripts/self-restart.ps1 -ResumePrompt "valide o banner e o wizard de squad"`.
-- Após restart: (1) abrir pasta SEM `squad/` (ex.: `Temp\opencode\squad-setup-test`):
-  banner "SQUAD" no rodapé → "Montar squad" → renomear (enter)/tipo (`t`)/remover
-  (`d`) → criar → dock mostra os agentes; "agora não" → banner some (KV 7 dias).
-  (2) Confirmar que a sessão segue em `github-copilot/gpt-4o` e que o rate limit
-  não derruba mais o turno no meio.
-- Commits motor pendentes após validação:
+**ATUALIZAÇÃO (15/08): Restart feito, binário novo ativo (PID 10056) e commits do
+motor concluídos. Falta a VALIDAÇÃO VISUAL (banner/wizard).**
+- ✅ Self-restart executado: smoke test OK → sploit.exe atualizado do dist (23:28)
+  → relançado `--continue` com prompt `"valide o banner e o wizard de squad"`.
+- ✅ Commits do motor (typecheck core/opencode/tui OK; testes squad 10 + retry/
+  copilot/reminders 82 pass):
   `sploit: feat: setup automatico de squad no onboarding (banner+wizard, detecção e geração no core)`
-  + `sploit: fix: retenta rate limit de utility models do Copilot free (retry.ts)`.
+  (`ef95257`) + `sploit: fix: retenta rate limit de utility models do Copilot free e retryDelay no corpo da resposta (Gemini)`
+  (`50a223d`) + `sploit: fix: persiste partes sinteticas dos reminders via sessions.updatePart`
+  (`273a7e7`). Raiz: memória+config (`cc91dbb`) e scripts (`a435885`).
+- ⏳ VALIDAR AGORA no binário novo (PID 10056, prompt já enviado): (1) abrir pasta
+  SEM `squad/` (ex.: `Temp\opencode\squad-setup-test`): banner "SQUAD" no rodapé →
+  "Montar squad" → renomear (enter)/tipo (`t`)/remover (`d`) → criar → dock mostra
+  os agentes; "agora não" → banner some (KV 7 dias). (2) Confirmar que a sessão
+  segue em `github-copilot/gpt-4o` e que o rate limit não derruba mais o turno.
+- Se a validação falhar → fix em commit novo (nunca emendar).
 
 **ATUALIZAÇÃO (14/08, tarde): GitHub Copilot free ativado como provider principal
 — motor corrigido e validado. PENDENTE: reiniciar o Sploit com o binário novo e
