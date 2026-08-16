@@ -18,7 +18,8 @@
 # (pack-dist.ps1 roda com -SkipConhecimento).
 
 param(
-    [string]$Version = ""
+    [string]$Version = "",
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,20 +52,24 @@ Write-Host "==> Release Sploit v$Version" -ForegroundColor Cyan
 # ---------------------------------------------------------------------------
 # 2. Build + pacote
 # ---------------------------------------------------------------------------
-Write-Host "==> Compilando binario v$Version ..." -ForegroundColor Yellow
-& (Join-Path $root "scripts\build-sploit.ps1") -Version $Version
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERRO] Build falhou." -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "==> Empacotando dist/sploit-$Version.zip (publico, sem conhecimento) ..." -ForegroundColor Yellow
-& (Join-Path $root "scripts\pack-dist.ps1") -Version $Version -SkipBuild -SkipConhecimento
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERRO] Pack falhou." -ForegroundColor Red
-    exit 1
-}
 $zipPath = Join-Path $root "dist\sploit-$Version.zip"
+if ((Test-Path $zipPath) -and -not $Force) {
+    Write-Host "==> Zip de v$Version ja existe; pulando build/pack (-Force para refazer)." -ForegroundColor Gray
+} else {
+    Write-Host "==> Compilando binario v$Version ..." -ForegroundColor Yellow
+    & (Join-Path $root "scripts\build-sploit.ps1") -Version $Version
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERRO] Build falhou." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "==> Empacotando dist/sploit-$Version.zip (publico, sem conhecimento) ..." -ForegroundColor Yellow
+    & (Join-Path $root "scripts\pack-dist.ps1") -Version $Version -SkipBuild -SkipConhecimento
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERRO] Pack falhou." -ForegroundColor Red
+        exit 1
+    }
+}
 if (-not (Test-Path $zipPath)) {
     Write-Host "[ERRO] Zip nao encontrado: $zipPath" -ForegroundColor Red
     exit 1
@@ -74,21 +79,28 @@ if (-not (Test-Path $zipPath)) {
 # 3. Tag + push do codigo
 # ---------------------------------------------------------------------------
 Write-Host "==> Commit/abertura pendentes? Verifique o git antes de continuar." -ForegroundColor Yellow
+$oldEA = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 git add -A 2>$null
-$dirty = (& git status --porcelain).Trim()
+$dirty = (git status --porcelain 2>$null | Out-String).Trim()
+git push origin master --tags 2>&1 | ForEach-Object { Write-Host "    $_" }
+$ErrorActionPreference = $oldEA
 if ($dirty) {
     Write-Host "==> Ha mudancas pendentes. Elas precisam ser commitadas antes do release." -ForegroundColor Yellow
 }
 
 $tag = "v$Version"
-$hasTag = (& git tag -l "$tag").Trim()
+$oldEA = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+$hasTag = (git tag -l "$tag" 2>$null | Out-String).Trim()
 if (-not $hasTag) {
     git tag "$tag"
     Write-Host "==> Tag criada: $tag" -ForegroundColor Green
 } else {
     Write-Host "==> Tag $tag ja existe (reutilizando)." -ForegroundColor Gray
 }
-git push origin master --tags 2>&1 | ForEach-Object { Write-Host "    $_" }
+git push origin "$tag" 2>&1 | ForEach-Object { Write-Host "    $_" }
+$ErrorActionPreference = $oldEA
 
 # ---------------------------------------------------------------------------
 # 4. GitHub Release + asset
@@ -104,13 +116,18 @@ if ($gh) {
 } elseif ($env:GITHUB_TOKEN) {
     Write-Host "==> Publicando release via API (GITHUB_TOKEN) ..." -ForegroundColor Cyan
     $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = "application/vnd.github+json" }
-    $release = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$repo/releases/tags/$tag" -Headers $headers
-    if (-not $release.id) {
+    $release = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$repo/releases/tags/$tag" -Headers $headers -ErrorAction SilentlyContinue
+    if (-not $release -or -not $release.id) {
         $body = @{ tag_name = $tag; name = "Sploit v$Version"; body = "Sploit v$Version" } | ConvertTo-Json
         $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$repo/releases" -Headers $headers -Body $body
     }
     $assetName = "sploit-$Version.zip"
-    $asset = Invoke-RestMethod -Method Post -Uri "https://uploads.github.com/repos/$repo/releases/$($release.id)/assets?name=$assetName" -Headers $headers -ContentType "application/zip" -InFile $zipPath
+    $asset = Invoke-RestMethod -Method Post -Uri "https://uploads.github.com/repos/$repo/releases/$($release.id)/assets?name=$assetName" -Headers $headers -ContentType "application/zip" -InFile $zipPath -ErrorAction SilentlyContinue
+    if (-not $asset -or -not $asset.id) {
+        Write-Host "==> Asset pode ja existir; conferindo ..." -ForegroundColor Yellow
+        $existing = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$repo/releases/$($release.id)/assets" -Headers $headers
+        $asset = $existing | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
+    }
     Write-Host "==> Asset publicado: $($asset.browser_download_url)" -ForegroundColor Green
 } else {
     Write-Host "[ERRO] Sem autenticacao para o GitHub Releases." -ForegroundColor Red
