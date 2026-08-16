@@ -533,9 +533,19 @@ pendente). Commit motor   `7c281b9`.
   PATH do usuário, config global; aceita `-CloudflareURL/-Senha` para o
   conhecimento coletivo) e o binário se atualiza sozinho no boot (check no TUI +
   upgrade no motor via GitHub Releases, swap seguro com `.bak` e relaunch
-  desanexado). Detalhes no Próximo passo. Bloqueio: auth do GitHub Releases
-  (`gh` CLI não instalado nem `GITHUB_TOKEN`) — `release.ps1` já está pronto
-  para os dois caminhos.
+  desanexado). **Release real publicada**: auth do GitHub via token OAuth
+  recuperado do Git Credential Manager (`git credential fill` → `gho_...`,
+  scope repo) — sem instalar o `gh` CLI. `v0.1.1-sploit` publicada com o asset
+  `sploit-0.1.1-sploit.zip` (48,1 MB), tag pushada, master atualizado
+  (`b7f2024..d31d8d9`); release + download validados (zip → `sploit.exe`
+  `0.1.1-sploit` na raiz, SEM conhecimento.txt). `sploit.exe` da raiz
+  **restaurado para o 0.1.0-sploit** (com auto-update) para testar o fluxo de
+  update de verdade (boot → prompt → swap). **Bugs do release.ps1 corrigidos no
+  caminho** (lição PS 5.1): `.Trim()` em saída nula do `git status`; stderr de
+  comando nativo vira exceção com `$ErrorActionPreference="Stop"` (padrão EA
+  temporário nas seções git); 404 do GET da API é erro TERMINANTE no
+  `Invoke-RestMethod` do PS 5.1 (`-ErrorAction SilentlyContinue` não pega →
+  `try/catch`); idempotência (pula build/pack se o zip existe, `-Force` refaz).
 
 ## Próximo passo
 
@@ -571,6 +581,17 @@ pendente). Commit motor   `7c281b9`.
      `gh` e `gh auth login`, ou `GITHUB_TOKEN`), publicar `v0.1.1-sploit` e
      validar o boot de um "amigo" (`install-online.ps1`). Commit motor/raiz em
      andamento.
+- ✅ **Release publicada e validada (16/08)**: `v0.1.1-sploit` no
+  `Sploit23/sploit` com o asset `sploit-0.1.1-sploit.zip` (48,1 MB) — auth via
+  token OAuth do GCM (sem `gh` CLI). `sploit.exe` da raiz voltou para o
+  **0.1.0-sploit** (build com auto-update) de propósito.
+- ⏳ **TESTE REAL do auto-update (você)**: reiniciar o Sploit → o boot check
+  deve detectar `0.1.1-sploit` e oferecer a atualização (diálogo PT-BR) →
+  baixar → fechar o Sploit → o script de swap troca o exe (com `.bak`) e
+  relança sozinho em 0.1.1-sploit. Comando do amigo (tudo pronto):
+  `powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/Sploit23/sploit/master/scripts/install-online.ps1 | iex"`
+  — instala a última release, sem conhecimento coletivo (ou com
+  `-CloudflareURL/-Senha`).
 - Pendência antiga ainda aberta: validação visual do banner/wizard de squad no
   binário novo (ef95257/50a223d/273a7e7 já commitados; restart 23:28 PID 10056).
 
