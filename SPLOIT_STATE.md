@@ -515,25 +515,42 @@ pendente). Commit motor   `7c281b9`.
   duplica no turno. 4 testes novos; typecheck opencode OK; **29/29 reminders**;
   383 pass na suíte de sessão (2 revert-compact pré-existentes); build smoke
   `0.1.0-sploit` OK. Commit motor `da7e4ee`.
+- **Projeto real no GitHub (16/08)** ✔: `Sploit23/sploit` limpo e sincronizado.
+  Investigação revelou que o repo raiz tinha `sploit-src` como **submodule**
+  (gitlink 160000, motor em repo git próprio sem remote — 121 commits nunca
+  subidos) e o GitHub guardava um snapshot antigo (05/08) de história separada
+  (sem ancestral comum; 6364 arquivos só no remote, 8 comuns). Decisão do
+  usuário: limpar o GitHub e subir o estado atual. Feito: fundi `sploit-src`
+  como árvore normal no repo raiz (truque do `.git` renomeado pra bypassar o
+  embedded-repo do git; `.git` interno + `artifacts/` ignorados no
+  `.gitignore`), commit `e247cd5`, push forçado `+ 4cebc92...e247cd5` —
+  árvore idêntica (`git diff master origin/master` = 0), 123 commits, root
+  `d6d1612`. Lição de processo: `git add <dir>` com `.git` interno ignorado
+  AINDA vira gitlink — é preciso renomear o `.git` temporariamente.
 
 ## Próximo passo
 
-**ATUALIZAÇÃO (15/08): Restart feito, binário novo ativo (PID 10056) e commits do
-motor concluídos. Falta a VALIDAÇÃO VISUAL (banner/wizard).**
-- ✅ Self-restart executado: smoke test OK → sploit.exe atualizado do dist (23:28)
-  → relançado `--continue` com prompt `"valide o banner e o wizard de squad"`.
-- ✅ Commits do motor (typecheck core/opencode/tui OK; testes squad 10 + retry/
-  copilot/reminders 82 pass):
-  `sploit: feat: setup automatico de squad no onboarding (banner+wizard, detecção e geração no core)`
-  (`ef95257`) + `sploit: fix: retenta rate limit de utility models do Copilot free e retryDelay no corpo da resposta (Gemini)`
-  (`50a223d`) + `sploit: fix: persiste partes sinteticas dos reminders via sessions.updatePart`
-  (`273a7e7`). Raiz: memória+config (`cc91dbb`) e scripts (`a435885`).
-- ⏳ VALIDAR AGORA no binário novo (PID 10056, prompt já enviado): (1) abrir pasta
-  SEM `squad/` (ex.: `Temp\opencode\squad-setup-test`): banner "SQUAD" no rodapé →
-  "Montar squad" → renomear (enter)/tipo (`t`)/remover (`d`) → criar → dock mostra
-  os agentes; "agora não" → banner some (KV 7 dias). (2) Confirmar que a sessão
-  segue em `github-copilot/gpt-4o` e que o rate limit não derruba mais o turno.
-- Se a validação falhar → fix em commit novo (nunca emendar).
+**ATUALIZAÇÃO (16/08): GitHub agora é o projeto real — repo limpo e sincronizado.**
+- ✅ Repo local unificado: `sploit-src` era um repo git aninhado (submodule 160000,
+  motor com 121 commits, sem remote). Fundido no repo raiz como árvore normal
+  (`.git` interno preservado em `sploit-src/.git`, ignorado pelo `.gitignore`;
+  `sploit-src/artifacts/` excluído por ser projeto pessoal). Commit `e247cd5`.
+- ✅ Push forçado em `Sploit23/sploit` (`+ 4cebc92...e247cd5 master -> master`):
+  histórico do GitHub (3 commits de snapshot antigo de 05/08, história separada)
+  substituído pela árvore atual completa — `git diff master origin/master` = 0.
+  Histórico: 123 commits, root `d6d1612` → `e247cd5`.
+- ⏳ PRÓXIMO: montar o pipeline de distribuição pros amigos usando o GitHub:
+  1. `scripts/release.ps1` — build (`OPENCODE_VERSION` do build-sploit.ps1),
+     empacota dist + scripts + config, cria tag `v<versão>` + GitHub Release com
+     asset (usar `gh` CLI ou token — decidir auth).
+  2. Auto-update no boot: apontar `src/installation/index.ts` (hoje consulta
+     `anomalyco/opencode`) + `src/cli/cmd/upgrade.ts` (stub) para `Sploit23/sploit`
+     → detectar release mais novo → baixar asset → troca segura via
+     `scripts/relaunch.ps1` (padrão do self-restart).
+  3. Validar ponta a ponta: release real no GitHub + boot de um "amigo" pegando
+     o binário novo.
+- Pendência antiga ainda aberta: validação visual do banner/wizard de squad no
+  binário novo (ef95257/50a223d/273a7e7 já commitados; restart 23:28 PID 10056).
 
 **ATUALIZAÇÃO (14/08, tarde): GitHub Copilot free ativado como provider principal
 — motor corrigido e validado. PENDENTE: reiniciar o Sploit com o binário novo e
