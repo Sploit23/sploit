@@ -1234,9 +1234,8 @@ export function Session() {
               <box flexShrink={0}>
                 {/* Pasta real onde o Sploit foi aberto, não a do histórico da
                     sessão retomada — com `--continue` a sessão pode ser de
-                    outro projeto (o dock some se seguir session().directory). */}
+                    outro projeto (o banner some se seguir session().directory). */}
                 <SquadSetupBanner directory={paths.cwd} />
-                <SquadDock directory={paths.cwd} />
                 <Show when={permissions().length > 0}>
                   <PermissionPrompt
                     request={permissions()[0]}
@@ -1289,6 +1288,9 @@ export function Session() {
             </Show>
             <Toast />
           </box>
+          {/* Coluna do squad — some sozinha quando o projeto não tem squad/;
+              some pela pasta real (paths.cwd), não pela sessão retomada. */}
+          <SquadDock directory={paths.cwd} />
           <Show when={sidebarVisible()}>
             <Switch>
               <Match when={wide()}>

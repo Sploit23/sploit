@@ -141,11 +141,6 @@ export function SquadDock(props: { directory?: string }) {
     return theme.secondary
   }
 
-  function truncar(texto: string, max: number) {
-    if (texto.length <= max) return texto
-    return `${texto.slice(0, max - 1)}…`
-  }
-
   function dadosEstado(ls: LinhaExibida) {
     if (ls.trabalhando) return { fg: theme.warning, icone: SPIN[frame() % SPIN.length] }
     if (ls.estado === "feito") return { fg: theme.success, icone: "✓" }
@@ -191,98 +186,85 @@ export function SquadDock(props: { directory?: string }) {
         const ultimo = data().posts.length > 0 ? data().posts[data().posts.length - 1].data : undefined
         const spark = sparkline(data().posts)
         return (
-          <box
-            flexShrink={0}
-            flexDirection="column"
-            gap={1}
-            paddingTop={1}
-            paddingBottom={1}
-            paddingLeft={2}
-            paddingRight={1}
-            {...SplitBorder}
-            borderColor={theme.border}
-            backgroundColor={theme.backgroundPanel}
-          >
-            <box flexDirection="row" gap={1}>
-              <text fg={theme.accent} attributes={TextAttributes.BOLD}>
-                SQUAD
-              </text>
-              <text fg={theme.text} attributes={TextAttributes.BOLD}>
-                · {data().projeto}
-              </text>
-              <text fg={theme.textMuted} wrapMode="none">
-                — {data().agentes.length} {data().agentes.length === 1 ? "agente" : "agentes"}
-              </text>
-              <text fg={theme.borderSubtle}>│</text>
-              <text fg={theme.warning} wrapMode="none">
-                ●{contagem.trabalhando}
-              </text>
-              <text fg={theme.success} wrapMode="none">
-                ✓{contagem.feito}
-              </text>
-              <text fg={theme.error} wrapMode="none">
-                ✕{contagem.bloqueado}
-              </text>
-              <text fg={theme.textMuted} wrapMode="none">
-                ○{contagem.ocioso}
-              </text>
-              <Show when={contagem.trabalhando > 0}>
-                <text fg={theme.warning} wrapMode="none">
-                  {SPIN[frame() % SPIN.length]}
-                </text>
-              </Show>
-            </box>
-            <For each={exibidos}>
-              {({ a, l }) => {
-                const est = dadosEstado(l)
-                const badge = a.papel ? `[${a.papel}]` : a.pasta
-                return (
-                  <box
-                    flexDirection="row"
-                    gap={1}
-                    backgroundColor={hoverNome() === a.nome ? theme.backgroundElement : undefined}
-                    onMouseOver={() => setHoverNome(a.nome)}
-                    onMouseOut={() => setHoverNome((n) => (n === a.nome ? undefined : n))}
-                    onMouseUp={() =>
-                      openSquadAgentDialog(dialog, {
-                        directory: props.directory ?? "",
-                        agent: a,
-                        posts: data().posts,
-                      })
-                    }
-                  >
-                    <text width={2} fg={est.fg} wrapMode="none">
-                      {est.icone}
+          <box width={32} height="100%" flexDirection="column" {...SplitBorder} borderColor={theme.border}>
+            <scrollbox flexGrow={1} backgroundColor={theme.backgroundPanel}>
+              <box flexShrink={0} flexDirection="column" gap={1} paddingTop={1} paddingBottom={1} paddingLeft={2} paddingRight={1}>
+                <box flexDirection="column">
+                  <text fg={theme.accent} attributes={TextAttributes.BOLD}>
+                    SQUAD <span style={{ fg: theme.text }}>· {data().projeto}</span>
+                  </text>
+                  <text fg={theme.textMuted} wrapMode="none">
+                    {data().agentes.length} {data().agentes.length === 1 ? "agente" : "agentes"}
+                  </text>
+                  <box flexDirection="row" gap={1}>
+                    <text fg={theme.warning} wrapMode="none">
+                      ●{contagem.trabalhando}
                     </text>
-                    <text width={10} fg={corPara(a.nome)} attributes={TextAttributes.BOLD} wrapMode="none">
-                      {truncar(a.nome, 10)}
+                    <text fg={theme.success} wrapMode="none">
+                      ✓{contagem.feito}
                     </text>
-                    <text width={16} fg={corPapel(a.papel ?? "")} attributes={TextAttributes.DIM} wrapMode="none">
-                      {truncar(badge, 16)}
+                    <text fg={theme.error} wrapMode="none">
+                      ✕{contagem.bloqueado}
                     </text>
-                    <text width={14} fg={est.fg} wrapMode="none">
-                      {l.rotulo}
+                    <text fg={theme.textMuted} wrapMode="none">
+                      ○{contagem.ocioso}
                     </text>
-                    <text
-                      fg={corTexto(l)}
-                      attributes={atributosTexto(l)}
-                      wrapMode="none"
-                      flexShrink={1}
-                      truncate
-                    >
-                      {l.texto}
-                    </text>
+                    <Show when={contagem.trabalhando > 0}>
+                      <text fg={theme.warning} wrapMode="none">
+                        {SPIN[frame() % SPIN.length]}
+                      </text>
+                    </Show>
                   </box>
-                )
-              }}
-            </For>
-            <Show when={data().posts.length > 0}>
-              <text fg={theme.borderSubtle} attributes={TextAttributes.DIM} wrapMode="none">
-                ─ último post {ultimo?.slice(-5)}
-                {data().modo ? ` · modo ${data().modo}` : ""}
-                {spark ? ` · atividade 24h ${spark}` : ""}
-              </text>
-            </Show>
+                </box>
+                <For each={exibidos}>
+                  {({ a, l }) => {
+                    const est = dadosEstado(l)
+                    const badge = a.papel ? `${a.pasta} · ${a.papel}` : a.pasta
+                    return (
+                      <box
+                        flexDirection="column"
+                        gap={0}
+                        backgroundColor={hoverNome() === a.nome ? theme.backgroundElement : undefined}
+                        onMouseOver={() => setHoverNome(a.nome)}
+                        onMouseOut={() => setHoverNome((n) => (n === a.nome ? undefined : n))}
+                        onMouseUp={() =>
+                          openSquadAgentDialog(dialog, {
+                            directory: props.directory ?? "",
+                            agent: a,
+                            posts: data().posts,
+                          })
+                        }
+                      >
+                        <box flexDirection="row" gap={1}>
+                          <text fg={est.fg} wrapMode="none">
+                            {est.icone}
+                          </text>
+                          <text fg={corPara(a.nome)} attributes={TextAttributes.BOLD} wrapMode="none" truncate>
+                            {a.nome}
+                          </text>
+                        </box>
+                        <text fg={corPapel(a.papel ?? "")} attributes={TextAttributes.DIM} wrapMode="none" truncate>
+                          {"  " + badge}
+                        </text>
+                        <text fg={est.fg} wrapMode="none">
+                          {"  " + l.rotulo}
+                        </text>
+                        <text fg={corTexto(l)} attributes={atributosTexto(l)} wrapMode="none" truncate>
+                          {"  " + l.texto}
+                        </text>
+                      </box>
+                    )
+                  }}
+                </For>
+                <Show when={data().posts.length > 0}>
+                  <text fg={theme.borderSubtle} attributes={TextAttributes.DIM}>
+                    último post {ultimo?.slice(-5)}
+                    {data().modo ? ` · modo ${data().modo}` : ""}
+                    {spark ? `\natividade 24h ${spark}` : ""}
+                  </text>
+                </Show>
+              </box>
+            </scrollbox>
           </box>
         )
       }}
