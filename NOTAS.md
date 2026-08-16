@@ -1121,3 +1121,17 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   `-Out` customiza destino). `sploit-teste/` adicionado ao .gitignore.
 - **Verificado**: pacote gerado e JSON validado (ConvertFrom-Json OK); big-pickle
   como plan/build confirmado no sploit.json gerado.
+
+## [2026-08-16] Squad criado na pasta errada (raiz do C:) — causa raiz + correção
+- **Como raciocinei**: usuário criou squad em `Desktop\testes` (Bruno→natal,
+  Marcos→controle_natal) e os agentes não apareciam no dock. O `squad.py status`
+  apontava "quadro nao existe" e `squad/` só tinha `memoria/` vazio — mas as
+  parts do DB mostravam os writes como "success" e o metadata com `filepath:
+  /squad/squad.json`. Olhei onde o write com caminho absoluto POSIX cai no
+  Windows: `C:\squad\`. Os 4 arquivos estavam lá, íntegros. Movi para
+  `Desktop\testes\squad\` e limpei a raiz.
+- **O que valeu a pena**: cruzar DB (parts) com filesystem em vez de confiar só
+  no "Wrote file successfully"; reconhecer o padrão — em Windows, `filePath`
+  começando com `/` resolve para a raiz do drive, não para o cwd. Lição: caminho
+  relativo (`squad/...`) ou completo (`C:\...`) no write, nunca `/...`. Vale
+  gravar essa lição no harness (write.txt) para o coordenador não repetir.
