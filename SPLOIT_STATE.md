@@ -379,7 +379,41 @@ mostra por agente: nome colorido (hash estável sobre a paleta do tema), pasta,
 símbolo ✓/○/✕ e a tarefa/último post; some sozinho sem squad/. Integrado numa
 linha no rodapé fixo da rota (`session/index.tsx:1234`). Typecheck tui OK (0
 erros); build smoke `0.1.0-sploit` OK (backup criado; troca via self-restart
-pendente). Commit motor `7c281b9`.
+pendente). Commit motor   `7c281b9`.
+
+**Setup automático de squad no onboarding (14/08)** ✔ (implementado,
+  squad_request.md): integração no fluxo principal. **Detecção + geração movidas
+  para o core** — novos `packages/core/src/squad/detectar.ts` e `gerar.ts`
+  (`AreaConfigurada`/`AgenteGerado`/`SquadGerado`, `SquadJaExiste`; `gerarSquad`
+  escreve squad.json/quadro.md/memórias/logs no formato do squad.py);
+  `opencode/src/squad/detectar.ts` virou re-export do core (CLI continua ok).
+  **Banner `SquadSetupBanner`** no rodapé da sessão (`session/squad-setup.tsx`,
+  montado junto ao SquadDock): quando o diretório da sessão NÃO tem
+  `squad/squad.json`, roda `detectarAreasProjeto` (polling 3s), aparece só com
+  áreas reais (filtra o fallback `path="."`); "agora não" grava KV
+  `squad_setup_dismissed_<dir>` (janela 7 dias). **Wizard `DialogSquadSetup`**:
+  `dialog.replace` com estado em map module-level (sobrevive aos diálogos
+  aninhados); lista as áreas — enter renomeia (`DialogPrompt.show`), `t` troca o
+  tipo (`DialogSelect` + TIPOS), `d` remove, tab cicla criar/cancelar; criar →
+  `gerarSquad` + toast success + fecha. Formato 100% compatível com o squad.py
+  (validado: `squad.py status` e `list` lêem o quadro gerado). **5 testes novos**
+  `test/squad/squad.test.ts` passam; typecheck core/tui/opencode OK; suíte core
+  1087 pass / 2 fail pré-existentes (cross-spawn-spawner, Windows flaky, sem
+  relação); build smoke `0.1.0-sploit` OK (cópia do exe em uso — troca via
+  self-restart pendente). Commit motor pendente (aguardando validação visual).
+
+**Copilot free parou de novo (15/08) — causa raiz + fix do retry** ✔: a sessão
+  "home" (gpt-4o) morria no meio do turno com `AI_APICallError: Sorry, you've
+  exceeded your rate limit for utility models.` — o plano free do Copilot tem
+  bucket de utility models (gpt-4o/gpt-4.1/gpt-4o-mini) de janela deslizante; o
+  loop agêntico estoura com chamadas rápidas demais. GitHub responde **403**
+  (isRetryable=false) e o `retry.ts` só retentava 429/5xx → turno morria. Testado
+  na API: token OK; premium (claude-sonnet-5/gemini-3.5-flash/kimi-k3/gpt-5.*) dão
+  HTTP 400 no plano free (sem escapatória); utility voltaram a responder (200).
+  **Fix**: `retryable()` (retry.ts) agora reconhece texto de rate limit
+  ("rate limit"/"too many requests"/"rate increased too quickly") na message ou
+  responseBody do `APIError` ANTES do bail-out de isRetryable → retry com backoff
+  (janela reabastece sozinha). 2 testes novos + 39 pass; typecheck opencode OK.
 
 **Modo contínuo autônomo** ✔ (preparado; ex-"modo noturno" — renomeado a
   pedido do usuário em 11/08): permissões auto-approve no `sploit.json` (bash
@@ -483,6 +517,64 @@ pendente). Commit motor `7c281b9`.
   `0.1.0-sploit` OK. Commit motor `da7e4ee`.
 
 ## Próximo passo
+
+**ATUALIZAÇÃO (15/08): Copilot free "parou de novo" — causa raiz + fix do retry
+prontos. Restart pendente (ativa o fix do Copilot + o setup de squad juntos).**
+- O binário novo (dist) contém: **fix do retry do Copilot** (rate limit de utility
+  models agora retenta com backoff em vez de matar o turno) + **setup automático de
+  squad** (banner + wizard). Reiniciar via self-restart já envia a validação:
+  `scripts/self-restart.ps1 -ResumePrompt "valide o banner e o wizard de squad"`.
+- Após restart: (1) abrir pasta SEM `squad/` (ex.: `Temp\opencode\squad-setup-test`):
+  banner "SQUAD" no rodapé → "Montar squad" → renomear (enter)/tipo (`t`)/remover
+  (`d`) → criar → dock mostra os agentes; "agora não" → banner some (KV 7 dias).
+  (2) Confirmar que a sessão segue em `github-copilot/gpt-4o` e que o rate limit
+  não derruba mais o turno no meio.
+- Commits motor pendentes após validação:
+  `sploit: feat: setup automatico de squad no onboarding (banner+wizard, detecção e geração no core)`
+  + `sploit: fix: retenta rate limit de utility models do Copilot free (retry.ts)`.
+
+**ATUALIZAÇÃO (14/08, tarde): GitHub Copilot free ativado como provider principal
+— motor corrigido e validado. PENDENTE: reiniciar o Sploit com o binário novo e
+abrir sessão nova (ou `/model`) para o copilot valer na sessão (modelo é por sessão).**
+
+Resolvido o caos de cotas: big-pickle travado por IP, Gemini 2.5/3 free estourados
+(2.5 = 20 req/min; 3 = 250k tok entrada/min + 5 req/min) e groq small_model
+inviável (8k TPM vs ~32k por chamada). **GitHub Copilot free como provider**:
+- **Fix do retry (motor)**: `retry.ts` só lia `retry-after` de headers; o Gemini
+  manda o tempo no CORPO (`RetryInfo.retryDelay: "29s"` / "Please retry in Xs").
+  Agora `delay()` extrai do corpo também (headers continuam prioridade). 44 testes
+  (retry+copilot) passam; typecheck OK.
+- **Fix do catálogo Copilot (motor)**: no plano free TODOS os modelos vêm com
+  `model_picker_enabled=false`; o plugin filtava por isso e zerava o catálogo.
+  Agora: se o picker está vazio, fallback para todos os modelos usáveis.
+- **Auth**: device flow OAuth do GitHub concluído; `auth.json` com
+  `github-copilot` (type oauth). Modelos free que RESPONDEM de verdade (testados
+  direto na API): `gpt-4.1`, `gpt-4o`, `gpt-4o-mini` (via /chat/completions).
+  `gpt-5.6-luna-free-auto` e `mai-code-1.1-flash` aparecem no /models mas retornam
+  "model_not_supported".
+- **Config**: `sploit.json` — plan/build = `github-copilot/gpt-4.1`, small_model =
+  `github-copilot/gpt-4o-mini`. Build `sploit.exe` (0.1.0-sploit, smoke ok) e
+  validação: `sploit run --model github-copilot/gpt-4.1` respondeu "OK" e o catálogo
+  lista os modelos copilot.
+
+**Próximo passo concreto**: reiniciar o Sploit (binário novo em `sploit.exe`),
+abrir sessão NOVA e confirmar que plan/build usam `github-copilot/gpt-4.1`.
+
+**ATUALIZAÇÃO (14/08): Diagnóstico "voltou no 2.5" após restart — RESOLVIDO.**
+Depois de trocar plan/build para `google/gemini-3-flash-preview` (sploit.json,
+14:33) e reiniciar (14:34), o Sploit seguia em `gemini-2.5-flash`. Causa raiz
+rastreada no código (não é config): o modelo é **por sessão**, não global. O TUI,
+ao carregar uma sessão, restaura o modelo da última mensagem do usuário
+(`packages/tui/src/component/prompt/index.tsx:327` → `local.model.set(msg.model)`);
+no submit, esse modelo entra como `input.model`, que vence a config em
+`packages/opencode/src/session/prompt.ts:648` (`input.model ?? ag.model ??
+currentModel`). A sessão retomada `ses_ffec3b56` tinha `gemini-2.5-flash`
+gravado no `sploit.db`. `.sploit/sploit.json` NÃO tem modelo (só provider local
+fmm-local + plugin graphify) — descartado. **Correção para o usuário**: abrir
+sessão NOVA (config default vale) ou trocar com `/model` para
+`google/gemini-3-flash-preview` na sessão atual. Config só define o default de
+sessões novas. Se quiser que sessão retomada siga a config, é mudança no TUI
+(prompt/index.tsx:327) — decisão de produto, não bug.
 
 **ATUALIZAÇÃO (11/08, noite): Modo Squad — dock com STATUS VIVO + subagentes
 entregues (`8d1bedb` + `eebb16d`) + papel auditor/QA (`936cd2e`); aguardando
@@ -632,7 +724,7 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
 - **Geração 3 — mutação estrutural do gene G-grafo**: `loadAnchors` do core
   exportado e `system.ts` injeta âncoras (top-15 por degree) no `<env>` do system
   prompt; 4 testes novos `compaction-anchors.test.ts` passam (sem grafo → "",
-  ordenação por degree, invalidação por mtime, malformado não quebra); typecheck
+  ordenação por degree, invalidação por mtime, grafo malformado não quebra); typecheck
   core+opencode OK (0 erros); build smoke `0.1.0-sploit` OK (backup criado;
   cópia do exe em uso — troca via self-restart pendente); push nuvem OK (genes:
   G-verificacao forte 4 obs, G-grafo 2 obs) ✔
@@ -674,6 +766,10 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   (PID 724 morreu, rollback → PID 12908 binário antigo), causa raiz = `-ArgumentList`
   do PS 5.1 sem re-quoting; fix `relaunch.ps1` com aspas embutidas validado
   isoladamente (argtest: prompt longo chegou como 1 argumento), commit `99f1a37` ✔
+- **Re-medição das mutações (baseline pós-G9)**: script `medicao_mutacoes.py`
+  rodado com filtro `--desde "2026-08-09 16:24"`; taxa de verificação subiu para
+  **9,1%** (21/230) com a G5-G7 ativa no binário; consulta ao grafo em centrais
+  0% (0/2); diagnóstico fez push automático para a nuvem coletiva ✔
 - **Restart real 20:11 (melh-10 ativo)**: self-restart com `-ResumePrompt` longo
   (espaços + parênteses) — relaunch.log `[OK] Sploit novo vivo (PID 12860)`, binário
   novo 19:48 (melh-8) no sploit.exe, sessão retomou e auto-submeteu o prompt ✔
@@ -813,6 +909,20 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   `0.1.0-sploit` OK (backup `sploit.exe.bak` criado; cópia do exe falhou em uso —
   esperado, troca via self-restart pendente); commits motor `7c281b9` + raiz
   `23bf0b8`. Validação visual pendente: reiniciar e abrir um projeto com squad.
+- **Setup automático de squad no onboarding** ✔: typecheck core/tui/opencode OK
+  (0 erros); 5 testes novos `test/squad/squad.test.ts` passam (detecção de
+  backend/frontend/qa, fallback projeto, formato squad.json/quadro/memórias,
+  `SquadJaExiste`, nome customizado); suíte core completa 1087 pass / 7 skip /
+  2 fail pré-existentes (cross-spawn-spawner, sem relação); interop com squad.py
+  validada (`status` + `list` lêem o squad gerado); build smoke `0.1.0-sploit`
+  OK (backup criado; cópia do exe em uso — troca via self-restart pendente).
+- **Fix do retry do Copilot (rate limit utility models)** ✔: `retryable()` em
+  `retry.ts` passou a reconhecer texto de rate limit na message/responseBody do
+  `APIError` antes do bail-out de `isRetryable` — cobre o 403 do Copilot free
+  ("exceeded your rate limit for utility models"), retry com backoff até a
+  janela reabastecer; typecheck opencode OK (0 erros); `retry.test.ts` 39 pass
+  (2 novos: retenta rate limit do Copilot com isRetryable=false; texto no
+  responseBody) ✔
 
 ## Armadilhas
 

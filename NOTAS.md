@@ -6,6 +6,105 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-15] Copilot free "parou de novo" — causa raiz no bucket de utility models + fix no retry
+- **Como raciocinei**: a sessão "home" (gpt-4o) morria no meio do turno com
+  `AI_APICallError: Sorry, you've exceeded your rate limit for utility models.` Em vez
+  de culpar o provider, fui ao código: o `retry.ts` só retentava erro marcado
+  retryable (429/5xx) — o GitHub responde esse limite com **403** (isRetryable=false)
+  → o turno morria. Testei na API antes de mexer: o token funciona (GET /models 200),
+  os premium (claude-sonnet-5, gemini-3.5-flash, kimi-k3, gpt-5.*) dão HTTP 400 no
+  plano free (não são escapatória), e os utility (gpt-4o/mini/gpt-4.1) voltaram a
+  responder — ou seja, era uma janela deslizante que reabastece sozinha.
+- **O que valeu a pena**: medir antes de corrigir (curl na API provou que o bucket
+  reseta — fix de retry é a resposta certa, não troca de modelo). E ler o código do
+  fluxo inteiro (message-v2 → error.ts → retry.ts) para ver que o ramo `APIError`
+  NÃO tinha a checagem de texto de rate limit que o ramo de texto puro já tinha —
+  espelhar essa checagem no ramo de `APIError`, antes do bail-out de isRetryable,
+  custou ~10 linhas e cobre o caso.
+- **Entregue**: `retry.ts` reconhece "rate limit"/"too many requests"/"rate increased
+  too quickly" na message/responseBody de `APIError` → retry com backoff; 2 testes
+  novos; retry.test.ts 39 pass; typecheck opencode OK. Binário aguarda restart.
+
+
+## [2026-08-14] Setup automático de squad no onboarding (banner + wizard na TUI)
+- **Como raciocinei**: o squad_request.md pediu três coisas — detecção automática ao
+  abrir projeto, revisão amigável das áreas antes de criar e a geração do time. Em vez
+  de colar a lógica no TUI (que não pode importar do `@sploit-ai/opencode` por ciclo),
+  movi detecção + geração para o CORE (o `@sploit-ai/core/squad/*` é importável de
+  qualquer pacote) e deixei o CLI do opencode como re-export — zero quebra. O ponto
+  mais delicado era o wizard dentro de diálogos aninhados: o `dialog.replace` desmonta
+  o componente a cada troca de diálogo, então guardei o estado editável num Map
+  module-level chaveado por diretório — sobrevive ao unmount e volta intacto. O banner
+  usou o padrão do projeto (createEffect + setInterval + onCleanup, Bun.file), dismiss
+  via KV com janela de 7 dias para não incomodar de novo na mesma semana.
+- **O que valeu a pena**: validar o formato GERADO contra a ferramenta que já existia
+  (`squad.py`) antes de fechar — `status` e `list` leram o squad que o `gerarSquad`
+  escreve, provando interop real sem teste manual depois. Também valeu conferir as APIs
+  de diálogo no código (DialogPrompt.show existe, DialogSelect NÃO faz clear depois do
+  onSelect — então `dialog.replace` dentro do onSelect é seguro, igual ao
+  dialog-export-options). O filtro `path === "."` no banner evita oferecer "squad" para
+  projeto monorepo com um único fallback "Dev".
+- **Entregue**: `core/src/squad/detectar.ts` + `gerar.ts` (formato idêntico ao squad.py),
+  `tui/src/routes/session/squad-setup.tsx` (SquadSetupBanner + DialogSquadSetup) montado
+  junto ao SquadDock, 5 testes novos passando, typecheck core/tui/opencode OK, build
+  smoke OK. Commit motor pendente (validação visual no binário novo).
+- **Observações**: suíte core tem 2 falhas pré-existentes em cross-spawn-spawner
+  (Windows flaky, sem relação). O binário novo aguarda self-restart (exe em uso).
+
+## [2026-08-14] Copilot free como provider principal + fix do retry do Gemini
+- **Como raciocinei**: com big-pickle travado por IP e Gemini 2.5/3 estourando a cota
+  free (log: 2.5 = 20 req/min; 3 = 250k tokens entrada/min + 5 req/min, ~32k por chamada;
+  groq small_model = 8k TPM vs 32.5k pedidos → sempre falha), a saída foi o GitHub
+  Copilot free. Testei direto na API: o plano free expõe `gpt-4.1`, `gpt-4o`, `gpt-4o-mini`
+  via `/chat/completions` (200 OK); modelos como `gpt-5.6-luna-free-auto` e
+  `mai-code-1.1-flash` aparecem no `/models` mas respondem "model_not_supported".
+  Dois achados de motor: (1) `retry.ts` só lia `retry-after` dos headers — o Gemini
+  manda o tempo no CORPO (`RetryInfo.retryDelay: "29s"` / "Please retry in 29.47s."),
+  então o motor martelava a API queimando a cota; (2) o plugin Copilot filtrava o
+  catálogo por `model_picker_enabled`, que é `false` para TODOS os modelos no plano
+  free → catálogo vazio e provider inutilizável.
+- **O que valeu a pena**: reproduzir o rate-limit do Gemini com o corpo `RetryInfo`
+  no log e replicar o device flow OAuth do Copilot por script (o CLI `auth login`
+  é interativo; o device flow manual com `client_id Ov23li8tweQw6odWQebz` + polling
+  no `login/oauth/access_token` resolveu e gravou `type: "oauth"` no auth.json).
+  Também valeu ver a precedência de configuração: o hook `provider.models` do plugin
+  roda ANTES do merge de config providers, então configurar modelos manualmente no
+  `sploit.json` sobrescreveria o catálogo vazio do free — mas a correção no plugin
+  (fallback para todos os modelos usáveis quando o picker está vazio) é mais robusta.
+- **Entregue**: (1) `retry.ts` agora parseia `RetryInfo.retryDelay` e "Please retry in
+  Xs" do corpo (34/37→44 testes, typecheck ok); (2) `copilot.ts` fallback de picker
+  para plano free + teste; (3) `auth.json` com `github-copilot` oauth; (4) `sploit.json`:
+  plan/build = `github-copilot/gpt-4.1`, small_model = `github-copilot/gpt-4o-mini`;
+  (5) build `sploit.exe` (0.1.0-sploit, smoke test passou). Validação: `sploit run`
+  com `github-copilot/gpt-4.1` respondeu "OK" e o catálogo lista os modelos copilot.
+- **Observações**: sessão ATUAL ainda está no gemini-2.5-flash (modelo por sessão) —
+  após reiniciar com o binário novo, abrir sessão nova ou `/model` para usar o copilot.
+
+
+## [2026-08-14] Diagnóstico: "voltou no 2.5" após trocar para gemini-3-flash-preview
+- **Como raciocinei**: o usuário trocou plan/build para `google/gemini-3-flash-preview`
+  (validado e editado em sploit.json), reiniciou, e o modelo continuava 2.5-flash.
+  Suspeitas em ordem: (1) `.sploit/sploit.json` sobrescreveria a config da raiz —
+  DESCARTADO, só tem provider local fmm-local + plugin graphify, nenhum modelo;
+  (2) config não recarregada — DESCARTADO, restart foi 1 min após o edit; (3) modelo
+  persistido por sessão no banco — CONFIRMADO. Consultando `sploit.db` (SQLite via
+  `node:sqlite`, coluna `model` na tabela `session`), a sessão ativa
+  `ses_ffec3b56` (criada 14:05, antes do edit) tinha `{"id":"gemini-2.5-flash",
+  "providerID":"google"}` gravado.
+- **O que valeu a pena**: rastrear no código a precedência do modelo: o TUI
+  restaura o modelo da última mensagem do usuário ao carregar a sessão
+  (`packages/tui/src/component/prompt/index.tsx:327` → `local.model.set`), e no
+  submit esse modelo vira `input.model`, que vence a config
+  (`packages/opencode/src/session/prompt.ts:648`: `input.model ?? ag.model ??
+  currentModel`). Ou seja: **o modelo é por sessão**; a config define só o default
+  de sessões novas. Também descobri que o sqlite3 não está no PATH do Windows e
+  `node:sqlite` (Node 22+) resolve sem dependência.
+- **Entregue**: diagnóstico concluído e registrado no SPLOIT_STATE.md. Correção:
+  abrir sessão NOVA ou `/model` → `google/gemini-3-flash-preview`. Se o produto
+  exigir que sessão retomada siga a config, é mudança no prompt/index.tsx:327
+  (decisão de produto, não bug).
+
+
 ## [2026-08-11] Dock do squad na TUI — "sempre mostra eles vivos ali trabalhando"
 - **Como raciocinei**: o usuário pediu para remover os bonecos ("ta muito feio,
   nada ver") e, ao ver a versão web, disse "não quero ver no web, só o modo
@@ -945,3 +1044,62 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   mutacoes e 5,3% na janela da noite; Graphify reindexado (28941 nos, 55870
   arestas, 2424 comunidades); genes: G-verificacao 27 obs, G-idempotencia 7.
   Commit `4f641b1`.
+
+## [2026-08-14] Diagnóstico do "Free limit reached" do big-pickle + script zen-check
+- **Como raciocinei**: o usuário colocou uma chave nova (nunca usada) no
+  auth.json e o big-pickle continuou devolvendo "Free limit reached". Em vez de
+  culpar a chave ou o self-restart, fui direto à fonte: testei o endpoint da
+  opencode.ai (`zen/v1/chat/completions`) COM a chave nova, SEM chave, e via
+  `models list` (200 = chave válida). O mesmo `FreeUsageLimitError` (429)
+  aparece com e sem chave -> o limite do free tier é por IP/rede, não por chave.
+  O self-restart (modo contínuo) não é o problema: o relaunch.log mostra o ciclo
+  normal de mata/troca/relança por design.
+- **O que valeu a pena**: (1) testar o endpoint direto (curl) antes de mexer em
+  qualquer coisa — a evidência fechou a hipótese em 1 minuto; (2) scripts novos
+  do projeto PRECISAM de BOM UTF-8 no PS 5.1 (primeiro teste do zen-check morreu
+  com "string sem terminador" por causa do em-dash lido como ANSI — mesma
+  família da L-utf8); (3) auth.json real fica em `~/.local/share/sploit`
+  (xdg-basedir), não em %APPDATA% — o script tenta as 3 localizações.
+- **Entregue**: `scripts/zen-check.ps1` (IP atual + teste com/sem chave +
+  veredito). Uso: rodar no PC e de novo no celular (hotspot) para confirmar a
+  hipótese do IP.
+- **Verificado**: `zen-check.ps1` rodou nos 2 modos (normal e -NoKey): 429 com e
+  sem chave => veredito "limite POR IP/rede". IP atual: 138.94.169.15.
+
+## [2026-08-14] Migração do modelo principal pro Gemini free (fim do free tier da opencode.ai)
+- **Como raciocinei**: confirmado que o big-pickle (free tier opencode.ai) é
+  limitado por IP com janela de SEGUNDOS (testado: com chave e sem chave = 429,
+  inclusive no IP do hotspot do celular). Assinar Go custa dólar (inviável pro
+  usuário). groq free capa em 8k de contexto — trava o Sploit. Sobraram 2 opções
+  grátis R$0: Gemini (AI Studio) e OpenRouter. O usuário criou as 2 chaves.
+- **O que valeu a pena**: (1) testar a chave ANTES de configurar (Gemini
+  `generateContent` 200 + resposta real; OpenRouter deu 402 — o free tier exige
+  crédito, mesmo modelo "grátis", então não serve como principal); (2) o auth.json
+  aceita `api` por provider (id `google`, `openrouter`) exatamente como `opencode`
+  e `groq` — sem precisar de env var; (3) a prática de escrever JSON em arquivo
+  temp antes do curl no PS 5.1 (a interpolação inline quebra as aspas).
+- **Entregue**: auth.json com `google` + `openrouter`; sploit.json com plan/build
+  = `google/gemini-2.5-flash` (1M ctx, free). small_model segue groq.
+- **Verificado**: JSONs válidos; chave google funcional; chave openrouter
+  funcional mas com restrição de crédito (402). **Aguardando restart do Sploit
+  pra carregar o config novo** (config não é hot-reloaded).
+
+## [2026-08-14] Empacotador de teste (package-test.ps1) + licença
+- **Como raciocinei**: o usuário perguntou se no outro PC ia dar "licença
+  venceu". Varri o código: não existe mecanismo de licença no Sploit (é MIT; os
+  únicos "expired" são tokens OAuth/device-code). O que quebraria num PC
+  alheio: (1) auth.json não viaja (chaves ficam em ~/.local/share/sploit);
+  (2) sploit.json tem paths absolutos da máquina (superpowers, venv/graphify).
+  Pedido: empacotar pra teste com big-pickle como padrão.
+- **O que valeu a pena**: (1) descobrir que big-pickle autoload SEM chave (o
+  loader do provider opencode mantém modelos com cost.input=0 e o limite é por
+  IP) — então o pacote default pode ir sem segredos e ainda funciona plug-and-
+  play; (2) o pacote deve REGENERAR sploit.json (nunca copiar o da raiz) pra
+  eliminar os paths da máquina; (3) JSON/MD escritos via WriteAllText UTF-8 sem
+  BOM (PS 5.1 com BOM quebraria JSON em runtime); setup.bat em ASCII puro.
+- **Entregue**: `scripts/package-test.ps1` (gera sploit-teste/ com sploit.exe +
+  sploit.json [plan/build=big-pickle, small_model=gpt-5-nano, sem plugins/MCP] +
+  INSTALAR.md + setup.bat; `-IncludeKeys` adiciona só a chave opencode;
+  `-Out` customiza destino). `sploit-teste/` adicionado ao .gitignore.
+- **Verificado**: pacote gerado e JSON validado (ConvertFrom-Json OK); big-pickle
+  como plan/build confirmado no sploit.json gerado.

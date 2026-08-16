@@ -97,9 +97,12 @@ Fases da noite (uma por ciclo, nesta ordem):
       corrigido no melh-8); genes: G-verificacao 27 obs, G-idempotencia 7;
       **incidente L-utf8**: NOTAS.md corrompido pelo Add-Content cp1252,
       reconstruído em UTF-8 (commit `4f641b1`).
-- [ ] **I — Prova real da celebração**: rodar o supervisor num squad temporário
-      com 1 tarefa até a fila zerar e confirmar o post `✨ fila concluída` no
-      quadro (e2e real, não só unit).
+- [x] **I — Prova real da celebração**: supervisor num squad temporário
+      (demo-e2e) lançou o Bruno real (PID 380), ele criou `ola.txt` com 'oi',
+      postou `(feito)` e o supervisor postou `✨ fila concluída: 1 entrega ·
+      0 bloqueios` ao zerar a fila — e2e real, não só unit. Plural corrigido
+      (`1 entregas` → `1 entrega`) com teste ajustado; 12/12 testes. Commit
+      `e60192e`.
 - [ ] **E — Encerramento**: relato do modo contínuo em NOTAS.md, SPLOIT_STATE.md
       atualizado, diagnóstico + sync nuvem, reindex Graphify, garantir tree
       limpa.

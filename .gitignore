@@ -3,6 +3,9 @@ sploit.exe
 sploit.exe.bak
 logs/
 
+# Pacote de teste (package-test.ps1)
+sploit-teste/
+
 # Download antigo do repositório (duplicado, pode remover)
 sploit-master.zip
 
