@@ -112,7 +112,8 @@ Write-Host "Instalacao concluida!" -ForegroundColor Green
 Write-Host ""
 Write-Host "  1. Feche e abra um terminal novo (o PATH muda so ao reabrir)."
 Write-Host "  2. Va ate a pasta de um projeto e rode:  sploit"
-Write-Host "  3. O Sploit busca atualizacoes sozinho quando abre."
+Write-Host "  3. Ja abre usando o big-pickle (servidor gratuito da opencode, sem API key)."
+Write-Host "  4. O Sploit busca atualizacoes sozinho quando abre."
 Write-Host ""
 if ($CloudflareURL) {
     Write-Host "Conhecimento coletivo ativo (Cloudflare)!" -ForegroundColor Green

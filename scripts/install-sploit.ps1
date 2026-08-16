@@ -30,8 +30,10 @@
 # arquivo "conhecimento.txt" na mesma pasta (gerado pelo pack-dist.ps1 dentro
 # do pacote de distribuicao). Nesse caso o amigo nao precisa digitar nada.
 #
-# Apos instalar, cada usuario precisa configurar o modelo/API key:
-#   sploit          # abre a TUI; o primeiro acesso guia para escolher o provider
+# O Sploit sai funcionando SEM configurar nada: o modelo padrao e o
+# "big-pickle", servido pelo servidor gratuito da opencode (OpenCode Zen),
+# sem API key - exatamente como o opencode vem instalado. Esse default e
+# gravado no sploit.jsonc gerado; para trocar depois, edite o arquivo.
 
 param(
     [string]$BinPath = "",
@@ -260,6 +262,21 @@ Instrucoes de identidade que valem em qualquer pasta, independente de haver um `
     if (-not $config.'$schema') {
         $config | Add-Member -NotePropertyName '$schema' -NotePropertyValue "https://opencode.ai/sploit.json" -Force
     }
+    # Modelo padrao "out of the box": big-pickle via OpenCode Zen (servidor da
+    # opencode, gratuito, SEM API key). Gravado explicito no sploit.jsonc para
+    # garantir o mesmo comportamento em qualquer PC, independente de mudancas
+    # no catalogo de modelos. Quando o dono tiver a propria IA, e so editar
+    # este arquivo (ou este bloco) e apontar para o provider/modelo proprio.
+    $modeloPadrao = "opencode/big-pickle"
+    if (-not $config.agent) {
+        $config | Add-Member -NotePropertyName agent -NotePropertyValue ([pscustomobject]@{}) -Force
+    }
+    $agent = $config.agent
+    if (-not $agent.plan)  { $agent | Add-Member -NotePropertyName plan  -NotePropertyValue ([pscustomobject]@{}) -Force }
+    if (-not $agent.build) { $agent | Add-Member -NotePropertyName build -NotePropertyValue ([pscustomobject]@{}) -Force }
+    if (-not $agent.plan.model)  { $agent.plan  | Add-Member -NotePropertyName model  -NotePropertyValue $modeloPadrao -Force }
+    if (-not $agent.build.model) { $agent.build | Add-Member -NotePropertyName model  -NotePropertyValue $modeloPadrao -Force }
+    if (-not $config.small_model) { $config | Add-Member -NotePropertyName small_model -NotePropertyValue $modeloPadrao -Force }
     $config | ConvertTo-Json -Depth 8 | Set-Content -Path $sploitJsonc -Encoding UTF8
 
     Write-Host "[3/3] Config global do Sploit criada em $configDir" -ForegroundColor Green
@@ -311,7 +328,9 @@ Write-Host ""
 Write-Host "Agora:"
 Write-Host "  1. Feche e abra um terminal novo (para o PATH valer)."
 Write-Host "  2. Va ate a pasta de um projeto e rode: sploit"
-Write-Host "  3. Na primeira vez, o Sploit pergunta qual modelo/provider usar."
+Write-Host "  3. Pronto: ja abre usando o big-pickle (servidor gratuito da opencode,"
+Write-Host "     sem API key). Se a cota gratuita acabar, troque para o plano pago"
+Write-Host "     da opencode (sploit auth login) ou edite o sploit.jsonc."
 Write-Host ""
 if ($CloudflareURL) {
     Write-Host "Conhecimento coletivo ativo (Cloudflare)! As licoes dos outros PCs"

@@ -136,9 +136,22 @@ $readme = @"
 3. Feche e abra um terminal novo.
 4. Va ate a pasta do seu projeto e rode:
        sploit
-5. Na primeira vez, o Sploit pergunta qual modelo/provider usar.
 
 Depois disso, ``sploit`` funciona em qualquer pasta.
+
+## Modelo de IA (sem API key)
+
+O Sploit ja sai funcionando **sem configurar nada**: usa o ``big-pickle``,
+servido pelo servidor gratuito da opencode (OpenCode Zen). Nenhuma API key,
+nenhuma conta - igual o opencode vem instalado.
+
+- O modelo fica definido em ``~\.config\sploit\sploit.jsonc``
+  (``agent.plan/build.model`` e ``small_model``).
+- A cota gratuita do servidor tem limite por IP. Quando esgotar (mensagem
+  "rate limit"), o amigo pode trocar para o plano pago da opencode
+  (``sploit auth login``) ou configurar outro provider no mesmo arquivo.
+- Quando o dono do Sploit tiver a propria IA, e so editar o ``sploit.jsonc``
+  e apontar para o provider/modelo proprio - sem mudar nada no resto.
 
 ## Conhecimento coletivo
 
@@ -171,7 +184,8 @@ nuvem) sobe as licoes automaticamente e os outros PCs as recebem.
 ## Duvidas
 
 - ``sploit`` nao encontrado? Abra um terminal novo (o PATH muda so ao reabrir).
-- Primeira tela perguntando modelo? Escolha o provider e cole a sua API key.
+- Mensagem de "rate limit" ao usar? E a cota gratuita do servidor; troque para
+  o plano pago da opencode (``sploit auth login``).
 "@
 $readme | Set-Content -Path (Join-Path $pkgDir "LEIA-ME.txt") -Encoding UTF8
 
