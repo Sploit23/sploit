@@ -6,6 +6,31 @@
 > **Registro automático** (Constituição, art. 4): o Sploit grava a nota de evolução
 > ao concluir tarefas — *"como raciocinei e o que valeu a pena"*. `/resumo` é legado.
 
+## [2026-08-16] Pipeline de distribuição + auto-update via GitHub Releases
+- **Como raciocinei**: o pedido foi "amigos instalam com um comando e sempre
+  atualizados". Antes de codar, li a infra inteira (installation/index.ts, upgrade.ts
+  stub, TUI, build/pack/install .ps1) para descobrir que o motor já tinha o esqueleto
+  do upgrade (métodos curl/npm/etc., evento `installation.update-available` no TUI que
+  NUNCA era emitido). O caminho foi: reusar o que existia em vez de criar do zero —
+  adicionei o método `"sploit"` ao lado dos outros, troquei o repo no `latest()`, e o
+  check de boot no TUI apenas EMITE o evento que o diálogo já sabia tratar (zero UI
+  nova). Para a troca do binário, a lição do relaunch desanexado (que já vivia no
+  self-restart) voltou: o script de swap espera o PID atual sair, copia `.bak`, troca
+  e relança com os argv originais — rodando em background via `cmd start`.
+- **O que valeu a pena**: (1) separar download/troca da chamada de upgrade — o
+  `Effect.runFork` devolve na hora e o TUI não trava no download; (2) a decisão de
+  segurança antecipada: `-SkipConhecimento` no pack evita vazar a senha da nuvem em
+  release PÚBLICO (validei o zip real: sem conhecimento.txt); (3) testar o zip com o
+  layout que o `upgradeSploit` espera (sploit.exe na raiz) antes de publicar — `git
+  diff` da pasta vs. zip via .NET ZipArchive; (4) fallback `gh`/`GITHUB_TOKEN` no
+  release.ps1 para não travar no PC dos amigos nem na minha máquina.
+- **Entregue**: motor (método sploit, SPLOIT_REPO, latest/upgrade reais, upgrade.ts
+  CLI PT-BR, handler cai pra sploit), TUI (check no boot + diálogo PT-BR), scripts
+  (build-sploit -Version, pack-dist -SkipConhecimento, release.ps1, install-online.ps1
+  1 comando). Typecheck motor+tui OK, build smoke OK, `sploit upgrade` responde,
+  zip de teste validado. Bloqueio: auth do GitHub Releases (gh/token) para publicar
+  a v0.1.1-sploit real.
+
 ## [2026-08-15] Restart do binário novo + commits do motor — validação visual em vista
 - **Como raciocinei**: retomada com `--continue`, o passo pendente do estado era
   ativar o binário novo (fix Copilot + squad setup). Em vez de rodar o self-restart

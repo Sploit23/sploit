@@ -527,6 +527,15 @@ pendente). Commit motor   `7c281b9`.
   árvore idêntica (`git diff master origin/master` = 0), 123 commits, root
   `d6d1612`. Lição de processo: `git add <dir>` com `.git` interno ignorado
   AINDA vira gitlink — é preciso renomear o `.git` temporariamente.
+- **Pipeline de distribuição + auto-update (16/08)** ✔: os amigos instalam com
+  1 comando (`install-online.ps1` via `irm ... | iex`, baixa a última release e
+  chama o `install-sploit.ps1` embutido — instala em `%LOCALAPPDATA%\Sploit\bin`,
+  PATH do usuário, config global; aceita `-CloudflareURL/-Senha` para o
+  conhecimento coletivo) e o binário se atualiza sozinho no boot (check no TUI +
+  upgrade no motor via GitHub Releases, swap seguro com `.bak` e relaunch
+  desanexado). Detalhes no Próximo passo. Bloqueio: auth do GitHub Releases
+  (`gh` CLI não instalado nem `GITHUB_TOKEN`) — `release.ps1` já está pronto
+  para os dois caminhos.
 
 ## Próximo passo
 
@@ -539,16 +548,29 @@ pendente). Commit motor   `7c281b9`.
   histórico do GitHub (3 commits de snapshot antigo de 05/08, história separada)
   substituído pela árvore atual completa — `git diff master origin/master` = 0.
   Histórico: 123 commits, root `d6d1612` → `e247cd5`.
-- ⏳ PRÓXIMO: montar o pipeline de distribuição pros amigos usando o GitHub:
-  1. `scripts/release.ps1` — build (`OPENCODE_VERSION` do build-sploit.ps1),
-     empacota dist + scripts + config, cria tag `v<versão>` + GitHub Release com
-     asset (usar `gh` CLI ou token — decidir auth).
-  2. Auto-update no boot: apontar `src/installation/index.ts` (hoje consulta
-     `anomalyco/opencode`) + `src/cli/cmd/upgrade.ts` (stub) para `Sploit23/sploit`
-     → detectar release mais novo → baixar asset → troca segura via
-     `scripts/relaunch.ps1` (padrão do self-restart).
-  3. Validar ponta a ponta: release real no GitHub + boot de um "amigo" pegando
-     o binário novo.
+- ⏳ PRÓXIMO: montar o pipeline de distribuição pros amigos usando o GitHub.
+  **Implementado (16/08)**:
+  1. `scripts/release.ps1` — build (`build-sploit.ps1 -Version`) + pack público
+     (`pack-dist.ps1 -SkipConhecimento`, sem a senha da nuvem) + tag `v<ver>` +
+     GitHub Release com asset (`gh` CLI ou `GITHUB_TOKEN`; build/zip já gerados
+     mesmo sem auth).
+  2. Auto-update no boot: `installation/index.ts` ganhou método `"sploit"`
+     (detecção por `execPath`) + `SPLOIT_REPO = "Sploit23/sploit"` + `latest()`
+     consultando o repo próprio + `upgradeSploit` (baixa o asset via http,
+     extrai com Expand-Archive, escreve script de swap que espera o PID atual
+     sair, troca o exe com `.bak` e relança com os argv originais — desanexado
+     via `cmd start`; roda em background com `Effect.runFork`). `upgrade.ts`
+     (CLI) real (semver, método sploit, mensagens PT-BR). TUI: check no boot
+     (fetch na API GitHub, compara com `isVersionGreater`, emite o evento
+     `installation.update-available` local — reusa o diálogo existente, que
+     ficou PT-BR). Handler `global.ts` cai para `"sploit"` quando o método é
+     desconhecido. Validação: typecheck motor+tui OK, build smoke
+     `0.1.0-sploit` OK, `sploit upgrade` responde (404 até existir release),
+     zip de teste `0.1.1-sploit` com `sploit.exe` na raiz e SEM conhecimento.txt.
+  3. ⏳ FALTA (depende de auth GitHub): rodar `release.ps1` de verdade (instalar
+     `gh` e `gh auth login`, ou `GITHUB_TOKEN`), publicar `v0.1.1-sploit` e
+     validar o boot de um "amigo" (`install-online.ps1`). Commit motor/raiz em
+     andamento.
 - Pendência antiga ainda aberta: validação visual do banner/wizard de squad no
   binário novo (ef95257/50a223d/273a7e7 já commitados; restart 23:28 PID 10056).
 
@@ -942,6 +964,13 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   janela reabastecer; typecheck opencode OK (0 erros); `retry.test.ts` 39 pass
   (2 novos: retenta rate limit do Copilot com isRetryable=false; texto no
   responseBody) ✔
+- **Pipeline de distribuição + auto-update (16/08)** ✔: typecheck motor+tui OK
+  (0 erros); build smoke `0.1.0-sploit` OK (backup criado; binário novo copiado
+  na raiz — restart pendente para o usuário usar o auto-update); `sploit upgrade`
+  rodou no binário novo (detectou método "sploit", 404 até existir release —
+  esperado); `pack-dist.ps1 -SkipConhecimento` validado (zip `0.1.1-sploit` com
+  `sploit.exe` na raiz, SEM conhecimento.txt, 48,1 MB); parse OK nos 4 .ps1
+  (release/install-online/pack-dist/build-sploit) ✔
 
 ## Armadilhas
 
