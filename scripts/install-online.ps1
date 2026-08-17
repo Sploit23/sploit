@@ -12,15 +12,18 @@
 #   -CloudflareURL   URL do Worker do conhecimento coletivo
 #   -Senha           Senha compartilhada do conhecimento coletivo
 #   -Version         Versao especifica (padrao: ultima release)
+#   -OpenCodeKey     API key da opencode para autenticar (cota propria)
 #
-# Tambem le de env vars: SPLOIT_CLOUDFLARE_URL, SPLOIT_SENHA, SPLOIT_VERSION.
+# Tambem le de env vars: SPLOIT_CLOUDFLARE_URL, SPLOIT_SENHA, SPLOIT_VERSION, SPLOIT_OPENCODE_KEY.
 # Sem URL/senha o Sploit instala sem o conhecimento coletivo (a senha da nuvem
 # NAO viaja em release publica; passe os parametros se quiser ativar).
+# Sem API key usa a chave "public" (cota compartilhada, rate limit mais apertado).
 
 param(
     [string]$Version = "",
     [string]$CloudflareURL = "",
-    [string]$Senha = ""
+    [string]$Senha = "",
+    [string]$OpenCodeKey = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -29,6 +32,7 @@ $repo = "Sploit23/sploit"
 if (-not $CloudflareURL) { $CloudflareURL = $env:SPLOIT_CLOUDFLARE_URL }
 if (-not $Senha) { $Senha = $env:SPLOIT_SENHA }
 if (-not $Version) { $Version = $env:SPLOIT_VERSION }
+if (-not $OpenCodeKey) { $OpenCodeKey = $env:SPLOIT_OPENCODE_KEY }
 
 function Invoke-Download([string]$Url, [string]$Destino) {
     $curlPath = (Get-Command curl.exe -ErrorAction SilentlyContinue).Source
@@ -95,6 +99,7 @@ $installScript = Join-Path $tmpDir "install-sploit.ps1"
 $installArgs = @("-BinPath", $exePath)
 if ($CloudflareURL) { $installArgs += @("-CloudflareURL", $CloudflareURL) }
 if ($Senha) { $installArgs += @("-Senha", $Senha) }
+if ($OpenCodeKey) { $installArgs += @("-OpenCodeKey", $OpenCodeKey) }
 
 Write-Host "==> Instalando ..." -ForegroundColor Yellow
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installScript @installArgs
@@ -112,7 +117,13 @@ Write-Host "Instalacao concluida!" -ForegroundColor Green
 Write-Host ""
 Write-Host "  1. Feche e abra um terminal novo (o PATH muda so ao reabrir)."
 Write-Host "  2. Va ate a pasta de um projeto e rode:  sploit"
-Write-Host "  3. Ja abre usando o big-pickle (servidor gratuito da opencode, sem API key)."
+if ($OpenCodeKey) {
+    Write-Host "  3. Ja abre autenticado com API key propria (cota completa)." -ForegroundColor Green
+} else {
+    Write-Host "  3. Ja abre usando o big-pickle (servidor gratuito da opencode)."
+    Write-Host "     Sem API key: cota compartilhada com rate limit."
+    Write-Host "     Para melhor performance, rode: sploit auth login"
+}
 Write-Host "  4. O Sploit busca atualizacoes sozinho quando abre."
 Write-Host ""
 if ($CloudflareURL) {

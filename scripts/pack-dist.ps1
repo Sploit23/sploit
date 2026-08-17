@@ -21,7 +21,8 @@
 param(
     [switch]$SkipBuild,
     [string]$Version = "",
-    [switch]$SkipConhecimento
+    [switch]$SkipConhecimento,
+    [string]$OpenCodeKey = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -117,6 +118,28 @@ if (Test-Path (Join-Path $root "APRENDIZADO.md")) {
     Copy-Item (Join-Path $root "APRENDIZADO.md") (Join-Path $pkgDir "APRENDIZADO.md") -Force
 }
 
+# Auth da opencode (API key para cota propria no PC do amigo)
+# - Se informada via -OpenCodeKey, usa direto.
+# - Se nao, tenta ler de ~/.local/share/sploit/auth.json (auth ja configurada).
+# - NUNCA vai pro GitHub em release publico (a key viaja no zip pessoal, nao no repo).
+if (-not $OpenCodeKey) {
+    $authPath = Join-Path $env:USERPROFILE ".local\share\sploit\auth.json"
+    if (Test-Path $authPath) {
+        try {
+            $auth = Get-Content $authPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($auth.opencode -and $auth.opencode.key) {
+                $OpenCodeKey = $auth.opencode.key
+            }
+        } catch {}
+    }
+}
+if ($OpenCodeKey) {
+    $OpenCodeKey | Set-Content -Path (Join-Path $pkgDir "opencode-key.txt") -Encoding UTF8 -NoNewline
+    Write-Host "==> Auth opencode embutida no pacote (opencode-key.txt) - cota propria." -ForegroundColor Green
+} else {
+    Write-Host "==> Sem API key: pacote usa chave publica (cota compartilhada)." -ForegroundColor Yellow
+}
+
 # Config global de identidade (copiada da config do PC atual, se existir)
 if (Test-Path (Join-Path $configDir "tui.json")) {
     Copy-Item (Join-Path $configDir "tui.json") (Join-Path $pkgDir "tui.json") -Force
@@ -145,11 +168,15 @@ O Sploit ja sai funcionando **sem configurar nada**: usa o ``big-pickle``,
 servido pelo servidor gratuito da opencode (OpenCode Zen). Nenhuma API key,
 nenhuma conta - igual o opencode vem instalado.
 
+Se este pacote veio com a chave de autenticacao embutida (``opencode-key.txt``),
+o Sploit ja sai com **cota propria** - sem rate limit da chave publica.
+Nao e preciso fazer nada: a auth ja esta configurada.
+
 - O modelo fica definido em ``~\.config\sploit\sploit.jsonc``
   (``agent.plan/build.model`` e ``small_model``).
 - A cota gratuita do servidor tem limite por IP. Quando esgotar (mensagem
-  "rate limit"), o amigo pode trocar para o plano pago da opencode
-  (``sploit auth login``) ou configurar outro provider no mesmo arquivo.
+  "rate limit"), rode ``sploit auth login`` para configurar sua propria key
+  ou troque para outro provider no mesmo arquivo.
 - Quando o dono do Sploit tiver a propria IA, e so editar o ``sploit.jsonc``
   e apontar para o provider/modelo proprio - sem mudar nada no resto.
 

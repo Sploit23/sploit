@@ -19,6 +19,7 @@ graphify-out/
 # Segredos (nunca commitar)
 APIKEY.txt
 key.txt
+opencode-key.txt
 .sploit.conf.yml
 
 # Senha do servidor web (sploit-web.ps1)

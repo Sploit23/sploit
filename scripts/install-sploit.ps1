@@ -40,6 +40,7 @@ param(
     [string]$CloudflareURL = "",
     [string]$Senha = "",
     [string]$RepoConhecimento = "",
+    [string]$OpenCodeKey = "",
     [switch]$SkipConfig
 )
 
@@ -123,7 +124,13 @@ function Invoke-Download([string]$Url, [string]$Destino) {
 # ---------------------------------------------------------------------------
 $installDir = Join-Path $env:LOCALAPPDATA "Sploit\bin"
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-Copy-Item $BinPath (Join-Path $installDir "sploit.exe") -Force
+$targetExe = Join-Path $installDir "sploit.exe"
+$resolvedBin = (Resolve-Path $BinPath).Path
+$resolvedTarget = (Resolve-Path $installDir -ErrorAction SilentlyContinue)
+if ($resolvedTarget) { $resolvedTarget = Join-Path $resolvedTarget.Path "sploit.exe" }
+if ($resolvedBin -ne $resolvedTarget) {
+    Copy-Item $BinPath $targetExe -Force
+}
 Write-Host "[1/3] sploit.exe instalado em $installDir\sploit.exe" -ForegroundColor Green
 
 # ---------------------------------------------------------------------------
@@ -280,6 +287,48 @@ Instrucoes de identidade que valem em qualquer pasta, independente de haver um `
     $config | ConvertTo-Json -Depth 8 | Set-Content -Path $sploitJsonc -Encoding UTF8
 
     Write-Host "[3/3] Config global do Sploit criada em $configDir" -ForegroundColor Green
+
+    # -----------------------------------------------------------------------
+    # 3b. Auth da opencode: se o amigo tem uma API key, grava auth.json
+    #     para usar cota propria em vez da chave "public" compartilhada.
+    #     Tambem le de arquivo "opencode-key.txt" no pacote (padrao
+    #     conhecimento.txt pattern) ou env var SPLOIT_OPENCODE_KEY.
+    # -----------------------------------------------------------------------
+    if (-not $OpenCodeKey) { $OpenCodeKey = $env:SPLOIT_OPENCODE_KEY }
+    if (-not $OpenCodeKey) {
+        $keyFile = Join-Path $here "opencode-key.txt"
+        if (Test-Path $keyFile) {
+            $OpenCodeKey = (Get-Content $keyFile -ErrorAction SilentlyContinue | Where-Object { $_.Trim() -ne "" } | Select-Object -First 1).Trim()
+            if ($OpenCodeKey) {
+                Write-Host "==> Chave opencode encontrada no pacote (opencode-key.txt)" -ForegroundColor Cyan
+            }
+        }
+    }
+    if ($OpenCodeKey) {
+        $authDir = Join-Path $env:LOCALAPPDATA "Sploit\auth"
+        if (-not (Test-Path $authDir)) {
+            # Sploit procura auth.json em ~/.local/share/sploit/auth.json
+            $authDir = Join-Path $env:USERPROFILE ".local\share\sploit"
+        }
+        New-Item -ItemType Directory -Force -Path $authDir | Out-Null
+        $authPath = Join-Path $authDir "auth.json"
+        # Merge: preserva auth existente de outros providers
+        $auth = @{}
+        if (Test-Path $authPath) {
+            try {
+                $existing = Get-Content $authPath -Raw -Encoding UTF8 | ConvertFrom-Json
+                foreach ($prop in $existing.PSObject.Properties) {
+                    $auth[$prop.Name] = $prop.Value
+                }
+            } catch {}
+        }
+        $auth["opencode"] = @{ type = "api"; key = $OpenCodeKey }
+        $auth | ConvertTo-Json -Depth 4 | Set-Content -Path $authPath -Encoding UTF8
+        Write-Host "     Auth opencode configurada (cota propria, sem rate limit)." -ForegroundColor Green
+    } else {
+        Write-Host "     Sem API key: usando chave publica (cota compartilhada)." -ForegroundColor Yellow
+        Write-Host "     Para melhor performance, rode: sploit auth login" -ForegroundColor Yellow
+    }
 
     # -----------------------------------------------------------------------
     # 4. /diagnostico global: script auxiliar + comando markdown.
