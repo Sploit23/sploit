@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { estadoAgente, parseQuadro, trabalhando } from "../../src/squad/dock-data"
+import { detectarPostsInvalidos, estadoAgente, parseQuadro, trabalhando } from "../../src/squad/dock-data"
 
 describe("squad dock-data", () => {
   describe("parseQuadro", () => {
@@ -48,6 +48,40 @@ não é um post
         ].join("\n"),
       )
       expect(estadoAgente(posts, "Carla")).toEqual({ estado: "feito", acao: "PR 42 revisado" })
+    })
+  })
+
+  describe("detectarPostsInvalidos", () => {
+    test("flags a post with an invented state (real bug: 'delegado' instead of pendente)", () => {
+      const texto = [
+        "**[Coordenador] (feito) time formado - [17/08/2026 11:12]**",
+        "**[Coordenador] (delegado) Webber, integre a API - [17/08/2026 11:25]**",
+      ].join("\n")
+      expect(detectarPostsInvalidos(texto)).toEqual([
+        { linha: 2, texto: "**[Coordenador] (delegado) Webber, integre a API - [17/08/2026 11:25]**" },
+      ])
+    })
+
+    test("flags the opening line of a post whose message was pasted across multiple lines", () => {
+      const texto = [
+        "**[Coordenador] (pendente) Webber, veja o exemplo:",
+        "```js",
+        "console.log(1)",
+        "```",
+        "— [17/08/2026 11:25]**",
+      ].join("\n")
+      const achados = detectarPostsInvalidos(texto)
+      expect(achados.length).toBe(1)
+      expect(achados[0]?.linha).toBe(1)
+    })
+
+    test("ignores well-formed posts and unrelated prose", () => {
+      const texto = [
+        "# Quadro do squad",
+        "> instruções de formato aqui",
+        "**[Carla] (pendente) revisando os testes de login - [14/08/2026 10:00]**",
+      ].join("\n")
+      expect(detectarPostsInvalidos(texto)).toEqual([])
     })
   })
 

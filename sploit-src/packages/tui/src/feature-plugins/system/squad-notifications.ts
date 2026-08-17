@@ -1,6 +1,7 @@
 import type { TuiPlugin, TuiPluginApi } from "@sploit-ai/plugin/tui"
 import type { BuiltinTuiPlugin } from "../builtins"
 import {
+  detectarPostsInvalidos,
   estadoAgente,
   parseQuadro,
   trabalhando,
@@ -14,11 +15,15 @@ const POLL_MS = 4000
 const LIMIAR_TRAVAMENTO_MIN = 3
 
 type Snapshot = { estado: SquadPost["estado"]; trabalhando: boolean }
+type Memoria = {
+  anteriores: Record<string, Snapshot>
+  filaAtiva: boolean
+  projeto?: string
+  avisadoTravado: Set<string>
+  avisadoLinhasInvalidas: Set<number>
+}
 
-export async function tick(
-  api: TuiPluginApi,
-  memoria: { anteriores: Record<string, Snapshot>; filaAtiva: boolean; projeto?: string; avisadoTravado: Set<string> },
-) {
+export async function tick(api: TuiPluginApi, memoria: Memoria) {
   const dir = api.state.path.directory
   if (!dir) return
   try {
@@ -28,6 +33,7 @@ export async function tick(
       memoria.filaAtiva = false
       memoria.projeto = undefined
       memoria.avisadoTravado.clear()
+      memoria.avisadoLinhasInvalidas.clear()
       return
     }
     const cfg = (await cfgFile.json()) as SquadCfg
@@ -42,6 +48,24 @@ export async function tick(
       memoria.filaAtiva = false
       memoria.projeto = projeto
       memoria.avisadoTravado.clear()
+      memoria.avisadoLinhasInvalidas.clear()
+    }
+
+    const invalidos = detectarPostsInvalidos(quadro)
+    const linhasAtuais = new Set(invalidos.map((p) => p.linha))
+    for (const inv of invalidos) {
+      if (memoria.avisadoLinhasInvalidas.has(inv.linha)) continue
+      memoria.avisadoLinhasInvalidas.add(inv.linha)
+      void api.attention.notify({
+        title: "Squad",
+        message: `Post inválido no quadro (linha ${inv.linha}) — estado não é feito/pendente/bloqueado, ninguém vai ver essa tarefa.`,
+        notification: { when: "always" },
+        sound: { name: "error", when: "always" },
+      })
+    }
+    // Linha corrigida ou removida: libera pra avisar de novo se voltar a acontecer.
+    for (const linha of [...memoria.avisadoLinhasInvalidas]) {
+      if (!linhasAtuais.has(linha)) memoria.avisadoLinhasInvalidas.delete(linha)
     }
 
     const atuais: Record<string, Snapshot> = {}
@@ -107,15 +131,11 @@ export async function tick(
 }
 
 const tui: TuiPlugin = async (api) => {
-  const memoria: {
-    anteriores: Record<string, Snapshot>
-    filaAtiva: boolean
-    projeto?: string
-    avisadoTravado: Set<string>
-  } = {
+  const memoria: Memoria = {
     anteriores: {},
     filaAtiva: false,
     avisadoTravado: new Set(),
+    avisadoLinhasInvalidas: new Set(),
   }
   void tick(api, memoria)
   setInterval(() => void tick(api, memoria), POLL_MS)

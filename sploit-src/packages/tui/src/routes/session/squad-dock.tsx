@@ -5,12 +5,14 @@ import { useDialog } from "../../ui/dialog"
 import { EmptyBorder, SplitBorder } from "../../ui/border"
 import { openSquadAgentDialog } from "./dialog-squad-agent"
 import {
+  detectarPostsInvalidos,
   estadoAgente,
   lerAtividade,
   lerModeloAtual,
   parseQuadro,
   verificarTravamento,
   type Atividade,
+  type PostInvalido,
   type SquadAgent,
   type SquadCfg,
   type SquadPost,
@@ -99,6 +101,7 @@ export function SquadDock(props: { directory?: string }) {
     logs: Record<string, Atividade>
     modelos: Record<string, string | undefined>
     travamentos: Record<string, Travamento | undefined>
+    postsInvalidos: PostInvalido[]
   }>()
 
   createEffect(() => {
@@ -138,6 +141,7 @@ export function SquadDock(props: { directory?: string }) {
           logs,
           modelos,
           travamentos,
+          postsInvalidos: detectarPostsInvalidos(quadro),
         })
       } catch {
         if (props.directory === dir) setSquad(undefined)
@@ -221,40 +225,56 @@ export function SquadDock(props: { directory?: string }) {
         const spark = sparkline(data().posts)
         return (
           <box width={42} height="100%" flexDirection="column" {...SplitBorder} borderColor={theme.border}>
-            <scrollbox flexGrow={1} backgroundColor={theme.backgroundPanel}>
-              <box flexShrink={0} flexDirection="column" gap={1} paddingTop={1} paddingBottom={1} paddingLeft={2} paddingRight={1}>
-                <box flexDirection="column">
-                  <text fg={theme.accent} attributes={TextAttributes.BOLD}>
-                    SQUAD <span style={{ fg: theme.text }}>· {data().projeto}</span>
+            <box flexShrink={0} flexDirection="column" gap={1} paddingTop={1} paddingLeft={2} paddingRight={1}>
+              <box flexDirection="column">
+                <text fg={theme.accent} attributes={TextAttributes.BOLD}>
+                  SQUAD <span style={{ fg: theme.text }}>· {data().projeto}</span>
+                </text>
+                <text fg={theme.textMuted} wrapMode="none">
+                  {data().agentes.length} {data().agentes.length === 1 ? "agente" : "agentes"}
+                </text>
+                <box flexDirection="row" gap={1}>
+                  <text fg={theme.warning} wrapMode="none">
+                    ●{contagem.trabalhando}
+                  </text>
+                  <text fg={theme.success} wrapMode="none">
+                    ✓{contagem.feito}
+                  </text>
+                  <text fg={theme.error} wrapMode="none">
+                    ✕{contagem.bloqueado}
                   </text>
                   <text fg={theme.textMuted} wrapMode="none">
-                    {data().agentes.length} {data().agentes.length === 1 ? "agente" : "agentes"}
+                    ○{contagem.ocioso}
                   </text>
-                  <box flexDirection="row" gap={1}>
+                  <Show when={contagem.travado > 0}>
+                    <text fg={theme.error} attributes={TextAttributes.BOLD} wrapMode="none">
+                      ⚠{contagem.travado}
+                    </text>
+                  </Show>
+                  <Show when={contagem.trabalhando > 0}>
                     <text fg={theme.warning} wrapMode="none">
-                      ●{contagem.trabalhando}
+                      {SPIN[frame() % SPIN.length]}
                     </text>
-                    <text fg={theme.success} wrapMode="none">
-                      ✓{contagem.feito}
-                    </text>
-                    <text fg={theme.error} wrapMode="none">
-                      ✕{contagem.bloqueado}
-                    </text>
-                    <text fg={theme.textMuted} wrapMode="none">
-                      ○{contagem.ocioso}
-                    </text>
-                    <Show when={contagem.travado > 0}>
-                      <text fg={theme.error} attributes={TextAttributes.BOLD} wrapMode="none">
-                        ⚠{contagem.travado}
-                      </text>
-                    </Show>
-                    <Show when={contagem.trabalhando > 0}>
-                      <text fg={theme.warning} wrapMode="none">
-                        {SPIN[frame() % SPIN.length]}
-                      </text>
-                    </Show>
-                  </box>
+                  </Show>
                 </box>
+              </box>
+              <Show when={data().postsInvalidos.length > 0}>
+                <box flexDirection="column" gap={0}>
+                  <text fg={theme.error} attributes={TextAttributes.BOLD} wrapMode="none">
+                    ⚠ {data().postsInvalidos.length}{" "}
+                    {data().postsInvalidos.length === 1 ? "post inválido" : "posts inválidos"} no quadro
+                  </text>
+                  <text fg={theme.error} attributes={TextAttributes.DIM} wrapMode="none" truncate>
+                    {"  linha " + data().postsInvalidos[0]!.linha + ": " + data().postsInvalidos[0]!.texto}
+                  </text>
+                  <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none">
+                    {"  estado tem que ser feito/pendente/bloqueado — squad check pra ver todos"}
+                  </text>
+                </box>
+              </Show>
+            </box>
+            <scrollbox flexGrow={1} backgroundColor={theme.backgroundPanel}>
+              <box flexShrink={0} flexDirection="column" gap={1} paddingTop={1} paddingBottom={1} paddingLeft={2} paddingRight={1}>
                 <For each={exibidos}>
                   {({ a, l }) => {
                     const est = dadosEstado(l)

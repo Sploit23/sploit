@@ -62,7 +62,7 @@ describe("squad notifications plugin", () => {
     const { api, notifications } = harness()
     api.state.path.directory = dir
 
-    await tick(api, { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>() })
+    await tick(api, { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>(), avisadoLinhasInvalidas: new Set<number>() })
 
     expect(notifications).toEqual([])
   })
@@ -71,7 +71,7 @@ describe("squad notifications plugin", () => {
     const dir = await tempDir()
     const { api, notifications } = harness()
     api.state.path.directory = dir
-    const memoria = { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>() }
+    const memoria = { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>(), avisadoLinhasInvalidas: new Set<number>() }
 
     await writeSquad(
       dir,
@@ -134,7 +134,7 @@ describe("squad notifications plugin", () => {
     const dir = await tempDir()
     const { api, notifications } = harness()
     api.state.path.directory = dir
-    const memoria = { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>() }
+    const memoria = { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>(), avisadoLinhasInvalidas: new Set<number>() }
 
     await writeSquad(dir, "demo", "**[Carla] (pendente) revisando os testes de login - [14/08/2026 10:00]**")
     const logsDir = path.join(dir, "squad", "logs")
@@ -156,11 +156,54 @@ describe("squad notifications plugin", () => {
     expect(notifications.length).toBe(1)
   })
 
+  test("notifies once about a malformed post (invented state) and clears once it's fixed", async () => {
+    const dir = await tempDir()
+    const { api, notifications } = harness()
+    api.state.path.directory = dir
+    const memoria = {
+      anteriores: {},
+      filaAtiva: false,
+      avisadoTravado: new Set<string>(),
+      avisadoLinhasInvalidas: new Set<number>(),
+    }
+
+    await writeSquad(
+      dir,
+      "demo",
+      [
+        "**[Coordenador] (feito) time formado - [17/08/2026 11:12]**",
+        "**[Coordenador] (delegado) Carla, integre a API - [17/08/2026 11:25]**",
+      ].join("\n"),
+    )
+    await tick(api, memoria)
+    expect(notifications.length).toBe(1)
+    expect(notifications[0]?.message).toContain("Post inválido no quadro (linha 2)")
+
+    // Segundo tick com o mesmo post quebrado não deve repetir o aviso.
+    await tick(api, memoria)
+    expect(notifications.length).toBe(1)
+
+    // Post corrigido (estado pendente de verdade) — some da lista de avisados,
+    // então se um NOVO post quebrar de novo, volta a avisar (testado abaixo).
+    await writeSquad(
+      dir,
+      "demo",
+      [
+        "**[Coordenador] (feito) time formado - [17/08/2026 11:12]**",
+        "**[Coordenador] (pendente) Carla: integre a API - [17/08/2026 11:25]**",
+        "**[Coordenador] (delegado) Serafim, suba o deploy - [17/08/2026 11:26]**",
+      ].join("\n"),
+    )
+    await tick(api, memoria)
+    expect(notifications.length).toBe(2)
+    expect(notifications[1]?.message).toContain("Post inválido no quadro (linha 3)")
+  })
+
   test("does not fire a false transition when switching to a different project", async () => {
     const dirA = await tempDir()
     const dirB = await tempDir()
     const { api, notifications } = harness()
-    const memoria = { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>() }
+    const memoria = { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>(), avisadoLinhasInvalidas: new Set<number>() }
 
     api.state.path.directory = dirA
     await writeSquad(dirA, "projeto-a", "**[Serafim] (pendente) subindo o deploy - [14/08/2026 10:00]**")

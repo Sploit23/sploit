@@ -38,6 +38,23 @@ export function parseQuadro(text: string) {
   return posts
 }
 
+export type PostInvalido = { linha: number; texto: string }
+
+// Linhas que ABREM como um post (**[Nome] (algo)) mas não batem inteiras com
+// QUADRO_RE — o parser ignora elas em silêncio. Mesmo detector do
+// `squad.py check`, espelhado aqui pra rodar sozinho no polling da TUI (não
+// depende de alguém lembrar de rodar o check na mão).
+const POST_INICIO_RE = /^\*\*\[?[^\]:(]*\]?\s*\([^)]*\)/
+
+export function detectarPostsInvalidos(quadroText: string): PostInvalido[] {
+  const achados: PostInvalido[] = []
+  quadroText.split(/\r?\n/).forEach((linha, i) => {
+    if (QUADRO_RE.test(linha)) return
+    if (POST_INICIO_RE.test(linha)) achados.push({ linha: i + 1, texto: linha.trim() })
+  })
+  return achados
+}
+
 function tarefaPendente(posts: SquadPost[], nome: string) {
   const rx = new RegExp(`${escapeRegExp(nome)}\\s*:`)
   for (let i = posts.length - 1; i >= 0; i--) {
