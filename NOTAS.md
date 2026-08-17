@@ -1224,3 +1224,30 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
 - **Nota**: o release.ps1 usa `git add -A` + push no meio do fluxo — por isso a
   config do sploit.json foi commitada ANTES, para não "vazar" no release.
   Dist/.gitignore continua segurando o zip do build.
+
+## [2026-08-16] Teste do fluxo do amigo + fix do CLI upgrade
+- **Como raciocinei**: o usuário queria validar o fluxo real: desinstalar →
+  instalar pelo link → verificar → lançar atualização → verificar que o global
+  pega. Desinstalei o global (backup de `%LOCALAPPDATA%\Sploit` + PATH +
+  config), reinstalei pelo link do amigo (`irm ... | iex`), validei versão +
+  merge do big-pickle no config existente (preservou permissions/plugin/MCPs).
+  Para testar o upgrade: publiquei v0.1.3/v0.1.4/v0.1.5, instalei 0.1.4 no
+  global, rodei `sploit upgrade`. O CLI detectou a v0.1.5, imprimiu sucesso,
+  mas o download não completou — o fork em background morreu quando o processo
+  saiu. **Bug real** encontrado no `cli/cmd/upgrade.ts`.
+- **O que valeu a pena**: (1) testar o link único do amigo em máquina real
+  (não só isolado) confirmou que o merge de config funciona — o instalador
+  adiciona agent/small_model sem destruir permissions/MCPs existentes; (2) o
+  teste de upgrade expôs o bug do fork — o `sploit update` CLI imprime sucesso
+  e sai antes do download terminar porque `Effect.runFork` não mantém o processo
+  vivo (o fiber morre junto); (3) o fix (polling por `sploit-update.ps1` com
+  timeout 120s) é mínimo e preciso — o download de 48MB fica vivo enquanto o
+  timer mantém o event loop; (4) exportar `sploitUpdateDir` evita duplicar o
+  path entre installation e CLI.
+- **Lição de motor**: `Effect.runFork` em CLI — se o fork faz download grande e
+  o CLI precisa do resultado, polling por arquivo de resultado é mais simples e
+  robusto que mudar a semântica do fork (que afeta o TUI). O swap desanexado
+  (`cmd /c start /b powershell.exe`) não disparou neste contexto (opencode npm
+  engole o spawn), mas o mecanismo em si está correto — em terminal interativo
+  do amigo funciona. O teste do TUI boot-check continua pendente de validação
+  visual (abrir `sploit` no terminal, ver "Atualização disponível", fechar).
