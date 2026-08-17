@@ -1251,3 +1251,39 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   engole o spawn), mas o mecanismo em si está correto — em terminal interativo
   do amigo funciona. O teste do TUI boot-check continua pendente de validação
   visual (abrir `sploit` no terminal, ver "Atualização disponível", fechar).
+
+## 2026-08-17 — Auth no instalador + rate limit do big-pickle
+
+### O que foi feito
+- **Diagnóstico do erro "Error from provider"**: o `sploit` do amigo usava a
+  chave `"public"` (compartilhada entre todos os usuários gratuitos) que tem
+  rate limit apertado por IP. O `sploit` que eu uso tem auth própria (cota
+  separada). Mesmo IP/provider, mas autenticação diferente = quotas diferentes.
+- **Implementação de auth no instalador**:
+  - `install-sploit.ps1`: novo param `-OpenCodeKey` + detecção automática de
+    `opencode-key.txt` no pacote. Merge seguro com auth existente (não
+    sobrescreve outros providers).
+  - `install-online.ps1`: novo param `-OpenCodeKey` + env var `SPLOIT_OPENCODE_KEY`.
+  - `pack-dist.ps1`: auto-detecta auth do PC (`~/.local/share/sploit/auth.json`),
+    grava `opencode-key.txt` no pacote. Novo flag `-SkipKey` para releases públicas.
+  - `release.ps1`: passa `-SkipKey` em releases públicas (key nunca vai pro GitHub).
+  - `.gitignore`: `opencode-key.txt` adicionado.
+- **Fix de segurança**: primeiro build incluiu a key no zip público. Detectado,
+  release apagada, fix implementado, rebuild publicado limpo.
+- **Fix de Merge**: install-sploit.ps1 agora preserva auth existente de outros
+  providers (groq, google, etc.) ao adicionar a key do opencode.
+- **Fix de Copy-Item**: install-sploit.ps1 agora trata o caso de BinPath ser o
+  mesmo arquivo do destino (não tenta copiar sobre si mesmo).
+- **Release v0.1.6-sploit** publicada: auth embutida no zip pessoal, não na
+  release pública.
+
+### Lições
+- **Chave `"public"` ≠ auth própria**: o opencode provider usa `apiKey: "public"`
+  quando não tem auth — funciona mas com cota compartilhada e rate limit apertado.
+  Com auth (API key), cota separada e maior. Essa é a diferença entre "funciona
+  do zero" e "funciona bem do zero".
+- **Releases públicas NUNCA devem conter API keys**: flag `-SkipKey` obrigatório
+  em releases do GitHub. Keys viajam apenas em zips pessoais (pack-dist sem
+  -SkipKey) ou via parâmetro `-OpenCodeKey` no install-online.
+- **Merge de auth é importante**: o instalador pode rodar em PCs que já têm auth
+  configurada (outros providers). Sempre ler existente e merge, nunca sobrescrever.

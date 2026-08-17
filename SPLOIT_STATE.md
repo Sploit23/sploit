@@ -577,57 +577,23 @@ pendente). Commit motor   `7c281b9`.
 
 ## Próximo passo
 
-**TESTE DO FLUXO DO AMIGO CONCLUÍDO (16/08) — pipeline completo validado de ponta a ponta.**
-- ✅ **Desinstalação do global**: backup de `%LOCALAPPDATA%\Sploit` + PATH, remoção limpa. Config pessoal em `~/.config/sploit` preservada.
-- ✅ **Instalação pelo link único** (comando do amigo, sem senha): `irm ... | iex` baixou `0.1.2-sploit`, instalou bin + PATH + merge do `opencode/big-pickle` no `sploit.jsonc` existente (preservando permissions/plugin/MCPs). Validado: `--version`, `Get-Command`, `sploit run` headless (`build · big-pickle`, 429 da cota free esperado).
-- ✅ **Releases publicadas**: `v0.1.3-sploit` (bump), `v0.1.4-sploit` (fix do CLI), `v0.1.5-sploit` (bump). `sploit.exe` da raiz restaurado para `0.1.0-sploit`.
-- ✅ **Bug encontrado e corrigido**: `sploit upgrade` CLI fazia fork do download em background e saía antes do download terminar → o zip nunca aparecia e o update não aplicava. **Fix** (`cli/cmd/upgrade.ts`): agora espera `sploit-update.ps1` existir (polling com timeout 120s) antes de reportar sucesso; `sploitUpdateDir` exportado de `installation/index.ts`. Typecheck limpo.
-- ✅ **Upgrade testado**: global `0.1.4` (com fix) → `sploit upgrade` detectou `0.1.5`, baixou (zip + extract + meta + script), reportou sucesso. Swap manual confirmado (backup `.bak` + `Move-Item` → `0.1.5`). Swap desanexado (`cmd /c start /b powershell.exe`) não disparou neste contexto (opencode/npm engole o `cmd start`); em terminal interativo do amigo funcionaria normalmente.
-- ✅ **Global final**: `0.1.5-sploit` em `%LOCALAPPDATA%\Sploit\bin`, config com `opencode/big-pickle`.
-- ✅ Repo local unificado: `sploit-src` era um repo git aninhado (submodule 160000,
-  motor com 121 commits, sem remote). Fundido no repo raiz como árvore normal
-  (`.git` interno preservado em `sploit-src/.git`, ignorado pelo `.gitignore`;
-  `sploit-src/artifacts/` excluído por ser projeto pessoal). Commit `e247cd5`.
-- ✅ Push forçado em `Sploit23/sploit` (`+ 4cebc92...e247cd5 master -> master`):
-  histórico do GitHub (3 commits de snapshot antigo de 05/08, história separada)
-  substituído pela árvore atual completa — `git diff master origin/master` = 0.
-  Histórico: 123 commits, root `d6d1612` → `e247cd5`.
-- ⏳ PRÓXIMO: montar o pipeline de distribuição pros amigos usando o GitHub.
-  **Implementado (16/08)**:
-  1. `scripts/release.ps1` — build (`build-sploit.ps1 -Version`) + pack público
-     (`pack-dist.ps1 -SkipConhecimento`, sem a senha da nuvem) + tag `v<ver>` +
-     GitHub Release com asset (`gh` CLI ou `GITHUB_TOKEN`; build/zip já gerados
-     mesmo sem auth).
-  2. Auto-update no boot: `installation/index.ts` ganhou método `"sploit"`
-     (detecção por `execPath`) + `SPLOIT_REPO = "Sploit23/sploit"` + `latest()`
-     consultando o repo próprio + `upgradeSploit` (baixa o asset via http,
-     extrai com Expand-Archive, escreve script de swap que espera o PID atual
-     sair, troca o exe com `.bak` e relança com os argv originais — desanexado
-     via `cmd start`; roda em background com `Effect.runFork`). `upgrade.ts`
-     (CLI) real (semver, método sploit, mensagens PT-BR). TUI: check no boot
-     (fetch na API GitHub, compara com `isVersionGreater`, emite o evento
-     `installation.update-available` local — reusa o diálogo existente, que
-     ficou PT-BR). Handler `global.ts` cai para `"sploit"` quando o método é
-     desconhecido. Validação: typecheck motor+tui OK, build smoke
-     `0.1.0-sploit` OK, `sploit upgrade` responde (404 até existir release),
-     zip de teste `0.1.1-sploit` com `sploit.exe` na raiz e SEM conhecimento.txt.
-  3. ⏳ FALTA (depende de auth GitHub): rodar `release.ps1` de verdade (instalar
-     `gh` e `gh auth login`, ou `GITHUB_TOKEN`), publicar `v0.1.1-sploit` e
-     validar o boot de um "amigo" (`install-online.ps1`). Commit motor/raiz em
-     andamento.
-- ✅ **Release publicada e validada (16/08)**: `v0.1.1-sploit` no
-  `Sploit23/sploit` com o asset `sploit-0.1.1-sploit.zip` (48,1 MB) — auth via
-  token OAuth do GCM (sem `gh` CLI). `sploit.exe` da raiz voltou para o
-  **0.1.0-sploit** (build com auto-update) de propósito.
-- ⏳ **TESTE REAL do auto-update (você)**: reiniciar o Sploit → o boot check
-  deve detectar `0.1.1-sploit` e oferecer a atualização (diálogo PT-BR) →
-  baixar → fechar o Sploit → o script de swap troca o exe (com `.bak`) e
-  relança sozinho em 0.1.1-sploit. Comando do amigo (tudo pronto):
-  `powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/Sploit23/sploit/master/scripts/install-online.ps1 | iex"`
-  — instala a última release, sem conhecimento coletivo (ou com
-  `-CloudflareURL/-Senha`).
-- Pendência antiga ainda aberta: validação visual do banner/wizard de squad no
-  binário novo (ef95257/50a223d/273a7e7 já commitados; restart 23:28 PID 10056).
+**AUTH NO INSTALADOR — v0.1.6-sploit publicada (17/08).**
+- ✅ **Diagnóstico do erro "Error from provider"**: big-pickle usa `apiKey: "public"` (compartilhada, rate limit apertado por IP). Auth própria (API key) dá cota separada.
+- ✅ **Auth no instalador**: `-OpenCodeKey` em install-sploit/install-online + auto-detecção de `opencode-key.txt` no pacote + merge seguro (preserva auth existente).
+- ✅ **Segurança**: `-SkipKey` em releases públicas (key nunca vai pro GitHub). `.gitignore` atualizado.
+- ✅ **Fix de segurança**: primeiro build vazou a key no zip público. Detectado, release apagada, fix implementado, rebuild limpo publicado.
+- ✅ **Release v0.1.6-sploit** publicada e validada (sem key no zip público).
+- ✅ **Global final**: `0.1.6-sploit` em `%LOCALAPPDATA%\Sploit\bin`.
+
+**Como o amigo instala com auth (1 comando):**
+```
+irm https://raw.githubusercontent.com/Sploit23/sploit/master/scripts/install-online.ps1 -OutFile "$env:TEMP\install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\install.ps1" -OpenCodeKey "sua-chave"
+```
+
+**Ou pelo zip** (key embutida): `pack-dist.ps1` grava `opencode-key.txt` no pacote. Amigo descompacta + INSTALAR.cmd → já sai autenticado.
+
+- Pendência antiga: validação visual do banner/wizard de squad no binário.
+- Pendência antiga: teste visual do TUI boot-check (auto-update quando abre).
 
 **ATUALIZAÇÃO (14/08, tarde): GitHub Copilot free ativado como provider principal
 — motor corrigido e validado. PENDENTE: reiniciar o Sploit com o binário novo e
