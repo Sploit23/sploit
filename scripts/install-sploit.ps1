@@ -305,11 +305,7 @@ Instrucoes de identidade que valem em qualquer pasta, independente de haver um `
         }
     }
     if ($OpenCodeKey) {
-        $authDir = Join-Path $env:LOCALAPPDATA "Sploit\auth"
-        if (-not (Test-Path $authDir)) {
-            # Sploit procura auth.json em ~/.local/share/sploit/auth.json
-            $authDir = Join-Path $env:USERPROFILE ".local\share\sploit"
-        }
+        $authDir = Join-Path $env:LOCALAPPDATA "sploit"
         New-Item -ItemType Directory -Force -Path $authDir | Out-Null
         $authPath = Join-Path $authDir "auth.json"
         # Merge: preserva auth existente de outros providers
