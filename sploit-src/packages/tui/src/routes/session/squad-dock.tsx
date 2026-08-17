@@ -9,10 +9,12 @@ import {
   lerAtividade,
   lerModeloAtual,
   parseQuadro,
+  verificarTravamento,
   type Atividade,
   type SquadAgent,
   type SquadCfg,
   type SquadPost,
+  type Travamento,
 } from "../../squad/dock-data"
 
 export type { SquadAgent, SquadPost } from "../../squad/dock-data"
@@ -48,23 +50,40 @@ function sparkline(posts: SquadPost[]): string {
     .replace(/^·+/, "")
 }
 
-type LinhaExibida = { estado: SquadPost["estado"]; rotulo: string; texto: string; trabalhando: boolean }
+type LinhaExibida = {
+  estado: SquadPost["estado"]
+  rotulo: string
+  texto: string
+  trabalhando: boolean
+  travado: boolean
+}
 
 function linha(
   est: { estado: SquadPost["estado"]; acao: string },
   a: SquadAgent,
   agora?: Atividade,
   nomes: string[] = [],
+  travamento?: Travamento,
 ): LinhaExibida {
   const trabalho = est.estado === "pendente" && est.acao !== "aguardando"
   if (!trabalho && est.acao === "aguardando")
-    return { estado: "pendente", rotulo: "aguardando", texto: "aguardando sua vez", trabalhando: false }
-  if (!trabalho) return { estado: est.estado, rotulo: est.estado, texto: est.acao, trabalhando: false }
+    return { estado: "pendente", rotulo: "aguardando", texto: "aguardando sua vez", trabalhando: false, travado: false }
+  if (!trabalho) return { estado: est.estado, rotulo: est.estado, texto: est.acao, trabalhando: false, travado: false }
+  if (travamento?.travado) {
+    return {
+      estado: "pendente",
+      rotulo: "travado",
+      texto: `sem atividade há ${Math.round(travamento.minutos)}min — confira o modelo (/squad-modelo)`,
+      trabalhando: false,
+      travado: true,
+    }
+  }
   const alvo = nomes.filter((x) => x !== a.nome).find((x) => new RegExp(`${escapeRegExp(x)}\\s*:`).test(est.acao))
-  if (alvo) return { estado: "pendente", rotulo: `perguntando a ${alvo}`, texto: est.acao, trabalhando: true }
+  if (alvo)
+    return { estado: "pendente", rotulo: `perguntando a ${alvo}`, texto: est.acao, trabalhando: true, travado: false }
   if (agora && agora.rotulo !== "aguardando")
-    return { estado: "pendente", rotulo: agora.rotulo, texto: agora.texto, trabalhando: true }
-  return { estado: "pendente", rotulo: "trabalhando", texto: est.acao, trabalhando: true }
+    return { estado: "pendente", rotulo: agora.rotulo, texto: agora.texto, trabalhando: true, travado: false }
+  return { estado: "pendente", rotulo: "trabalhando", texto: est.acao, trabalhando: true, travado: false }
 }
 
 export function SquadDock(props: { directory?: string }) {
@@ -79,6 +98,7 @@ export function SquadDock(props: { directory?: string }) {
     posts: SquadPost[]
     logs: Record<string, Atividade>
     modelos: Record<string, string | undefined>
+    travamentos: Record<string, Travamento | undefined>
   }>()
 
   createEffect(() => {
@@ -99,6 +119,7 @@ export function SquadDock(props: { directory?: string }) {
         const quadro = await Bun.file(`${dir}/squad/quadro.md`).text()
         const logs: Record<string, Atividade> = {}
         const modelos: Record<string, string | undefined> = {}
+        const travamentos: Record<string, Travamento | undefined> = {}
         for (const a of agentes) {
           const logPath = `${dir}/squad/logs/${a.nome}.log`
           logs[a.nome] = (await lerAtividade(logPath)) ?? {
@@ -106,6 +127,7 @@ export function SquadDock(props: { directory?: string }) {
             texto: "aguardando sua vez",
           }
           modelos[a.nome] = await lerModeloAtual(logPath)
+          travamentos[a.nome] = await verificarTravamento(logPath)
         }
         if (props.directory !== dir) return
         setSquad({
@@ -115,6 +137,7 @@ export function SquadDock(props: { directory?: string }) {
           posts: parseQuadro(quadro),
           logs,
           modelos,
+          travamentos,
         })
       } catch {
         if (props.directory === dir) setSquad(undefined)
@@ -148,6 +171,7 @@ export function SquadDock(props: { directory?: string }) {
   }
 
   function dadosEstado(ls: LinhaExibida) {
+    if (ls.travado) return { fg: theme.error, icone: "⚠" }
     if (ls.trabalhando) return { fg: theme.warning, icone: SPIN[frame() % SPIN.length] }
     if (ls.estado === "feito") return { fg: theme.success, icone: "✓" }
     if (ls.estado === "bloqueado") return { fg: theme.error, icone: "✕" }
@@ -155,12 +179,14 @@ export function SquadDock(props: { directory?: string }) {
   }
 
   function atributosTexto(l: LinhaExibida): number {
+    if (l.travado) return TextAttributes.BOLD
     if (!l.trabalhando) return TextAttributes.DIM | TextAttributes.ITALIC
     if (l.rotulo === "pensando" || l.rotulo === "postando") return TextAttributes.ITALIC
     return TextAttributes.NONE
   }
 
   function corTexto(l: LinhaExibida) {
+    if (l.travado) return theme.error
     if (l.rotulo === "postando") return theme.success
     if (l.rotulo === "delegando") return theme.accent
     if (l.rotulo === "editando" || l.rotulo === "rodando") return theme.text
@@ -177,17 +203,19 @@ export function SquadDock(props: { directory?: string }) {
             a,
             data().logs[a.nome],
             data().agentes.map((x) => x.nome),
+            data().travamentos[a.nome],
           ),
         }))
         const contagem = exibidos.reduce(
           (acc, { l }) => {
-            if (l.trabalhando) acc.trabalhando++
+            if (l.travado) acc.travado++
+            else if (l.trabalhando) acc.trabalhando++
             else if (l.estado === "feito") acc.feito++
             else if (l.estado === "bloqueado") acc.bloqueado++
             else acc.ocioso++
             return acc
           },
-          { trabalhando: 0, feito: 0, bloqueado: 0, ocioso: 0 },
+          { trabalhando: 0, feito: 0, bloqueado: 0, ocioso: 0, travado: 0 },
         )
         const ultimo = data().posts.length > 0 ? data().posts[data().posts.length - 1].data : undefined
         const spark = sparkline(data().posts)
@@ -215,6 +243,11 @@ export function SquadDock(props: { directory?: string }) {
                     <text fg={theme.textMuted} wrapMode="none">
                       ○{contagem.ocioso}
                     </text>
+                    <Show when={contagem.travado > 0}>
+                      <text fg={theme.error} attributes={TextAttributes.BOLD} wrapMode="none">
+                        ⚠{contagem.travado}
+                      </text>
+                    </Show>
                     <Show when={contagem.trabalhando > 0}>
                       <text fg={theme.warning} wrapMode="none">
                         {SPIN[frame() % SPIN.length]}

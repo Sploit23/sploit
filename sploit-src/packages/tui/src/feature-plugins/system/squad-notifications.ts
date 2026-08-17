@@ -1,15 +1,23 @@
 import type { TuiPlugin, TuiPluginApi } from "@sploit-ai/plugin/tui"
 import type { BuiltinTuiPlugin } from "../builtins"
-import { estadoAgente, parseQuadro, trabalhando, type SquadCfg, type SquadPost } from "../../squad/dock-data"
+import {
+  estadoAgente,
+  parseQuadro,
+  trabalhando,
+  verificarTravamento,
+  type SquadCfg,
+  type SquadPost,
+} from "../../squad/dock-data"
 
 const id = "internal:squad-notifications"
 const POLL_MS = 4000
+const LIMIAR_TRAVAMENTO_MIN = 3
 
 type Snapshot = { estado: SquadPost["estado"]; trabalhando: boolean }
 
 export async function tick(
   api: TuiPluginApi,
-  memoria: { anteriores: Record<string, Snapshot>; filaAtiva: boolean; projeto?: string },
+  memoria: { anteriores: Record<string, Snapshot>; filaAtiva: boolean; projeto?: string; avisadoTravado: Set<string> },
 ) {
   const dir = api.state.path.directory
   if (!dir) return
@@ -19,6 +27,7 @@ export async function tick(
       memoria.anteriores = {}
       memoria.filaAtiva = false
       memoria.projeto = undefined
+      memoria.avisadoTravado.clear()
       return
     }
     const cfg = (await cfgFile.json()) as SquadCfg
@@ -32,6 +41,7 @@ export async function tick(
       memoria.anteriores = {}
       memoria.filaAtiva = false
       memoria.projeto = projeto
+      memoria.avisadoTravado.clear()
     }
 
     const atuais: Record<string, Snapshot> = {}
@@ -42,6 +52,23 @@ export async function tick(
       const ativo = trabalhando(est)
       atuais[a.nome] = { estado: est.estado, trabalhando: ativo }
       if (ativo) algumTrabalhando = true
+
+      if (!ativo) {
+        memoria.avisadoTravado.delete(a.nome)
+      } else {
+        const tv = await verificarTravamento(`${dir}/squad/logs/${a.nome}.log`, LIMIAR_TRAVAMENTO_MIN)
+        if (tv?.travado && !memoria.avisadoTravado.has(a.nome)) {
+          memoria.avisadoTravado.add(a.nome)
+          void api.attention.notify({
+            title: "Squad",
+            message: `${a.nome} travado — sem atividade há ${Math.round(tv.minutos)}min. Confira o modelo (/squad-modelo).`,
+            notification: { when: "always" },
+            sound: { name: "error", when: "always" },
+          })
+        } else if (!tv?.travado) {
+          memoria.avisadoTravado.delete(a.nome)
+        }
+      }
 
       const antes = memoria.anteriores[a.nome]
       if (!antes) continue
@@ -80,9 +107,15 @@ export async function tick(
 }
 
 const tui: TuiPlugin = async (api) => {
-  const memoria: { anteriores: Record<string, Snapshot>; filaAtiva: boolean; projeto?: string } = {
+  const memoria: {
+    anteriores: Record<string, Snapshot>
+    filaAtiva: boolean
+    projeto?: string
+    avisadoTravado: Set<string>
+  } = {
     anteriores: {},
     filaAtiva: false,
+    avisadoTravado: new Set(),
   }
   void tick(api, memoria)
   setInterval(() => void tick(api, memoria), POLL_MS)

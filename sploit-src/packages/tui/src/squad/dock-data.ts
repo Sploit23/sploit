@@ -104,6 +104,21 @@ export async function lerModeloAtual(logPath: string, maxBytes = 100_000): Promi
   return modelo
 }
 
+export type Travamento = { travado: boolean; minutos: number }
+
+/**
+ * Agente "trabalhando" (pendente, não aguardando) cujo log não recebe uma
+ * única linha nova há `limiarMinutos` está travado — normalmente a IA por
+ * trás dele parou de responder (cota acabou, modelo grudado numa sessão
+ * antiga etc.), não um bug do squad em si. Ver squad-modelo/set-model.
+ */
+export async function verificarTravamento(logPath: string, limiarMinutos = 3): Promise<Travamento | undefined> {
+  const f = Bun.file(logPath)
+  if (!(await f.exists())) return undefined
+  const minutos = (Date.now() - f.lastModified) / 60_000
+  return { travado: minutos >= limiarMinutos, minutos }
+}
+
 export async function lerLogCompleto(logPath: string, maxBytes = 6000): Promise<string[]> {
   const f = Bun.file(logPath)
   if (!(await f.exists())) return []

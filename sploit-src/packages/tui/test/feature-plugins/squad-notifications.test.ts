@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import type { TuiAttentionNotifyInput } from "@sploit-ai/plugin/tui"
@@ -62,7 +62,7 @@ describe("squad notifications plugin", () => {
     const { api, notifications } = harness()
     api.state.path.directory = dir
 
-    await tick(api, { anteriores: {}, filaAtiva: false })
+    await tick(api, { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>() })
 
     expect(notifications).toEqual([])
   })
@@ -71,7 +71,7 @@ describe("squad notifications plugin", () => {
     const dir = await tempDir()
     const { api, notifications } = harness()
     api.state.path.directory = dir
-    const memoria = { anteriores: {}, filaAtiva: false }
+    const memoria = { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>() }
 
     await writeSquad(
       dir,
@@ -130,11 +130,37 @@ describe("squad notifications plugin", () => {
     ])
   })
 
+  test("notifies once when an agent's log goes stale while still working", async () => {
+    const dir = await tempDir()
+    const { api, notifications } = harness()
+    api.state.path.directory = dir
+    const memoria = { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>() }
+
+    await writeSquad(dir, "demo", "**[Carla] (pendente) revisando os testes de login - [14/08/2026 10:00]**")
+    const logsDir = path.join(dir, "squad", "logs")
+    await mkdir(logsDir, { recursive: true })
+    const carlaLog = path.join(logsDir, "Carla.log")
+    await writeFile(carlaLog, "\n> build · big-pickle\n\n")
+    const antigo = new Date(Date.now() - 5 * 60_000)
+    await utimes(carlaLog, antigo, antigo)
+
+    await tick(api, memoria)
+    expect(notifications.length).toBe(1)
+    expect(notifications[0]?.title).toBe("Squad")
+    expect(notifications[0]?.message).toContain("Carla travado")
+    expect(notifications[0]?.notification).toEqual({ when: "always" })
+    expect(notifications[0]?.sound).toEqual({ name: "error", when: "always" })
+
+    // Segundo tick com o mesmo log parado não deve repetir o aviso.
+    await tick(api, memoria)
+    expect(notifications.length).toBe(1)
+  })
+
   test("does not fire a false transition when switching to a different project", async () => {
     const dirA = await tempDir()
     const dirB = await tempDir()
     const { api, notifications } = harness()
-    const memoria = { anteriores: {}, filaAtiva: false }
+    const memoria = { anteriores: {}, filaAtiva: false, avisadoTravado: new Set<string>() }
 
     api.state.path.directory = dirA
     await writeSquad(dirA, "projeto-a", "**[Serafim] (pendente) subindo o deploy - [14/08/2026 10:00]**")
