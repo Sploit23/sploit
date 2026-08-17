@@ -22,6 +22,11 @@ export type Method = "curl" | "sploit" | "npm" | "yarn" | "pnpm" | "bun" | "brew
 // Repo de releases do Sploit (binário próprio, distribuído como GitHub Release).
 export const SPLOIT_REPO = "Sploit23/sploit"
 
+// Diretorio temporario onde o auto-update baixa/extrai o release e grava o
+// script de swap. Compartilhado com o CLI (cli/cmd/upgrade.ts), que espera o
+// sploit-update.ps1 existir antes de reportar sucesso e sair.
+export const sploitUpdateDir = path.join(os.tmpdir(), "sploit-update")
+
 export type ReleaseType = "patch" | "minor" | "major"
 
 export const Event = InstallationEvent
@@ -176,7 +181,7 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
 
     const upgradeSploit = Effect.fnUntraced(function* (target: string) {
       const url = `https://github.com/${SPLOIT_REPO}/releases/download/v${target}/sploit-${target}.zip`
-      const updateDir = path.join(os.tmpdir(), "sploit-update")
+      const updateDir = sploitUpdateDir
       const zipPath = path.join(updateDir, `sploit-${target}.zip`)
       const extractDir = path.join(updateDir, `sploit-${target}`)
       yield* fsTry(() => mkdir(updateDir, { recursive: true })).pipe(Effect.ignore)

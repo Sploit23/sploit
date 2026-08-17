@@ -1,8 +1,10 @@
 import type { Argv } from "yargs"
 import semver from "semver"
+import { exists } from "node:fs/promises"
+import path from "node:path"
 import { UI } from "../ui"
 import * as prompts from "@clack/prompts"
-import { Installation } from "../../installation"
+import { Installation, sploitUpdateDir } from "../../installation"
 import { InstallationVersion } from "@sploit-ai/core/installation/version"
 import { errorMessage } from "@/util/error"
 
@@ -50,6 +52,18 @@ export const UpgradeCommand = {
     prompts.log.info(`Atualizando Sploit ${InstallationVersion} -> ${target} ...`)
     try {
       await Installation.upgrade("sploit", target)
+      const marker = path.join(sploitUpdateDir, "sploit-update.ps1")
+      const deadline = Date.now() + 120_000
+      while (!(await exists(marker)) && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
+      if (!(await exists(marker))) {
+        prompts.log.error("O download da atualização demorou demais (2 min).")
+        prompts.log.info("Verifique a internet ou rode `sploit upgrade <versão>`.")
+        prompts.outro("Done")
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000))
       prompts.log.success(
         `Nova versão ${target} baixada. Ela será aplicada quando você fechar o Sploit (e abrirá de novo sozinha).`,
       )
