@@ -324,6 +324,28 @@ def cmd_list(args):
     return 0
 
 
+POST_INICIO_RE = re.compile(r"^\*\*\[?[^\]:(]*\]?\s*\([^)]*\)")
+
+
+def posts_malformados(base):
+    """Linhas que ABREM como um post (comecam com ** [Nome] (algo)) mas a
+    linha inteira nao bate com QUADRO_RE - o parser ignora elas em silencio.
+    Cobre os dois jeitos mais comuns de isso acontecer: estado inventado
+    (ex. "delegado" em vez de pendente/feito/bloqueado) ou mensagem que virou
+    varias linhas (ex. bloco de codigo colado sem virar uma linha so).
+    Retorna [(numero_da_linha, linha)]."""
+    q = quadro_path(base)
+    if not q.exists():
+        return []
+    achados = []
+    for i, ln in enumerate(q.read_text(encoding="utf-8").splitlines(), start=1):
+        if QUADRO_RE.match(ln):
+            continue
+        if POST_INICIO_RE.match(ln):
+            achados.append((i, ln))
+    return achados
+
+
 def cmd_check(args):
     base = args.dir
     ok = True
@@ -339,6 +361,17 @@ def cmd_check(args):
     if not cfg_path(base).exists():
         ok = False
         print(f"FALTA config: {cfg_path(base)}")
+    for numero, ln in posts_malformados(base):
+        ok = False
+        print(
+            f"POST INVALIDO (ignorado pelo parser em silencio) na linha "
+            f"{numero} do quadro: {ln.strip()[:100]}"
+        )
+        print(
+            "  -> confira se o estado e exatamente feito/pendente/bloqueado "
+            "(nada de 'delegado' etc.) e se a mensagem inteira ficou numa "
+            "unica linha terminando em '- [dd/mm/aaaa hh:mm]**'"
+        )
     if ok:
         print(f"OK: squad de {base} consistente ({len(cfg.get('agentes', []))} agentes)")
     return 0 if ok else 1
