@@ -577,13 +577,15 @@ pendente). Commit motor   `7c281b9`.
 
 ## Próximo passo
 
-**AUTH NO INSTALADOR — v0.1.6-sploit publicada (17/08).**
+**AUTH NO INSTALADOR — v0.1.7-sploit publicada (17/08).**
 - ✅ **Diagnóstico do erro "Error from provider"**: big-pickle usa `apiKey: "public"` (compartilhada, rate limit apertado por IP). Auth própria (API key) dá cota separada.
 - ✅ **Auth no instalador**: `-OpenCodeKey` em install-sploit/install-online + auto-detecção de `opencode-key.txt` no pacote + merge seguro (preserva auth existente).
 - ✅ **Segurança**: `-SkipKey` em releases públicas (key nunca vai pro GitHub). `.gitignore` atualizado.
 - ✅ **Fix de segurança**: primeiro build vazou a key no zip público. Detectado, release apagada, fix implementado, rebuild limpo publicado.
-- ✅ **Release v0.1.6-sploit** publicada e validada (sem key no zip público).
-- ✅ **Global final**: `0.1.6-sploit` em `%LOCALAPPDATA%\Sploit\bin`.
+- ✅ **Fix caminho auth**: `install-sploit.ps1` gravava em `~/.local/share/sploit/` (errado). Motor lê de `$LOCALAPPDATA/sploit/`. Fix no 0.1.7.
+- ✅ **Release v0.1.7-sploit** publicada (auth path fix).
+- ✅ **Global final**: `0.1.7-sploit` em `%LOCALAPPDATA%\Sploit\bin`.
+- ⚠️ **Rate limit do opencode zen**: a API bloqueia requests novos deste IP. Sessões ativas continuam. Auth funciona (key lida corretamente), mas o server rejeita. Esperar ~30min ou usar outro provider.
 
 **Como o amigo instala com auth (1 comando):**
 ```

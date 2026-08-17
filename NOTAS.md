@@ -1287,3 +1287,12 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   -SkipKey) ou via parâmetro `-OpenCodeKey` no install-online.
 - **Merge de auth é importante**: o instalador pode rodar em PCs que já têm auth
   configurada (outros providers). Sempre ler existente e merge, nunca sobrescrever.
+- **Caminho do auth.json do sploit**: o motor (Global.Path.data) usa
+  `$LOCALAPPDATA/sploit/auth.json` (NÃO `~/.local/share/sploit/`). O sploit é um
+  fork do opencode e o app name em `global.ts` é `"sploit"`, então o data dir é
+  `LOCALAPPDATA/sploit/` no Windows. O instalador 0.1.6 gravava no caminho errado
+  (`~/.local/share/sploit/`) — fix no 0.1.7.
+- **Rate limit do opencode zen**: a API `https://opencode.ai/zen/v1` tem rate
+  limit por IP e por key. Sessões já ativas continuam; requests novos são
+  bloqueados. Retry com backoff consome cota mais rápido. Solução: esperar ou
+  usar outro provider.
