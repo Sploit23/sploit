@@ -227,6 +227,16 @@ O usuário quer **ver** os agentes conversando e trabalhando. Opções:
       a cada tick). Validado com dados reais: Webber/KioskBot travados no
       natal/ (efeito colateral dos rebuilds desta sessão) apareceram
       corretamente como "⚠ KioskBot ... travado ... sem atividade há Xmin".
+- [x] **Detecta posts inválidos no quadro sozinho, sem esperar `squad check`
+      (17/08, item 1 da avaliação crítica do sploit)**: o conhecimento sobre
+      o formato canônico vivia só em prosa (SKILL.md) — nada impedia o
+      coordenador de escrever `(delegado)` de novo direto no arquivo, e
+      ninguém saberia até rodar `squad check` na mão. `detectarPostsInvalidos()`
+      espelha o detector do `squad.py` mas roda sozinho no polling da TUI:
+      aviso fixo no topo do painel (fora do scroll, pra não sumir num squad
+      grande) + notificação do SO na primeira vez, sem repetir. 6 testes
+      novos cobrindo o caso real ("delegado"), mensagem multi-linha, e o
+      ciclo notifica-uma-vez/libera-se-corrigido.
 - [x] **Dock do squad na TUI (11/08, "sempre mostra eles vivos ali trabalhando")**:
       `SquadDock` em `routes/session/squad-dock.tsx` — painel fixo no rodapé da
       sessão do Sploit que lê `squad/squad.json` + `quadro.md` do diretório da
