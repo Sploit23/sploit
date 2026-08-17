@@ -63,8 +63,8 @@ if ((Test-Path $zipPath) -and -not $Force) {
         exit 1
     }
 
-    Write-Host "==> Empacotando dist/sploit-$Version.zip (publico, sem conhecimento) ..." -ForegroundColor Yellow
-    & (Join-Path $root "scripts\pack-dist.ps1") -Version $Version -SkipBuild -SkipConhecimento
+    Write-Host "==> Empacotando dist/sploit-$Version.zip (publico, sem conhecimento + sem key) ..." -ForegroundColor Yellow
+    & (Join-Path $root "scripts\pack-dist.ps1") -Version $Version -SkipBuild -SkipConhecimento -SkipKey
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERRO] Pack falhou." -ForegroundColor Red
         exit 1

@@ -22,7 +22,8 @@ param(
     [switch]$SkipBuild,
     [string]$Version = "",
     [switch]$SkipConhecimento,
-    [string]$OpenCodeKey = ""
+    [string]$OpenCodeKey = "",
+    [switch]$SkipKey
 )
 
 $ErrorActionPreference = "Stop"
@@ -122,22 +123,27 @@ if (Test-Path (Join-Path $root "APRENDIZADO.md")) {
 # - Se informada via -OpenCodeKey, usa direto.
 # - Se nao, tenta ler de ~/.local/share/sploit/auth.json (auth ja configurada).
 # - NUNCA vai pro GitHub em release publico (a key viaja no zip pessoal, nao no repo).
-if (-not $OpenCodeKey) {
-    $authPath = Join-Path $env:USERPROFILE ".local\share\sploit\auth.json"
-    if (Test-Path $authPath) {
-        try {
-            $auth = Get-Content $authPath -Raw -Encoding UTF8 | ConvertFrom-Json
-            if ($auth.opencode -and $auth.opencode.key) {
-                $OpenCodeKey = $auth.opencode.key
-            }
-        } catch {}
-    }
-}
-if ($OpenCodeKey) {
-    $OpenCodeKey | Set-Content -Path (Join-Path $pkgDir "opencode-key.txt") -Encoding UTF8 -NoNewline
-    Write-Host "==> Auth opencode embutida no pacote (opencode-key.txt) - cota propria." -ForegroundColor Green
+# - -SkipKey: nao inclui a key (usado em releases publicas no GitHub).
+if ($SkipKey) {
+    Write-Host "==> API key NAO embutida (release publico)." -ForegroundColor Yellow
 } else {
-    Write-Host "==> Sem API key: pacote usa chave publica (cota compartilhada)." -ForegroundColor Yellow
+    if (-not $OpenCodeKey) {
+        $authPath = Join-Path $env:USERPROFILE ".local\share\sploit\auth.json"
+        if (Test-Path $authPath) {
+            try {
+                $auth = Get-Content $authPath -Raw -Encoding UTF8 | ConvertFrom-Json
+                if ($auth.opencode -and $auth.opencode.key) {
+                    $OpenCodeKey = $auth.opencode.key
+                }
+            } catch {}
+        }
+    }
+    if ($OpenCodeKey) {
+        $OpenCodeKey | Set-Content -Path (Join-Path $pkgDir "opencode-key.txt") -Encoding UTF8 -NoNewline
+        Write-Host "==> Auth opencode embutida no pacote (opencode-key.txt) - cota propria." -ForegroundColor Green
+    } else {
+        Write-Host "==> Sem API key: pacote usa chave publica (cota compartilhada)." -ForegroundColor Yellow
+    }
 }
 
 # Config global de identidade (copiada da config do PC atual, se existir)
