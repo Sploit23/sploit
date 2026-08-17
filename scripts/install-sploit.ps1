@@ -305,7 +305,11 @@ Instrucoes de identidade que valem em qualquer pasta, independente de haver um `
         }
     }
     if ($OpenCodeKey) {
-        $authDir = Join-Path $env:LOCALAPPDATA "sploit"
+        # Caminho real que o motor le (Global.Path.data, via xdg-basedir): o
+        # pacote "xdg-basedir" nao tem excecao pra Windows, entao sem
+        # XDG_DATA_HOME ele cai em ~/.local/share/sploit — NAO em
+        # %LOCALAPPDATA%\sploit (bug anterior: gravava aqui, motor nunca lia).
+        $authDir = Join-Path $env:USERPROFILE ".local\share\sploit"
         New-Item -ItemType Directory -Force -Path $authDir | Out-Null
         $authPath = Join-Path $authDir "auth.json"
         # Merge: preserva auth existente de outros providers
