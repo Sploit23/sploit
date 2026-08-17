@@ -212,6 +212,21 @@ O usuário quer **ver** os agentes conversando e trabalhando. Opções:
       atual do usuário (`github-copilot/gpt-4.1`, achado no `model.json`),
       relancei — os dois voltaram a produzir atividade real no log
       (`> build · gpt-4.1`, leituras/greps reais) em segundos.
+- [x] **Card por agente + modelo visível (17/08)**: pedido do usuário depois de
+      ver o dock funcionando — nome e pasta na mesma linha, divisor fino entre
+      cards, e uma linha `◇ <modelo>` lida do próprio banner do log (não da
+      config — mostra o que está rodando de verdade).
+- [x] **Squad avisa sozinho quando um agente trava (17/08)**: até aqui, um
+      agente preso (IA sem cota, modelo grudado) ficava "trabalhando" pra
+      sempre sem nenhum sinal — só dava pra saber abrindo o log na mão (foi
+      assim que achei o bug do modelo, algumas entradas acima). Agora
+      `verificarTravamento()` compara a última modificação do log contra um
+      limiar (3min) — "trabalhando" + log parado = travado. Aparece no card
+      (ícone ⚠ vermelho, "travado", dica de checar `/squad-modelo`) e no
+      contador do cabeçalho, e dispara notificação do SO uma vez (não repete
+      a cada tick). Validado com dados reais: Webber/KioskBot travados no
+      natal/ (efeito colateral dos rebuilds desta sessão) apareceram
+      corretamente como "⚠ KioskBot ... travado ... sem atividade há Xmin".
 - [x] **Dock do squad na TUI (11/08, "sempre mostra eles vivos ali trabalhando")**:
       `SquadDock` em `routes/session/squad-dock.tsx` — painel fixo no rodapé da
       sessão do Sploit que lê `squad/squad.json` + `quadro.md` do diretório da
