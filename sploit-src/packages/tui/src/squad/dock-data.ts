@@ -89,6 +89,21 @@ export async function lerAtividade(logPath: string): Promise<Atividade | undefin
   return descreverLinha(linhas[linhas.length - 1])
 }
 
+const BANNER_MODELO_RE = /^>\s*\S+\s*·\s*(.+)$/
+
+export async function lerModeloAtual(logPath: string, maxBytes = 100_000): Promise<string | undefined> {
+  const f = Bun.file(logPath)
+  if (!(await f.exists())) return undefined
+  const size = await f.size
+  const text = size > maxBytes ? await f.slice(0, maxBytes).text() : await f.text()
+  let modelo: string | undefined
+  for (const linha of limparAnsi(text).split(/\r?\n/)) {
+    const m = BANNER_MODELO_RE.exec(linha.trim())
+    if (m) modelo = m[1].trim()
+  }
+  return modelo
+}
+
 export async function lerLogCompleto(logPath: string, maxBytes = 6000): Promise<string[]> {
   const f = Bun.file(logPath)
   if (!(await f.exists())) return []

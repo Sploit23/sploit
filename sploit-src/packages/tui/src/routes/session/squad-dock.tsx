@@ -2,11 +2,12 @@ import { For, Show, createEffect, createSignal, onCleanup } from "solid-js"
 import { TextAttributes } from "@opentui/core"
 import { useTheme } from "../../context/theme"
 import { useDialog } from "../../ui/dialog"
-import { SplitBorder } from "../../ui/border"
+import { EmptyBorder, SplitBorder } from "../../ui/border"
 import { openSquadAgentDialog } from "./dialog-squad-agent"
 import {
   estadoAgente,
   lerAtividade,
+  lerModeloAtual,
   parseQuadro,
   type Atividade,
   type SquadAgent,
@@ -77,6 +78,7 @@ export function SquadDock(props: { directory?: string }) {
     agentes: SquadAgent[]
     posts: SquadPost[]
     logs: Record<string, Atividade>
+    modelos: Record<string, string | undefined>
   }>()
 
   createEffect(() => {
@@ -96,11 +98,14 @@ export function SquadDock(props: { directory?: string }) {
         const agentes = cfg.agentes ?? []
         const quadro = await Bun.file(`${dir}/squad/quadro.md`).text()
         const logs: Record<string, Atividade> = {}
+        const modelos: Record<string, string | undefined> = {}
         for (const a of agentes) {
-          logs[a.nome] = (await lerAtividade(`${dir}/squad/logs/${a.nome}.log`)) ?? {
+          const logPath = `${dir}/squad/logs/${a.nome}.log`
+          logs[a.nome] = (await lerAtividade(logPath)) ?? {
             rotulo: "aguardando",
             texto: "aguardando sua vez",
           }
+          modelos[a.nome] = await lerModeloAtual(logPath)
         }
         if (props.directory !== dir) return
         setSquad({
@@ -109,6 +114,7 @@ export function SquadDock(props: { directory?: string }) {
           agentes,
           posts: parseQuadro(quadro),
           logs,
+          modelos,
         })
       } catch {
         if (props.directory === dir) setSquad(undefined)
@@ -219,10 +225,15 @@ export function SquadDock(props: { directory?: string }) {
                 <For each={exibidos}>
                   {({ a, l }) => {
                     const est = dadosEstado(l)
+                    const modelo = () => data().modelos[a.nome]
                     return (
                       <box
                         flexDirection="column"
                         gap={0}
+                        paddingTop={1}
+                        border={["top"]}
+                        customBorderChars={{ ...EmptyBorder, horizontal: "─" }}
+                        borderColor={theme.borderSubtle}
                         backgroundColor={hoverNome() === a.nome ? theme.backgroundElement : undefined}
                         onMouseOver={() => setHoverNome(a.nome)}
                         onMouseOut={() => setHoverNome((n) => (n === a.nome ? undefined : n))}
@@ -257,6 +268,11 @@ export function SquadDock(props: { directory?: string }) {
                         <text fg={corTexto(l)} attributes={atributosTexto(l)} wrapMode="none" truncate>
                           {"  " + l.texto}
                         </text>
+                        <Show when={modelo()}>
+                          <text fg={theme.info} attributes={TextAttributes.DIM} wrapMode="none" truncate>
+                            {"  ◇ " + modelo()}
+                          </text>
+                        </Show>
                       </box>
                     )
                   }}
