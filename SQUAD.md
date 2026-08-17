@@ -187,6 +187,31 @@ O usuário quer **ver** os agentes conversando e trabalhando. Opções:
       (`install-sploit.ps1`) no binário global — mudança de TS só vale depois
       de recompilar, diferente dos fixes anteriores (doc/script, já globais e
       ativos na hora).
+- [x] **Agente preso porque a IA por trás dele parou de responder (17/08,
+      "a única coisa que muda é o /model da minha conversa, não a dos
+      agentes")**: achado real num squad de verdade (`Desktop\natal`) — o
+      usuário trocou de modelo (`/model`, cota do modelo antigo acabou) na
+      sua própria conversa, mas os agentes do squad continuaram presos no
+      modelo velho, logs parados logo após o banner (`> build · <modelo>`),
+      sem post novo no quadro havia horas. Duas causas empilhadas:
+      1) a config global (`sploit.jsonc`) tinha `agent.build.model` fixado
+      num modelo específico — isso vence até o fallback de "último modelo
+      usado" (`~/.local/state/sploit/model.json`, o mesmo arquivo que
+      `/model` grava) que sessões novas usariam por padrão. Removido o
+      pin — squads **novos** agora herdam sozinhos o último modelo escolhido
+      no `/model`, sem configurar nada;
+      2) cada agente do squad tem sessão própria (por pasta) retomada sempre
+      com `--continue`, e essa sessão grava e **gruda** no modelo da primeira
+      vez que rodou — só tirar o pin global não destrava um agente que já
+      tinha rodado antes. Adicionado `squad.py set-model --modelo
+      "<provider/model>" [--nome <Agente>]` (grava em `squad.json`, passa
+      `--model` explícito no lançamento, que vence até o modelo grudado na
+      sessão) + comando `/squad-modelo` (guia o ajuste conversando com o
+      usuário) + 3 testes novos (`squad_test.py`). Validado real: matei os
+      processos travados do Webber/KioskBot, rodei `set-model` pro modelo
+      atual do usuário (`github-copilot/gpt-4.1`, achado no `model.json`),
+      relancei — os dois voltaram a produzir atividade real no log
+      (`> build · gpt-4.1`, leituras/greps reais) em segundos.
 - [x] **Dock do squad na TUI (11/08, "sempre mostra eles vivos ali trabalhando")**:
       `SquadDock` em `routes/session/squad-dock.tsx` — painel fixo no rodapé da
       sessão do Sploit que lê `squad/squad.json` + `quadro.md` do diretório da

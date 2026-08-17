@@ -346,6 +346,35 @@ def posts_malformados(base):
     return achados
 
 
+def cmd_set_model(args):
+    """Define qual modelo os agentes (headless, `run`/`supervisor`) devem
+    usar. Sem `--nome`, muda o padrao do squad inteiro; com `--nome`, muda
+    so aquele agente (fica por cima do padrao do squad). `--modelo ""`
+    (vazio) remove o override e volta a usar o padrao do sistema."""
+    base = args.dir
+    cfg = load_cfg(base)
+    modelo = args.modelo.strip()
+    if args.nome:
+        agente = next((a for a in cfg.get("agentes", []) if a["nome"] == args.nome), None)
+        if agente is None:
+            sys.exit(f"ERRO: agente '{args.nome}' nao existe no squad")
+        if modelo:
+            agente["modelo"] = modelo
+            print(f"{args.nome} agora usa o modelo: {modelo}")
+        else:
+            agente.pop("modelo", None)
+            print(f"{args.nome} voltou a usar o padrao do squad/sistema")
+    else:
+        if modelo:
+            cfg["modelo"] = modelo
+            print(f"squad agora usa por padrao o modelo: {modelo}")
+        else:
+            cfg.pop("modelo", None)
+            print("squad voltou a usar o padrao do sistema")
+    save_cfg(base, cfg)
+    return 0
+
+
 def cmd_check(args):
     base = args.dir
     ok = True
@@ -580,6 +609,20 @@ def binario_sploit():
     return achou or "sploit"
 
 
+def resolver_modelo(cfg, agente):
+    """Modelo que este agente deve usar: override do proprio agente, senao o
+    padrao do squad (squad.json -> "modelo"), senao None (usa o padrao do
+    sistema, igual antes de existir essa opcao)."""
+    return agente.get("modelo") or cfg.get("modelo")
+
+
+def comando_agente(exe, prompt, pasta, nome, modelo):
+    cmd = [exe, "run", prompt, "--dir", str(pasta), "--continue", "--title", f"squad: {nome}"]
+    if modelo:
+        cmd += ["--model", modelo]
+    return cmd
+
+
 def supervisor_pid_path(base):
     return squad_dir(base) / "supervisor.pid"
 
@@ -780,7 +823,7 @@ def cmd_run(args):
         log = logs / f"{nome}.log"
         with log.open("wb") as fh:
             p = subprocess.Popen(
-                [exe, "run", prompt, "--dir", str(pasta), "--continue", "--title", f"squad: {nome}"],
+                comando_agente(exe, prompt, pasta, nome, resolver_modelo(cfg, a)),
                 stdin=subprocess.DEVNULL,
                 stdout=fh,
                 stderr=fh,
@@ -916,7 +959,7 @@ def cmd_supervisor(args):
                 log = logs / f"{nome}.log"
                 fh = log.open("ab")
                 pp = subprocess.Popen(
-                    [exe, "run", prompt, "--dir", str(pasta), "--continue", "--title", f"squad: {nome}"],
+                    comando_agente(exe, prompt, pasta, nome, resolver_modelo(cfg, a)),
                     stdout=fh,
                     stderr=fh,
                     creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW),
@@ -1281,6 +1324,13 @@ def main(argv=None):
     for c in ("status", "list", "check"):
         sub.add_parser(c, help=f"{c} do squad")
 
+    p = sub.add_parser(
+        "set-model",
+        help="define o modelo (provider/model) que os agentes headless devem usar",
+    )
+    p.add_argument("--modelo", required=True, help='ex.: "github-copilot/gpt-4.1" (vazio "" remove o override)')
+    p.add_argument("--nome", default="", help="agente especifico (padrao: todo o squad)")
+
     p = sub.add_parser("daily", help="daily/standup: resumo do trabalho do time em um dia")
     p.add_argument("--data", default="", help="dia em dd/mm/aaaa (padrão: hoje)")
 
@@ -1330,6 +1380,8 @@ def main(argv=None):
         return cmd_list(args)
     if args.cmd == "check":
         return cmd_check(args)
+    if args.cmd == "set-model":
+        return cmd_set_model(args)
     if args.cmd == "daily":
         return cmd_daily(args)
     if args.cmd == "dashboard":

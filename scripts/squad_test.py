@@ -187,6 +187,53 @@ def test_post_valida_agente_e_estado():
         pass
 
 
+def test_resolver_modelo_prioridades():
+    cfg_sem_modelo = {"agentes": []}
+    assert sq.resolver_modelo(cfg_sem_modelo, {"nome": "Ana"}) is None, "sem override deveria ser None (usa padrao do sistema)"
+
+    cfg_com_padrao = {"modelo": "opencode/claude-sonnet-5"}
+    assert sq.resolver_modelo(cfg_com_padrao, {"nome": "Ana"}) == "opencode/claude-sonnet-5"
+
+    agente_com_override = {"nome": "Ana", "modelo": "github-copilot/gpt-4.1"}
+    assert sq.resolver_modelo(cfg_com_padrao, agente_com_override) == "github-copilot/gpt-4.1", (
+        "modelo do agente deveria vencer o padrao do squad"
+    )
+
+
+def test_comando_agente_inclui_model_so_quando_definido():
+    sem_modelo = sq.comando_agente("sploit", "prompt", "pasta", "Ana", None)
+    assert "--model" not in sem_modelo
+
+    com_modelo = sq.comando_agente("sploit", "prompt", "pasta", "Ana", "opencode/claude-sonnet-5")
+    assert com_modelo[-2:] == ["--model", "opencode/claude-sonnet-5"]
+
+
+def test_set_model_squad_e_agente():
+    base, _ = novo_squad(agentes=AGENTES[:2])
+
+    sq.cmd_set_model(type("A", (), {"dir": str(base), "modelo": "opencode/claude-sonnet-5", "nome": ""}))
+    cfg = sq.load_cfg(base)
+    assert cfg.get("modelo") == "opencode/claude-sonnet-5"
+
+    sq.cmd_set_model(type("A", (), {"dir": str(base), "modelo": "github-copilot/gpt-4.1", "nome": "Ana"}))
+    cfg = sq.load_cfg(base)
+    ana = next(a for a in cfg["agentes"] if a["nome"] == "Ana")
+    assert ana.get("modelo") == "github-copilot/gpt-4.1"
+    bruno = next(a for a in cfg["agentes"] if a["nome"] == "Bruno")
+    assert "modelo" not in bruno, "so a Ana deveria ganhar override"
+
+    sq.cmd_set_model(type("A", (), {"dir": str(base), "modelo": "", "nome": "Ana"}))
+    cfg = sq.load_cfg(base)
+    ana = next(a for a in cfg["agentes"] if a["nome"] == "Ana")
+    assert "modelo" not in ana, "modelo vazio deveria remover o override"
+
+    try:
+        sq.cmd_set_model(type("A", (), {"dir": str(base), "modelo": "x", "nome": "Fantasma"}))
+        raise AssertionError("agente inexistente deveria falhar")
+    except SystemExit:
+        pass
+
+
 def test_celebracao():
     hoje = sq.now()
     base, _ = novo_squad(
@@ -304,6 +351,9 @@ TESTS = [
     test_dashboard_saida_e_salvar,
     test_montar_prompt_perfis,
     test_post_valida_agente_e_estado,
+    test_resolver_modelo_prioridades,
+    test_comando_agente_inclui_model_so_quando_definido,
+    test_set_model_squad_e_agente,
     test_celebracao,
     test_teto_supervisor_segue_dentro_do_limite,
     test_teto_supervisor_bate_por_lancamentos,
