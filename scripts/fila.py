@@ -5,7 +5,7 @@ Gerencia os candidatos de melhoria do arnes gerados pelo /diagnostico.
 Cada candidato: titulo, evidencia (por que), verificacao (como provar),
 status (proposto/negado/em_andamento/feito/revertido), commit.
 
-A fila vive em FILA_MELHORIAS.json na raiz do repo (gitignored nao; e parte
+A fila vive em docs/historico/FILA_MELHORIAS.json (gitignored nao; e parte
 da memoria do projeto). O ciclo seguro continua sendo o self-restart:
 aprovado + implementado -> build -> smoke -> troca de binario.
 
@@ -28,7 +28,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-QUEUE = Path(__file__).resolve().parent.parent / "FILA_MELHORIAS.json"
+QUEUE = Path(__file__).resolve().parent.parent / "docs" / "historico" / "FILA_MELHORIAS.json"
 STATUS = ["proposto", "negado", "em_andamento", "feito", "revertido"]
 EMOJI = {
     "proposto": "[ ]",

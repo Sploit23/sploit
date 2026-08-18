@@ -31,7 +31,7 @@ if not DB.exists():
     # Legado da desvinculacao opencode->sploit (antes da Fase 4).
     DB = DB_DIR / "opencode-sploit.db"
 GRAPH = Path(__file__).resolve().parent.parent / "graphify-out" / "graph.json"
-QUEUE = Path(__file__).resolve().parent.parent / "FILA_MELHORIAS.json"
+QUEUE = Path(__file__).resolve().parent.parent / "docs" / "historico" / "FILA_MELHORIAS.json"
 
 # Conhecimento coletivo: se houver o repo git clonado em ~/.config/sploit/conhecimento
 # (criado pelo install-sploit.ps1 com -RepoConhecimento), as licoes sao gravadas la
@@ -61,7 +61,7 @@ LESSON_BY_TOOL = {
 # tem padroes de texto que, aparecendo em notas distintas, somam observacoes.
 # Com GENES_LIMITE_FORTE observacoes, o gene vira "forte" -> candidato a
 # mutacao estrutural do harness (medir antes/depois).
-NOTAS = Path(__file__).resolve().parent.parent / "NOTAS.md"
+NOTAS = Path(__file__).resolve().parent.parent / "docs" / "historico" / "NOTAS.md"
 GENES_LIMITE_FORTE = 3
 GENE_BY_PADRAO = {
     "G-grafo": {

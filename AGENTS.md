@@ -13,7 +13,7 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
   sem comando do usuário.
 - `DECISOES.md` — memória de decisões de arquitetura (o porquê). Consultar antes
   de decisões relevantes; registrar com `/decisao`.
-- `NOTAS.md` — memória temporal de trabalho (o quê/histórico por sessão). Registrada
+- `docs/historico/NOTAS.md` — memória temporal de trabalho (o quê/histórico por sessão). Registrada
   AUTOMATICAMENTE pelo Sploit ao concluir tarefas (nota de evolução, reforço positivo);
   indexada no Graphify para retomar contexto por referência. `/resumo` é legado.
 - `SQUAD.md` — blueprint do **modo squad** (agentes persistentes por área com
@@ -34,7 +34,7 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
   `/melhorar`. Slash fica para intenção do usuário (ex.: `/status`, `/ajuda`).
 - **Início de sessão**: leia `SPLOIT_STATE.md`. Se houver `# Próximo passo`, continue de lá — não recomece do zero.
 - **Conclusão de passo**: atualize `SPLOIT_STATE.md` (Progresso + Próximo passo) **antes** de encerrar/reiniciar. Nunca terminar uma sessão com o estado desatualizado.
-- **Nota de evolução (Constituição, art. 4)**: ao concluir uma tarefa, registre em `NOTAS.md` *"como raciocinei e o que valeu a pena"* — reforço positivo, sem pedir comando do usuário (nunca `/resumo`; é legado). O objetivo é formar o estilo de raciocínio próprio do Sploit.
+- **Nota de evolução (Constituição, art. 4)**: ao concluir uma tarefa, registre em `docs/historico/NOTAS.md` *"como raciocinei e o que valeu a pena"* — reforço positivo, sem pedir comando do usuário (nunca `/resumo`; é legado). O objetivo é formar o estilo de raciocínio próprio do Sploit.
 - **Decisões**: antes de decisões relevantes, consulte `DECISOES.md`; ao decidir, registre com `/decisao`.
 - **Modo contínuo (autonomia — sem slash)**: quando o usuário indicar que vai se
   ausentar e quiser que o Sploit continue trabalhando até ele voltar — ex.: "vou
@@ -44,10 +44,10 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
   `docs/historico/PLANO_CONTINUO.md`; se o usuário deu um alvo específico (projeto/feature/
   tarefa), esse é o alvo do ciclo (registrar no plano); senão, seguir a fila do
   plano. Trabalhar UM passo por ciclo com verificação (typecheck/testes/build),
-  commit atômico, nota em `NOTAS.md` e, ao fim de cada ciclo, disparar
+  commit atômico, nota em `docs/historico/NOTAS.md` e, ao fim de cada ciclo, disparar
   `scripts/self-restart.ps1 -ResumePrompt "<próximo passo>"` para continuar
   sozinho. Parar quando o alvo estiver concluído, a fila vazia ou um passo
-  falhar 2x; deixar o relato em `NOTAS.md` ("Relato do modo contínuo") e o
+  falhar 2x; deixar o relato em `docs/historico/NOTAS.md` ("Relato do modo contínuo") e o
   `SPLOIT_STATE.md` atualizado. O acionamento NUNCA é um slash — é a fala do
   usuário.
 - **Mudanças no motor**: rode `bun typecheck` (em `sploit-src/packages/opencode`) e `scripts/build-sploit.ps1` antes de reiniciar o binário; registre o resultado na seção `# Verificação`.

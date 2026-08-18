@@ -15,7 +15,7 @@ sessoes futuras reconstruam contexto por consulta ao grafo (nao por texto achata
    - Pendentes / proximos passos.
    - Referencias a nos do grafo (arquivos, modulos, comunidades afetadas).
 
-3. **Grave no arquivo `NOTAS.md`** (na raiz), anexando com data:
+3. **Grave no arquivo `docs/historico/NOTAS.md`**, anexando com data:
    ```
    ## [AAAA-MM-DD] Sessao <resumo curto do tema>
    - **Feito**: ...
@@ -25,10 +25,10 @@ sessoes futuras reconstruam contexto por consulta ao grafo (nao por texto achata
    ```
 
 4. **Indexe no grafo**: rode `venv\Scripts\graphify.exe update C:\Users\Hp\Desktop\sploit`
-   para que `NOTAS.md` (e demais mudancas) entrem no grafo.
+   para que `docs/historico/NOTAS.md` (e demais mudancas) entrem no grafo.
 
 5. Confirme ao usuario em PT-BR o que foi indexado e que sessoes futuras poderao
    recuperar por `graphify query` (referencia), mantendo o contexto enxuto.
 
-Regra: nao duplique conteudo do SPLOIT_STATE.md nem do DECISOES.md — `NOTAS.md` e
-para o detalhe temporal (o quê/histórico); o estado e as decisoes ficam nos arquivos deles.
+Regra: nao duplique conteudo do SPLOIT_STATE.md nem do DECISOES.md — `docs/historico/NOTAS.md`
+e para o detalhe temporal (o quê/histórico); o estado e as decisoes ficam nos arquivos deles.
