@@ -583,18 +583,18 @@ publicar a v0.1.7 com uma regressão marcada ✅ (ver linha abaixo). Este
 arquivo passa a ser a memória de continuidade desta única sessão/agente —
 sem segundo escritor, mantém enxuto e sempre verificado antes de marcar ✅.
 
-**AUTH NO INSTALADOR — fix aplicado, release pendente.**
+**AUTH NO INSTALADOR — resolvido (18/08).**
 - ✅ Mecanismo (`apiKey: "public"` pra quem não tem key, auth embutida via
   `-OpenCodeKey`/`opencode-key.txt` pra quem quer cota própria, `-SkipKey`
   protegendo o release público) está correto e testado.
-- ✅ **Bug real corrigido (18/08)**: `install-sploit.ps1` gravava a key
+- ✅ **Bug do caminho corrigido**: `install-sploit.ps1` gravava a key
   embutida em `%LOCALAPPDATA%\sploit\`, mas o motor lê de
   `%USERPROFILE%\.local\share\sploit\` (`Global.Path.data` via
   `xdg-basedir`, sem exceção pra Windows — confirmado no código-fonte +
   `Test-Path` real). Commit `29111fa`. **Não reverter pra `$LOCALAPPDATA`.**
-- ⚠️ **PENDENTE**: a v0.1.7-sploit já publicada no GitHub ainda tem o bug
-  antigo (foi cortada antes do fix). Precisa lançar v0.1.8-sploit pra o fix
-  chegar em quem instalar de verdade.
+- ✅ **v0.1.8-sploit publicada** (https://github.com/Sploit23/sploit/releases/tag/v0.1.8-sploit)
+  com o fix — conferi o zip, sem chave/segredo dentro (`-SkipKey` funcionando).
+  `gh` CLI instalado e logado (`Sploit23`, keyring) nesta máquina pra próximas releases.
 - Rate limit do opencode zen (`"public"` compartilhado, por IP) é esperado,
   não é bug — cota própria (auth embutida) é a mitigação.
 
