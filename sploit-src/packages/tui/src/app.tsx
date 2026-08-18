@@ -560,7 +560,12 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
     updateChecked = true
     const check = async () => {
       try {
-        const response = await sdk.fetch("https://api.github.com/repos/Sploit23/sploit/releases/latest", {
+        // fetch global (nao sdk.fetch): sdk.fetch só sabe rotear pra API do
+        // servidor LOCAL do sploit (chama o handler interno direto, sem rede
+        // de verdade) — usá-lo aqui pra um host externo (github.com) sempre
+        // batia 404 no roteador local e quebrava em "Failed to parse JSON",
+        // silenciosamente, porque o catch abaixo não logava nada.
+        const response = await fetch("https://api.github.com/repos/Sploit23/sploit/releases/latest", {
           headers: { Accept: "application/json" },
         })
         if (!response.ok) return
@@ -579,8 +584,11 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
             properties: { version: latest },
           },
         })
-      } catch {
-        // sem rede no boot: silencioso
+      } catch (error) {
+        // Sem rede no boot é esperado e não deve incomodar o usuário — mas
+        // precisa ficar rastreável (--log-level DEBUG), senão qualquer outra
+        // causa de falha (endpoint mudou, fetch quebrou etc.) morre muda.
+        console.error("check de atualização no boot falhou", error)
       }
     }
     void check()
