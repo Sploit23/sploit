@@ -598,6 +598,21 @@ sem segundo escritor, mantém enxuto e sempre verificado antes de marcar ✅.
 - Rate limit do opencode zen (`"public"` compartilhado, por IP) é esperado,
   não é bug — cota própria (auth embutida) é a mitigação.
 
+**BOOT UPDATE-CHECK NUNCA FUNCIONOU — corrigido (18/08).**
+- `sdk.fetch` (dentro da TUI, modo normal) não é fetch de verdade — roteia
+  pro handler INTERNO do servidor local (`Server.Default().app.fetch`, sem
+  rede real), feito só pra API local (sessões/eventos). O check de update
+  usava `sdk.fetch` pra pedir `api.github.com/repos/.../releases/latest` —
+  o roteador local não tinha essa rota, devolvia 404 não-JSON,
+  `response.json()` quebrava, e o `catch {}` **não logava nada**. Feature
+  morta em silêncio desde que foi escrita, pra todo mundo.
+- ✅ Trocado pro `fetch` global (funciona pra hosts externos) + catch agora
+  loga o erro. Commit `4867aeb`. Validado renderizando de verdade: diálogo
+  "Atualização disponível" apareceu comparando contra a v0.1.8 publicada.
+- ⚠️ **PENDENTE**: fix só está no código, não em release nenhuma ainda —
+  quem já tem 0.1.8 instalado não vai saber de futuras versões até isso
+  ser publicado numa v0.1.9.
+
 **Como o amigo instala com auth (1 comando):**
 ```
 irm https://raw.githubusercontent.com/Sploit23/sploit/master/scripts/install-online.ps1 -OutFile "$env:TEMP\install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\install.ps1" -OpenCodeKey "sua-chave"
