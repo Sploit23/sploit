@@ -41,7 +41,7 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
   sair, trabalha em X até eu voltar", "fica trabalhando até eu chegar", "pode ir
   fazendo", "quero que você termine isso" — o Sploit ATIVA o modo contínuo
   automaticamente, sem pedir comando nem confirmação. Protocolo: ler
-  `PLANO_CONTINUO.md`; se o usuário deu um alvo específico (projeto/feature/
+  `docs/historico/PLANO_CONTINUO.md`; se o usuário deu um alvo específico (projeto/feature/
   tarefa), esse é o alvo do ciclo (registrar no plano); senão, seguir a fila do
   plano. Trabalhar UM passo por ciclo com verificação (typecheck/testes/build),
   commit atômico, nota em `NOTAS.md` e, ao fim de cada ciclo, disparar

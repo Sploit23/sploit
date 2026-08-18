@@ -88,4 +88,4 @@ Para gerar ou reindexar o grafo: `/graphify .` dentro da TUI, ou `venv\Scripts\g
 
 ## Tecnologias
 
-TypeScript · Bun · Ink (TUI) · Graphify · MCP
+TypeScript · Bun · opentui + SolidJS (TUI) · Graphify · MCP
