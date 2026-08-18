@@ -577,27 +577,26 @@ pendente). Commit motor   `7c281b9`.
 
 ## Próximo passo
 
-**AUTH NO INSTALADOR — v0.1.7-sploit publicada (17/08).**
-- ✅ **Diagnóstico do erro "Error from provider"**: big-pickle usa `apiKey: "public"` (compartilhada, rate limit apertado por IP). Auth própria (API key) dá cota separada.
-- ✅ **Auth no instalador**: `-OpenCodeKey` em install-sploit/install-online + auto-detecção de `opencode-key.txt` no pacote + merge seguro (preserva auth existente).
-- ✅ **Segurança**: `-SkipKey` em releases públicas (key nunca vai pro GitHub). `.gitignore` atualizado.
-- ✅ **Fix de segurança**: primeiro build vazou a key no zip público. Detectado, release apagada, fix implementado, rebuild limpo publicado.
-- ⚠️ **CORREÇÃO (18/08, outra sessão/IA — Claude Code)**: a linha acima estava
-  **invertida**. O motor lê auth de `Global.Path.data`
-  (`packages/core/src/global.ts`) → via `xdg-basedir` (sem exceção pra
-  Windows) → resolve pra `%USERPROFILE%\.local\share\sploit\`, NÃO
-  `$LOCALAPPDATA\sploit\`. Confirmado lendo o código-fonte + `Test-Path` real
-  na máquina. O "fix no 0.1.7" (commit `fbfce92`) era a regressão: gravava
-  a key embutida num caminho que o motor nunca abre — instalação nova (PC
-  limpo) caía sem perceber na chave `"public"` compartilhada mesmo com a
-  mensagem dizendo "cota própria". Passou despercebido porque a máquina de
-  dev já tinha `~/.local/share/sploit/auth.json` populado de sessões antigas
-  de `sploit auth login`. Revertido de volta pro caminho certo em
-  `install-sploit.ps1` (commit `29111fa`, 18/08). **Não reverter de novo pra
-  `$LOCALAPPDATA` sem reconferir o código-fonte real.**
-- ✅ **Release v0.1.7-sploit** publicada (auth path fix).
-- ✅ **Global final**: `0.1.7-sploit` em `%LOCALAPPDATA%\Sploit\bin`.
-- ⚠️ **Rate limit do opencode zen**: a API bloqueia requests novos deste IP. Sessões ativas continuam. Auth funciona (key lida corretamente), mas o server rejeita. Esperar ~30min ou usar outro provider.
+**18/08: só uma IA (Claude Code) mexe no sploit a partir de agora** — o
+usuário decidiu parar de rodar a outra sessão em modo contínuo depois dela
+publicar a v0.1.7 com uma regressão marcada ✅ (ver linha abaixo). Este
+arquivo passa a ser a memória de continuidade desta única sessão/agente —
+sem segundo escritor, mantém enxuto e sempre verificado antes de marcar ✅.
+
+**AUTH NO INSTALADOR — fix aplicado, release pendente.**
+- ✅ Mecanismo (`apiKey: "public"` pra quem não tem key, auth embutida via
+  `-OpenCodeKey`/`opencode-key.txt` pra quem quer cota própria, `-SkipKey`
+  protegendo o release público) está correto e testado.
+- ✅ **Bug real corrigido (18/08)**: `install-sploit.ps1` gravava a key
+  embutida em `%LOCALAPPDATA%\sploit\`, mas o motor lê de
+  `%USERPROFILE%\.local\share\sploit\` (`Global.Path.data` via
+  `xdg-basedir`, sem exceção pra Windows — confirmado no código-fonte +
+  `Test-Path` real). Commit `29111fa`. **Não reverter pra `$LOCALAPPDATA`.**
+- ⚠️ **PENDENTE**: a v0.1.7-sploit já publicada no GitHub ainda tem o bug
+  antigo (foi cortada antes do fix). Precisa lançar v0.1.8-sploit pra o fix
+  chegar em quem instalar de verdade.
+- Rate limit do opencode zen (`"public"` compartilhado, por IP) é esperado,
+  não é bug — cota própria (auth embutida) é a mitigação.
 
 **Como o amigo instala com auth (1 comando):**
 ```
@@ -608,10 +607,6 @@ irm https://raw.githubusercontent.com/Sploit23/sploit/master/scripts/install-onl
 
 - Pendência antiga: validação visual do banner/wizard de squad no binário.
 - Pendência antiga: teste visual do TUI boot-check (auto-update quando abre).
-
-**ATUALIZAÇÃO (14/08, tarde): GitHub Copilot free ativado como provider principal
-— motor corrigido e validado. PENDENTE: reiniciar o Sploit com o binário novo e
-abrir sessão nova (ou `/model`) para o copilot valer na sessão (modelo é por sessão).**
 
 Resolvido o caos de cotas: big-pickle travado por IP, Gemini 2.5/3 free estourados
 (2.5 = 20 req/min; 3 = 250k tok entrada/min + 5 req/min) e groq small_model
