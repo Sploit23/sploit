@@ -582,7 +582,19 @@ pendente). Commit motor   `7c281b9`.
 - ✅ **Auth no instalador**: `-OpenCodeKey` em install-sploit/install-online + auto-detecção de `opencode-key.txt` no pacote + merge seguro (preserva auth existente).
 - ✅ **Segurança**: `-SkipKey` em releases públicas (key nunca vai pro GitHub). `.gitignore` atualizado.
 - ✅ **Fix de segurança**: primeiro build vazou a key no zip público. Detectado, release apagada, fix implementado, rebuild limpo publicado.
-- ✅ **Fix caminho auth**: `install-sploit.ps1` gravava em `~/.local/share/sploit/` (errado). Motor lê de `$LOCALAPPDATA/sploit/`. Fix no 0.1.7.
+- ⚠️ **CORREÇÃO (18/08, outra sessão/IA — Claude Code)**: a linha acima estava
+  **invertida**. O motor lê auth de `Global.Path.data`
+  (`packages/core/src/global.ts`) → via `xdg-basedir` (sem exceção pra
+  Windows) → resolve pra `%USERPROFILE%\.local\share\sploit\`, NÃO
+  `$LOCALAPPDATA\sploit\`. Confirmado lendo o código-fonte + `Test-Path` real
+  na máquina. O "fix no 0.1.7" (commit `fbfce92`) era a regressão: gravava
+  a key embutida num caminho que o motor nunca abre — instalação nova (PC
+  limpo) caía sem perceber na chave `"public"` compartilhada mesmo com a
+  mensagem dizendo "cota própria". Passou despercebido porque a máquina de
+  dev já tinha `~/.local/share/sploit/auth.json` populado de sessões antigas
+  de `sploit auth login`. Revertido de volta pro caminho certo em
+  `install-sploit.ps1` (commit `29111fa`, 18/08). **Não reverter de novo pra
+  `$LOCALAPPDATA` sem reconferir o código-fonte real.**
 - ✅ **Release v0.1.7-sploit** publicada (auth path fix).
 - ✅ **Global final**: `0.1.7-sploit` em `%LOCALAPPDATA%\Sploit\bin`.
 - ⚠️ **Rate limit do opencode zen**: a API bloqueia requests novos deste IP. Sessões ativas continuam. Auth funciona (key lida corretamente), mas o server rejeita. Esperar ~30min ou usar outro provider.
