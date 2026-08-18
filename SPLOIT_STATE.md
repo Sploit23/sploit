@@ -609,9 +609,8 @@ sem segundo escritor, mantém enxuto e sempre verificado antes de marcar ✅.
 - ✅ Trocado pro `fetch` global (funciona pra hosts externos) + catch agora
   loga o erro. Commit `4867aeb`. Validado renderizando de verdade: diálogo
   "Atualização disponível" apareceu comparando contra a v0.1.8 publicada.
-- ⚠️ **PENDENTE**: fix só está no código, não em release nenhuma ainda —
-  quem já tem 0.1.8 instalado não vai saber de futuras versões até isso
-  ser publicado numa v0.1.9.
+- ✅ **v0.1.9-sploit publicada** (https://github.com/Sploit23/sploit/releases/tag/v0.1.9-sploit)
+  com o fix. `gh` já autenticado, release cortada sem intervenção manual.
 
 **Como o amigo instala com auth (1 comando):**
 ```
