@@ -630,15 +630,22 @@ pendente). Commit motor   `7c281b9`.
 
 ## Próximo passo
 
-**21/08 — estado atual**: P0a/P0b, sync upstream nº 1 (release v0.1.12),
-Graphify recriado e P1 (avaliador de mutações) concluídos. Pendências:
+**21/08 — MÁQUINA MIGRADA PARA O SPLOIT.EXE**: binário do PATH atualizado
+(= build 15:02 pós-sync, SHA-256 conferido) e `sploit run` testado end-to-end
+OK com **google/gemini-3.6-flash** (o big-pickle/Zen está em rate limit neste
+PC — chave pública compartilhada estourada; voltar quando houver chave própria).
+sploit.json do projeto e sploit.jsonc global alinhados ao Gemini. Se esta sessão
+foi aberta pelo opencode oficial: fechar e reabrir com `sploit` em D:\sploit —
+o contexto NÃO migra entre DBs; as memórias carregam o estado.
 
-1. **Trabalhar no sploit.exe** (não no opencode oficial) e re-rodar
-   `python scripts/avalia_mutacoes.py` quando cada mutação tiver ≥5 disparos —
-   aí sim decidir manter/podar com evidência (Constituição art. 6).
-2. Pendências antigas herdadas: validação visual do banner/wizard de squad;
+Pendências em ordem:
+
+1. **P2** — a definir com o Flavio (P0a/P0b/sync/P1 concluídos).
+2. Re-rodar `python scripts/avalia_mutacoes.py` quando cada mutação tiver ≥5
+   disparos em sessões REAIS do sploit.exe — decidir manter/podar (art. 6).
+3. Pendências antigas herdadas: validação visual do banner/wizard de squad;
    G-isolado ao atingir 3 obs.
-3. Próximo sync: seguir UPSTREAM.md (diff-apply) a partir do SYNCED do
+4. Próximo sync: seguir UPSTREAM.md (diff-apply) a partir do SYNCED do
    `.upstream-sync` (`1b937c86`).
 
 ### Histórico (resolvido — manter para contexto)

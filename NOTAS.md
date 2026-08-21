@@ -1388,3 +1388,24 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
 - **Entregue**: scripts/avalia_mutacoes.py (--db repetível, --desde/--ate, 6
   mutações classificadas por marcador, efetividade por janela de turnos, veredito
   manter/podar); py_compile OK; 6/6 checks no DB sintético; rodada real = baseline 0.
+
+## [2026-08-21] Migração desta máquina de trabalho para o sploit.exe
+- **Como raciocinei**: ao descobrir que as sessões rodavam no opencode oficial,
+  tratei a troca como checklist verificável, não como conselho: (1) conferi se o
+  binário instalado no PATH era o build pós-sync (não era — 13:42 vs 15:02 —
+  comparei SHA-256 e atualizei); (2) smoke end-to-end com `sploit run` antes de
+  mandar o usuário migrar — e ele FALHOU (rate limit do Zen, chave pública
+  compartilhada sk-20e*** estourada). Em vez de culpar o motor, isolei a variável:
+  testei `-m opencode/big-pickle` (falha) e `-m google/gemini-3.6-flash` (OK) —
+  problema era provider/modelo, não binário. Alinhei o sploit.json do projeto ao
+  Gemini (já default global deste PC) e re-testei sem `-m`: OK.
+- **O que valeu a pena**: provar cada etapa por evidência (hash, teste isolado,
+  teste final idêntico ao uso real). O smoke "de mentirinha" (--version) passava
+  mas não exercitava auth/modelo — o teste que importa é o que roda o caminho
+  inteiro do usuário.
+- **Estado para a próxima sessão** (que já será no sploit): binário atualizado
+  (= build 15:02), config global e do projeto em google/gemini-3.6-flash +
+  gemini-3.5-flash-lite (small_model), MCP graphify/context7 configurados.
+  Cota do Zen/big-pickle estourada neste PC — voltar quando houver chave própria.
+  Contexto desta conversa NÃO migra (DB do opencode oficial); as memórias
+  carregam o estado. P1 entregue; re-medição G5–G9 quando houver amostra real.
