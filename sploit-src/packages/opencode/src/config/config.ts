@@ -439,7 +439,10 @@ const layer = Layer.effect(
             .install(dir, {
               add: [
                 {
-                  name: "@sploit-ai/plugin",
+                  // SDK publico (@opencode-ai/plugin): e o que plugins de
+                  // terceiros importam. O escopo @sploit-ai/plugin nao esta
+                  // publicado no npm, entao instalaria 404 em todo boot.
+                  name: "@opencode-ai/plugin",
                   version: InstallationLocal ? undefined : InstallationVersion,
                 },
               ],
