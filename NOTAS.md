@@ -1318,3 +1318,26 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
 - **Entregue**: sploit.json portável (plugin por spec npm, graphify relativo);
   fix motor @opencode-ai/plugin (config.ts + tui.ts); duplicata superpowers
   removida; remote upstream + UPSTREAM.md; typecheck/build/boot validados.
+
+## [2026-08-21] Sync upstream nº 1 via diff-apply
+- **Como raciocinei**: antes de tentar o merge óbvio, testei a premissa com
+  `git merge-base` — vazio. Em vez de forçar `--allow-unrelated-histories`
+  (traria a árvore inteira do upstream em caminhos errados), mudei de estratégia:
+  patches por arquivo desde o baseline do fork, remapeados com `--directory`.
+  O loop revelou o comportamento real das ferramentas um a um: apply atômico
+  (falha total = sinal claro para iterar por arquivo), redirecionamento do PS
+  corrompendo patch (UTF-16), flag fora de ordem engolindo o pathspec. Nos 21
+  conflitos, apliquei uma convenção única (escopo nosso + versões/estrutura
+  deles + mutações próprias preservadas) em vez de decidir caso a caso — menos
+  decisões, menos erro. Quando o install bateu na política supply-chain, não
+  desativei nada permanentemente: bypass temporário, install, restauração.
+- **O que valeu a pena**: (1) validar a premissa do merge ANTES de lutar contra
+  ele; (2) loop por arquivo com log OK/SKIP/CONFLICT transformou um merge
+  impossível em trabalho mecânico e auditável; (3) convenção de resolução única
+  escala melhor que julgamento ad hoc; (4) varredura pós-apply por imports do
+  escopo antigo pegou o que o typecheck pegaria só depois (e o que ele nunca
+  pegaria — pacote inexistente em workspace não coberto); (5) política de
+  segurança se contorna por UM ciclo, nunca se remove.
+- **Entregue**: sync completo (207 arquivos, 21 conflitos resolvidos), baseline
+  `.upstream-sync`, UPSTREAM.md reescrito com o processo real, typecheck 16/16 +
+  build smoke + binário validados, merge na master.

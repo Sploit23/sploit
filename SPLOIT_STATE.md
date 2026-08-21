@@ -592,20 +592,30 @@ pendente). Commit motor   `7c281b9`.
   (branch `dev`) + `UPSTREAM.md` com processo de sync, pontos quentes de conflito
   (escopo `@sploit-ai`, branding) e checklist de validação/release.
 
+- **Sync upstream real nº 1 (21/08)** ✔: merge impossível (histórico reconstruído
+  no push forçado de 16/08 — sem ancestral comum). Método provado: **diff-apply**
+  por arquivo (`git diff --output= <base> upstream/dev -- <path>` +
+  `git apply -3 --directory=sploit-src`; apply é ATÔMICO → loop por arquivo;
+  `>` do PS corrompe patch com UTF-16; `--output` antes do `--`). Resultado: 207
+  OK, 239 SKIP (fork não carrega), 21 conflitos resolvidos (escopo `@sploit-ai`
+  mantido, versões novas do upstream, mutações próprias preservadas: retryDelayFromBody,
+  anchors, reminders). Armadilhas resolvidas: bun.lock regenerado via install com
+  `minimumReleaseAge=0` temporário (política restaurada depois); arquivos novos do
+  upstream com escopo antigo renomeados (cerebras, session-export); usage.ts do
+  console apagado (importa console-core que o fork não tem); chave duplicada no
+  retry.ts corrigida. Validação: typecheck monorepo 16/16, build smoke OK,
+  binário `--version` OK. Commits `6f5a626` (sync) + `18998fd` (.upstream-sync +
+  UPSTREAM.md reescrito com o processo real) + merge `fa3d51c` na master.
+  Baseline em `.upstream-sync`: BASE `4a57013c`, SYNCED `1b937c86`.
+
 ## Próximo passo
 
-**21/08 — estado atual**: P0a (config portável + fix do SDK de plugin no motor)
-e P0b (upstream + UPSTREAM.md) concluídos e validados neste PC. Pendências em
-ordem:
+**21/08 — estado atual**: P0a, P0b e sync upstream nº 1 concluídos e validados
+(typecheck 16/16 + build smoke + binário OK). Pendências em ordem:
 
-1. **Commitar o P0** (pedir aprovação do Flavio): motor (fix `@opencode-ai/plugin`
-   em config.ts/tui.ts) e raiz (sploit.json portável + UPSTREAM.md) — commits
-   atômicos separados, padrão `sploit: ...`.
-2. **Publicar release com o fix do SDK** (o 404 afeta todos os PCs da frota até
-   sair release nova; fluxo: bump de versão → build → pack-dist → release.ps1).
-3. **Sync upstream real nº 1** (`git fetch upstream` + merge `dev`, seguir
-   UPSTREAM.md) — validar o processo documentado na prática.
-4. Pendências antigas herdadas: validação visual do banner/wizard de squad;
+1. **Push da master** (sync + docs) e **release nova** para a frota receber o
+   motor sincronizado (fluxo: bump → build → pack-dist → release.ps1).
+2. Pendências antigas herdadas: validação visual do banner/wizard de squad;
    re-medição G5–G9 com mutação ativa; G-isolado ao atingir 3 obs.
 
 ### Histórico (resolvido — manter para contexto)
