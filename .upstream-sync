@@ -1,0 +1,8 @@
+# Estado de sincronização com o upstream (anomalyco/opencode)
+# Lido pelo processo de sync (ver UPSTREAM.md). Não editar sem saber o que faz.
+# BASE    = commit do upstream em que o código do fork foi criado/último sync completo
+# SYNCED  = commit do upstream já aplicado ao fork (nada além disso pendente)
+BASE=4a57013cf8cb163f58638273fd9da8538cd33cb7
+SYNCED=1b937c860b6fd8a83e69f916b1236515aa17ea0d
+DATA=2026-08-21
+METODO=diff-apply
