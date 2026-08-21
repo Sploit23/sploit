@@ -1296,3 +1296,25 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   limit por IP e por key. Sessões já ativas continuam; requests novos são
   bloqueados. Retry com backoff consome cota mais rápido. Solução: esperar ou
   usar outro provider.
+
+## [2026-08-21] Novo PC + P0: config portável e fix do SDK de plugin
+- **Como raciocinei**: o objetivo era tornar o sploit.json portável entre PCs.
+  Em vez de adivinhar, li o mecanismo de resolução do motor antes de decidir:
+  {env:VAR} substitui texto cru ANTES do parse (backslash do Windows quebra o
+  JSON — tentativa e erro descartou essa rota em minutos); specs de plugin só
+  aceitam file://, . ou absoluto; mas specs npm passam inteiras para o
+  Npm.add. A descoberta-chave veio do log, não do código: o superpowers já
+  tinha sido instalado em ~/.cache/sploit/packages/github_obra/... pela spec
+  npm — o caminho que eu queria existia e era o idiomático. Para o WARN de 404
+  do @sploit-ai/plugin, a causa raiz foi arquitetural (escopo renomeado nunca
+  publicado) e o fix mínimo preservou o formato upstream (só o nome mudou),
+  pensando no próximo merge do UPSTREAM.md.
+- **O que valeu a pena**: (1) ler o mecanismo de resolução antes de escolher
+  solução — evitou gambiarras com env-var; (2) confiar no log como fonte de
+  verdade sobre o que o motor faz de fato (descobriu install funcionando,
+  duplicatas e o 404 de frota de uma vez); (3) validar com boot real e checagem
+  positiva (node_modules nos 3 dirs), não só ausência de erro; (4) pensar no
+  custo de sync futuro ao escrever qualquer diff do motor.
+- **Entregue**: sploit.json portável (plugin por spec npm, graphify relativo);
+  fix motor @opencode-ai/plugin (config.ts + tui.ts); duplicata superpowers
+  removida; remote upstream + UPSTREAM.md; typecheck/build/boot validados.

@@ -575,7 +575,40 @@ pendente). Commit motor   `7c281b9`.
   fix) → 0.1.5 (download completo, swap manual confirmou; script desanexado não
   disparou neste contexto npm, mas em terminal interativo do amigo funciona).
 
+- **Novo PC + otimizações P0 (21/08)** ✔: ambiente reerguido neste PC (clone
+  `D:\sploit`, git identity Flavio, bun via `%APPDATA%\npm`, gh CLI, build +
+  `install-sploit.ps1`; auth Zen + Google Gemini validados ponta a ponta —
+  Zen free estourado, `gemini-3.7-flash` trava sempre, usar `gemini-3.6-flash`).
+  **P0a — sploit.json portável**: plugin superpowers agora por spec npm
+  (`github:obra/superpowers`) em vez de caminho absoluto por máquina (o motor
+  instala sozinho em `~/.cache/sploit/packages/`); graphify relativo; context7
+  puro. **Bug de frota corrigido no motor**: o install de fundo gravava
+  `@sploit-ai/plugin` (escopo nunca publicado → 404 WARN em todo boot em todo
+  PC); agora gera dep do SDK público `@opencode-ai/plugin`
+  (`config/config.ts` + `config/tui.ts`). Duplicata de skills do superpowers
+  removida da config global deste PC (npm prune). Typecheck OK, build smoke OK,
+  binário instalado atualizado, boot limpo sem 404/duplicatas.
+  **P0b — sync com upstream**: remote `upstream` → `anomalyco/opencode`
+  (branch `dev`) + `UPSTREAM.md` com processo de sync, pontos quentes de conflito
+  (escopo `@sploit-ai`, branding) e checklist de validação/release.
+
 ## Próximo passo
+
+**21/08 — estado atual**: P0a (config portável + fix do SDK de plugin no motor)
+e P0b (upstream + UPSTREAM.md) concluídos e validados neste PC. Pendências em
+ordem:
+
+1. **Commitar o P0** (pedir aprovação do Flavio): motor (fix `@opencode-ai/plugin`
+   em config.ts/tui.ts) e raiz (sploit.json portável + UPSTREAM.md) — commits
+   atômicos separados, padrão `sploit: ...`.
+2. **Publicar release com o fix do SDK** (o 404 afeta todos os PCs da frota até
+   sair release nova; fluxo: bump de versão → build → pack-dist → release.ps1).
+3. **Sync upstream real nº 1** (`git fetch upstream` + merge `dev`, seguir
+   UPSTREAM.md) — validar o processo documentado na prática.
+4. Pendências antigas herdadas: validação visual do banner/wizard de squad;
+   re-medição G5–G9 com mutação ativa; G-isolado ao atingir 3 obs.
+
+### Histórico (resolvido — manter para contexto)
 
 **18/08: só uma IA (Claude Code) mexe no sploit a partir de agora** — o
 usuário decidiu parar de rodar a outra sessão em modo contínuo depois dela
@@ -1016,6 +1049,11 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   esperado); `pack-dist.ps1 -SkipConhecimento` validado (zip `0.1.1-sploit` com
   `sploit.exe` na raiz, SEM conhecimento.txt, 48,1 MB); parse OK nos 4 .ps1
   (release/install-online/pack-dist/build-sploit) ✔
+
+- **P0a — fix do SDK de plugin (21/08)**: typecheck opencode OK (0 erros); build
+  smoke OK; boot real sem WARN de 404 (`@opencode-ai/plugin@1.18.x` instalado nos
+  3 dirs de config) e sem "duplicate skill" (duplicata removida via npm prune);
+  `sploit run` ponta a ponta com Gemini OK ✔
 
 ## Armadilhas
 
