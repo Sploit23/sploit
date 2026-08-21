@@ -607,26 +607,37 @@ pendente). Commit motor   `7c281b9`.
   binário `--version` OK. Commits `6f5a626` (sync) + `18998fd` (.upstream-sync +
   UPSTREAM.md reescrito com o processo real) + merge `fa3d51c` na master.
   Baseline em `.upstream-sync`: BASE `4a57013c`, SYNCED `1b937c86`.
+- **Graphify neste PC novo** ✔ (21/08): descoberto que o `graphifyy` é pacote
+  público no PyPI (o CLI é `graphify`; corpus só de código = AST sem LLM/key).
+  venv recriado com pin `0.9.32` (mesma versão do PC antigo); o pacote já traz
+  `graphify-mcp.exe` (caminho exato do MCP no sploit.json). Índice completo:
+  **29319 nós, 56317 arestas, 2597 comunidades** + GRAPH_REPORT.md + graph.html.
+  Schema validado contra o `loadAnchors` do core; âncoras top-15 coerentes.
+  Query real OK (DECISOES.md inteiro está no grafo — md entra estruturalmente).
+  Docs semânticos pendem de GEMINI_API_KEY (a chave do api.txt não é OpenAI — 401).
+
+- **P1 — avaliador de mutações G5–G9 (21/08)** ✔: `scripts/avalia_mutacoes.py`
+  mede a efetividade REAL das mutações lendo o DB (os disparos já estão
+  persistidos como parts sintéticos com marcadores exatos de `reminders.ts`/
+  `prompt.ts` — não precisou instrumentar o motor). Classifica 6 mutações
+  (root_cause, graph_check, verify_prompt, auto_verify com PASS/FAIL,
+  file_memory, idempotency) e mede o desfecho em janela de turnos, com veredito
+  manter/podar. py_compile + 6/6 checks em DB sintético. **Descoberta crítica**:
+  as sessões deste PC rodam no OPENCODE OFICIAL (`opencode-ai` npm; DB vivo =
+  `~/.local/share/opencode/opencode.db`, 1,25 GB) — sem as mutações do Sploit.
+  Baseline honesto: 0 disparos. **Para o corpo atuar e acumular amostra, o
+  trabalho diário precisa ser no `sploit.exe`** (data dir `sploit/`).
 
 ## Próximo passo
 
-**21/08 — estado atual**: P0a, P0b e sync upstream nº 1 concluídos e validados
-(typecheck 16/16 + build smoke + binário OK). **Push feito (`b408405e`) e release
-v0.1.12-sploit publicada** com o motor sincronizado (tag → merge `fa3d51c`; frota
-atualiza com install-online). Pendências em ordem:
+**21/08 — estado atual**: P0a/P0b, sync upstream nº 1 (release v0.1.12),
+Graphify recriado e P1 (avaliador de mutações) concluídos. Pendências:
 
-1. Pendências antigas herdadas: validação visual do banner/wizard de squad;
-   re-medição G5–G9 com mutação ativa; G-isolado ao atingir 3 obs.
-2. **Graphify neste PC novo** ✔ (21/08): descoberto que o `graphifyy` é pacote
-   público no PyPI (o CLI é `graphify`; corpus só de código = AST sem LLM/key).
-   venv recriado com pin `0.9.32` (mesma versão do PC antigo); o pacote já traz
-   `graphify-mcp.exe` (caminho exato do MCP no sploit.json). Índice completo:
-   **29319 nós, 56317 arestas, 2597 comunidades** + GRAPH_REPORT.md + graph.html.
-   Schema validado contra o `loadAnchors` do core (file_type/source_file/links);
-   âncoras top-15 coerentes (sdk gen, layer-node, session.ts, provider.ts).
-   Query real OK (DECISOES.md inteiro está no grafo — md entra estruturalmente).
-   Docs semânticos (imagens/papers) pendem de GEMINI_API_KEY; a chave do api.txt
-   NÃO é OpenAI válida (401). AGENTS.md atualizado com o uso neste PC.
+1. **Trabalhar no sploit.exe** (não no opencode oficial) e re-rodar
+   `python scripts/avalia_mutacoes.py` quando cada mutação tiver ≥5 disparos —
+   aí sim decidir manter/podar com evidência (Constituição art. 6).
+2. Pendências antigas herdadas: validação visual do banner/wizard de squad;
+   G-isolado ao atingir 3 obs.
 3. Próximo sync: seguir UPSTREAM.md (diff-apply) a partir do SYNCED do
    `.upstream-sync` (`1b937c86`).
 

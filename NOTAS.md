@@ -1362,3 +1362,29 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
 - **Entregue**: venv + graphifyy 0.9.32; índice 29319 nós/56317 arestas/2597
   comunidades; GRAPH_REPORT.md + graph.html; schema validado vs loadAnchors;
   query real OK; AGENTS.md + SPLOIT_STATE.md atualizados.
+
+## [2026-08-21] P1 — avaliador de mutações G5–G9 e a descoberta do binário errado
+- **Como raciocinei**: o plano original previa instrumentar o motor, mas o recon
+  mostrou que os disparos JÁ estão persistidos — todo `persistSyntheticPart` grava
+  um part sintético com marcador de texto exato no DB. Medi então no DB, não no
+  motor: zero risco, zero rebuild, e cobre TODO o histórico desde a ativação.
+  Quando o DB real deu 0 disparos, não aceitei o número: segui a trilha (19 sessões
+  pequenas demais → achei o opencode.db de 1,25 GB com 89k parts → confirmei qual
+  DB é vivo procurando string única desta conversa → subi até o processo host).
+  A causa raiz estava uma camada acima do esperado.
+- **O que valeu a pena**: (1) desconfiar de resultado zero em sistema que deveria
+  produzir dados — número implausível é pergunta, não resposta; (2) provar qual DB
+  é vivo por conteúdo único (string desta sessão), não por mtime; (3) o avaliador
+  derivou disparos dos PRÓPRIOS textos persistidos — a instrumentação que parecia
+  necessária já tinha sido feita implicitamente pelo design das mutações;
+  (4) teste fake com os 6 cenários antes de tocar no DB real pegou a semântica
+  das janelas (FAIL resolvido, recorrência) de graça.
+- **Descoberta crítica**: as sessões deste PC (incluindo o sync de hoje) rodam no
+  OPENCODE OFICIAL (`opencode-ai` npm, data dir `~/.local/share/opencode`) — não no
+  `sploit.exe`. O corpo (G5–G9) só existe no binário do Sploit: enquanto o trabalho
+  diário acontecer no opencode oficial, as mutações não atuam nem acumulam amostra.
+  Baseline honesto deste PC: 0 disparos. O avaliador fica pronto para medir quando
+  houver amostra real em sessões do sploit.exe.
+- **Entregue**: scripts/avalia_mutacoes.py (--db repetível, --desde/--ate, 6
+  mutações classificadas por marcador, efetividade por janela de turnos, veredito
+  manter/podar); py_compile OK; 6/6 checks no DB sintético; rodada real = baseline 0.
