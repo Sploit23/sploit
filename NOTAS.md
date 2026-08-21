@@ -1409,3 +1409,15 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   Cota do Zen/big-pickle estourada neste PC — voltar quando houver chave própria.
   Contexto desta conversa NÃO migra (DB do opencode oficial); as memórias
   carregam o estado. P1 entregue; re-medição G5–G9 quando houver amostra real.
+
+## [2026-08-21] P2 — análise sincera do Sploit (pedido explícito do usuário)
+- **Como raciocinei**: em vez de opinião, juntei evidência dos quatro cantos:
+  código (reminders.ts 421 linhas + teste 36 pass, squad = 21 linhas no motor,
+  branding TUI ~100 linhas, 2259 testes herdados), processos (169 commits,
+  sync diff-apply com 21 conflitos no 1º round), operação (rate limit do Zen
+  no MESMO dia do install novo) e memórias (genes com observações reais).
+  Sinceridade = separar o que TEM PROVA do que é ASPIRAÇÃO (Constituição sem
+  combustível de uso real; mutações ativadas sem medição — contra o art. 6).
+- **O que valeu a pena**: rodar o teste do corpo durante a análise (não confiar
+  em "typecheck passou"); usar o rate limit de hoje como dado, não acidente;
+  reconhecer que o gargalo do projeto não é código — é USO REAL.

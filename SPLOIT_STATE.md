@@ -640,13 +640,18 @@ o contexto NÃO migra entre DBs; as memórias carregam o estado.
 
 Pendências em ordem:
 
-1. **P2** — a definir com o Flavio (P0a/P0b/sync/P1 concluídos).
-2. Re-rodar `python scripts/avalia_mutacoes.py` quando cada mutação tiver ≥5
-   disparos em sessões REAIS do sploit.exe — decidir manter/podar (art. 6).
-3. Pendências antigas herdadas: validação visual do banner/wizard de squad;
-   G-isolado ao atingir 3 obs.
-4. Próximo sync: seguir UPSTREAM.md (diff-apply) a partir do SYNCED do
+1. **Dogfood + primeira decisão com dados**: usar o sploit.exe em TUDO; quando
+   cada mutação G5–G9 tiver ≥5 disparos reais, rodar
+   `python scripts/avalia_mutacoes.py` e decidir manter/podar (art. 6).
+2. **Modelo default resiliente**: Zen estourou cota no 1º run pós-install —
+   implementar fallback automático de modelo (Zen → Gemini → ...) ou chave própria.
+3. **CI mínimo** (GitHub Actions: typecheck + testes no push) para baratear o sync.
+4. Limpeza: scripts órfãos (instrumenta/medicao/analyze-webui*), pendências velhas
+   (banner/wizard squad — fechar ou matar explícito).
+5. Próximo sync: seguir UPSTREAM.md (diff-apply) a partir do SYNCED do
    `.upstream-sync` (`1b937c86`).
+
+Análise sincera completa (P2) entregue em 21/08 — ver NOTAS.md e a conversa.
 
 ### Histórico (resolvido — manter para contexto)
 
