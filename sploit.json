@@ -20,7 +20,7 @@
     "build": { "model": "opencode/big-pickle" }
   },
   "plugin": [
-    "C:\\Users\\Hp\\.config\\sploit\\node_modules\\superpowers"
+    "github:obra/superpowers"
   ],
   "skills": {
     "paths": [
@@ -31,7 +31,7 @@
     "graphify": {
       "type": "local",
       "command": [
-        "C:\\Users\\Hp\\Desktop\\sploit\\venv\\Scripts\\graphify-mcp.exe",
+        "venv\\Scripts\\graphify-mcp.exe",
         "--graph",
         "graphify-out/graph.json"
       ],
@@ -40,7 +40,7 @@
     "context7": {
       "type": "local",
       "command": [
-        "C:\\Program Files\\nodejs\\npx.cmd",
+        "npx",
         "-y",
         "@upstash/context7-mcp"
       ],

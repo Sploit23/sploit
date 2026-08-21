@@ -18,6 +18,7 @@ graphify-out/
 
 # Segredos (nunca commitar)
 APIKEY.txt
+api.txt
 key.txt
 opencode-key.txt
 .sploit.conf.yml
