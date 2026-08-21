@@ -14,48 +14,80 @@ git remote add upstream https://github.com/anomalyco/opencode.git
 - `upstream` → `anomalyco/opencode` (somente leitura; branch padrão `dev`)
 - Nunca pushar para `upstream`.
 
-## Processo de sync
+## Processo de sync (diff-apply — merge NÃO funciona)
 
-1. **Buscar o upstream:**
+> **Importante**: o histórico do fork foi reconstruído no push forçado de 16/08/2026
+> (`sploit-src/` movido para subpasta). Não existe ancestral comum com o upstream —
+> `git merge upstream/dev` falha ("unrelated histories") e `git diff master...upstream`
+> não produz nada útil. O método correto é **diff-apply**: gerar patches do upstream
+> desde o último baseline e aplicá-los remapeando os caminhos.
+
+O baseline fica em `.upstream-sync` (BASE = ponto de partida do fork, SYNCED = até
+onde o upstream já foi aplicado).
+
+1. **Buscar o upstream e medir o tamanho do sync:**
    ```
    git fetch upstream
+   git log --oneline <SYNCED>..upstream/dev | Measure-Object -Line
    ```
 
-2. **Ver o que mudou antes de mergear** (evita surpresa):
+2. **Criar branch de sync:**
    ```
-   git log --oneline master..upstream/dev | Measure-Object -Line
-   git diff --stat master...upstream/dev -- sploit-src/
-   ```
-
-3. **Mergear na sua master:**
-   ```
-   git checkout master
-   git merge upstream/dev
+   git checkout -b sync-upstream-<aaaammdd>
    ```
 
-4. **Resolver conflitos.** Pontos quentes conhecidos:
-   - **Escopo renomeado**: o fork renomeia `@opencode-ai/*` → `@sploit-ai/*` em
-     centenas de imports. Qualquer arquivo que o upstream tocar nesses imports vai
-     conflitar. Regra: **manter sempre o escopo `@sploit-ai`**.
-   - **Branding/identidade**: nomes, URLs e textos trocados de "opencode" para
-     "sploit" conflitam em TUI, CLI, docs e configs. Regra: manter "sploit".
-   - **Mudanças próprias no motor** (ex.: fix do SDK de plugin em
-     `src/config/config.ts` e `src/config/tui.ts`): comparar com a intenção do
-     upstream e preservar as duas partes quando possível.
-   - Minimizar atrito futuro: **evite renomear/mover arquivos sem necessidade** e
-     mantenha mudanças próprias pequenas e localizadas.
-
-5. **Validar depois do merge** (obrigatório antes de commitar o merge):
+3. **Aplicar arquivo por arquivo** (o `git apply -3` é ATÔMICO: se qualquer hunk
+   falhar, o arquivo inteiro é rejeitado — por isso o loop por arquivo):
+   ```powershell
+   $base = "<SYNCED do .upstream-sync>"
+   $files = git diff --name-only $base upstream/dev -- . ':!sploit-src'
+   # para cada arquivo: pular os que o fork não carrega; para o resto:
+   git diff --output=$env:TEMP\opencode\p.patch $base upstream/dev -- <arquivo>
+   git apply -3 --directory=sploit-src $env:TEMP\opencode\p.patch
    ```
-   cd sploit-src/packages/opencode
-   & "$env:APPDATA\npm\bun.cmd" install     # só se package.json/bun.lock mudou
-   & "$env:APPDATA\npm\bun.cmd" run typecheck
+   Regras do loop:
+   - **Nunca usar redirecionamento `>`** para gerar o patch (PowerShell grava UTF-16
+     e corrompe) — sempre `--output=` do git.
+   - `--output=` deve vir **antes** do separador `--` do pathspec.
+   - Registrar OK/SKIP/CONFLICT por arquivo num log (ex.: `$env:TEMP\opencode\sync_log.txt`).
+   - SKIP = arquivos que o fork não carrega (identidade, docs de marca, infra de
+     console/billing, `.github` de release do upstream etc.).
+
+4. **Resolver conflitos.** Convenções:
+   - **Escopo renomeado**: manter `@sploit-ai/*` nos imports (o upstream usa
+     `@opencode-ai/*`). Exceções que JÁ são assim no fork: `@opencode-ai/cli`,
+     `@opencode-ai/plugin` → `packages/plugin-legacy`, `@opencode-ai/console-core`.
+   - **package.json**: adotar versões novas do upstream, manter nome/versão do fork.
+   - **Mudanças próprias no motor** (retryDelayFromBody, anchors do buildPrompt,
+     reminders): preservar as duas partes quando possível.
+   - **Arquivos novos do upstream**: depois do apply, varrer os mudados procurando
+     imports `@opencode-ai/` e renomear para `@sploit-ai/` onde o pacote existir.
+     Arquivo novo que importa pacote que o fork não tem (ex.: `console-core`) → **apagar**.
+   - **bun.lock**: nunca resolver na mão — voltar ao nosso e regenerar com `bun install`.
+
+5. **Regenerar lockfile** (na raiz `sploit-src/`):
+   ```
+   & "$env:APPDATA\npm\bun.cmd" install
+   ```
+   Se o upstream subiu deps rápidas e bater a política `minimumReleaseAge` (3 dias),
+   zere temporariamente `minimumReleaseAge` no `bunfig.toml`, rode o install e
+   **restaure o valor** antes de commitar.
+
+6. **Validar** (obrigatório antes de commitar):
+   ```
+   # na raiz sploit-src/ (PATH precisa achar o bun para o turbo):
+   $env:Path = "$env:APPDATA\npm;$env:Path"
+   & "$env:APPDATA\npm\bun.cmd" run typecheck    # cobre todos os workspaces
    ```
    ```
    .\scripts\build-sploit.ps1               # smoke test incluído
    ```
 
-6. **Publicar para os outros PCs:**
+7. **Fechar o sync:**
+   - Atualizar `.upstream-sync`: `SYNCED=<sha do upstream/dev>` + data.
+   - Commit atômico do sync na branch, merge na master, push.
+
+8. **Publicar para os outros PCs:**
    ```
    git push origin master
    .\scripts\release.ps1                    # gera pacote; ver fluxo em scripts/release.ps1
@@ -73,10 +105,13 @@ git remote add upstream https://github.com/anomalyco/opencode.git
 
 ## Checklist rápido
 
-- [ ] `git fetch upstream`
-- [ ] `git merge upstream/dev`
-- [ ] Conflitos: escopo `@sploit-ai` mantido? Branding "sploit" mantido?
-- [ ] `bun install` (se deps mudaram) + `bun typecheck`
-- [ ] `.\scripts\build-sploit.ps1` com smoke test passando
+- [ ] `git fetch upstream` + comparar com SYNCED do `.upstream-sync`
+- [ ] Branch `sync-upstream-<aaaammdd>` criada
+- [ ] Loop diff-apply por arquivo (log OK/SKIP/CONFLICT)
+- [ ] Conflitos: escopo `@sploit-ai` mantido? Mutações próprias preservadas?
+- [ ] Varrer imports `@opencode-ai/` nos arquivos novos
+- [ ] `bun install` (lockfile regenerado; `minimumReleaseAge` restaurado)
+- [ ] `bun run typecheck` na raiz (16/16) + `.\scripts\build-sploit.ps1` com smoke test
+- [ ] `.upstream-sync` atualizado (SYNCED = upstream/dev) + commit + merge na master
 - [ ] `sploit run` ponta a ponta num projeto real
 - [ ] `git push origin master` + release para os outros PCs
