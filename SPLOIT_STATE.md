@@ -611,12 +611,20 @@ pendente). Commit motor   `7c281b9`.
 ## Próximo passo
 
 **21/08 — estado atual**: P0a, P0b e sync upstream nº 1 concluídos e validados
-(typecheck 16/16 + build smoke + binário OK). Pendências em ordem:
+(typecheck 16/16 + build smoke + binário OK). **Push feito (`b408405e`) e release
+v0.1.12-sploit publicada** com o motor sincronizado (tag → merge `fa3d51c`; frota
+atualiza com install-online). Pendências em ordem:
 
-1. **Push da master** (sync + docs) e **release nova** para a frota receber o
-   motor sincronizado (fluxo: bump → build → pack-dist → release.ps1).
-2. Pendências antigas herdadas: validação visual do banner/wizard de squad;
+1. Pendências antigas herdadas: validação visual do banner/wizard de squad;
    re-medição G5–G9 com mutação ativa; G-isolado ao atingir 3 obs.
+2. **Graphify neste PC novo**: `venv/` e `graphify-out/` não vieram no clone
+   (gitignored) — o MCP `graphify` do sploit.json aponta para
+   `venv\Scripts\graphify-mcp.exe` inexistente. Recriar o venv + instalar o
+   graphify (fonte com o Flavio) + indexar `D:\sploit`. Enquanto isso, âncoras
+   de grafo na compactação/system prompt ficam silenciosas (sem grafo = sem
+   efeito colateral).
+3. Próximo sync: seguir UPSTREAM.md (diff-apply) a partir do SYNCED do
+   `.upstream-sync` (`1b937c86`).
 
 ### Histórico (resolvido — manter para contexto)
 
