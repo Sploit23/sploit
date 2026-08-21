@@ -1341,3 +1341,24 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
 - **Entregue**: sync completo (207 arquivos, 21 conflitos resolvidos), baseline
   `.upstream-sync`, UPSTREAM.md reescrito com o processo real, typecheck 16/16 +
   build smoke + binário validados, merge na master.
+
+## [2026-08-21] Graphify no PC novo — autonomia com verificação de premissas
+- **Como raciocinei**: o Flavio deu autonomia ("faz da melhor forma"). Em vez de
+  perguntar de onde vem o graphify, procurei a resposta no próprio ambiente: a
+  skill oficial (`~/.config/sploit/skills/graphify/SKILL.md`) documentava tudo —
+  pacote `graphifyy` no PyPI, fluxo sem key para código, e o detalhe do duplo y.
+  Antes de instalar, validei as premissas do consumidor: li o `loadAnchors` do
+  core ANTES de gerar o grafo, para saber qual schema ele exige. Depois de gerar,
+  simulei em Python exatamente o cálculo do motor (degree por links, top-15
+  code) — provou compatibilidade sem depender de teste indireto. A chave do
+  api.txt foi testada contra a API antes de qualquer uso real (401 → descartada
+  sem queimar nada). Faseamento: primeiro o crítico e grátis (code-only), depois
+  o opcional (docs semânticos) só se a chave existir.
+- **O que valeu a pena**: (1) a documentação que eu precisava já estava no
+  ambiente — skill é fonte primária, não último recurso; (2) ler o consumidor
+  antes de produzir o insumo evita regeneração; (3) provar compatibilidade com
+  o mesmo algoritmo do motor > confiar que "deve funcionar"; (4) pinar versão
+  (0.9.32) igual ao PC antigo elimina variável de divergência entre PCs.
+- **Entregue**: venv + graphifyy 0.9.32; índice 29319 nós/56317 arestas/2597
+  comunidades; GRAPH_REPORT.md + graph.html; schema validado vs loadAnchors;
+  query real OK; AGENTS.md + SPLOIT_STATE.md atualizados.

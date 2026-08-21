@@ -617,12 +617,16 @@ atualiza com install-online). Pendências em ordem:
 
 1. Pendências antigas herdadas: validação visual do banner/wizard de squad;
    re-medição G5–G9 com mutação ativa; G-isolado ao atingir 3 obs.
-2. **Graphify neste PC novo**: `venv/` e `graphify-out/` não vieram no clone
-   (gitignored) — o MCP `graphify` do sploit.json aponta para
-   `venv\Scripts\graphify-mcp.exe` inexistente. Recriar o venv + instalar o
-   graphify (fonte com o Flavio) + indexar `D:\sploit`. Enquanto isso, âncoras
-   de grafo na compactação/system prompt ficam silenciosas (sem grafo = sem
-   efeito colateral).
+2. **Graphify neste PC novo** ✔ (21/08): descoberto que o `graphifyy` é pacote
+   público no PyPI (o CLI é `graphify`; corpus só de código = AST sem LLM/key).
+   venv recriado com pin `0.9.32` (mesma versão do PC antigo); o pacote já traz
+   `graphify-mcp.exe` (caminho exato do MCP no sploit.json). Índice completo:
+   **29319 nós, 56317 arestas, 2597 comunidades** + GRAPH_REPORT.md + graph.html.
+   Schema validado contra o `loadAnchors` do core (file_type/source_file/links);
+   âncoras top-15 coerentes (sdk gen, layer-node, session.ts, provider.ts).
+   Query real OK (DECISOES.md inteiro está no grafo — md entra estruturalmente).
+   Docs semânticos (imagens/papers) pendem de GEMINI_API_KEY; a chave do api.txt
+   NÃO é OpenAI válida (401). AGENTS.md atualizado com o uso neste PC.
 3. Próximo sync: seguir UPSTREAM.md (diff-apply) a partir do SYNCED do
    `.upstream-sync` (`1b937c86`).
 
