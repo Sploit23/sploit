@@ -91,10 +91,19 @@
  },
  {
   "id": "melh-11",
-  "status": "proposto",
+  "status": "feito",
   "titulo": "Fallback automatico de modelo (Zen/big-pickle em rate limit -> Gemini -> ...)",
-  "evidencia": "A chave zero-config compartilhada (big-pickle/Zen) estourou cota em 21/08, no mesmo dia de uma instalacao nova (SPLOIT_STATE.md, 'Retomando em OUTRO PC'). O 'conserto' atual e hardcode manual pro Gemini no sploit.json — nao generaliza; se o Gemini tambem limitar, trava de novo. A promessa de zero-config 'funciona de cara' ja quebrou uma vez em menos de 2 semanas de uso real.",
+  "evidencia": "A chave zero-config compartilhada (big-pickle/Zen) estourou cota em 21/08, no mesmo dia de uma instalacao nova (SPLOIT_STATE.md, 'Retomando em OUTRO PC'). O 'conserto' atual era hardcode manual pro Gemini no sploit.json — nao generalizava. Implementado: config novo model_fallback (lista ordenada), provider/health.ts marca provider bloqueado quando o retry.policy classifica free_tier_limit/account_rate_limit, e defaultModel() pula pro primeiro fallback disponivel. Cobre selecao automatica; getSmallModel() e override explicito de agent.<role>.model ficam fora do escopo desta rodada. Validado: typecheck 16/16, health.test.ts 5/5, provider.test.ts 100/102 (2 falhas preexistentes de timeout de rede, confirmadas no master limpo).",
   "verificacao": "Simular rate limit/erro 429 do provider default e confirmar que o motor troca sozinho pro proximo da lista, sem editar config a mao",
+  "commit": "d10f43e",
+  "criado": "2026-08-22 00:00"
+ },
+ {
+  "id": "melh-14",
+  "status": "proposto",
+  "titulo": "retry.ts: jitter nao-deterministico e cap de 30s nao aplicado com objeto de erro sem headers",
+  "evidencia": "Achado ao validar melh-11 (22/08), rodando test/session/retry.test.ts isolado. Confirmado pre-existente no master limpo (sem relacao com o fallback de modelo): 3 fail. (1) 'adds jitter to exponential delays' espera delay(5, error, 1)=30000 mas recebe 40000 -- RETRY_MAX_DELAY_NO_HEADERS (30s) so e aplicado no branch sem error, nao quando ha error sem retry-after; parece bug real de cap. (2) 'falls back to exponential backoff when the body has no retry delay' chama delay(1, error) sem fixar random, entao a asserção 'toBe(2000)' e nao-deterministica (variou 2098/2165 entre execucoes) -- bug do teste, nao do codigo.",
+  "verificacao": "test/session/retry.test.ts passa 100% de forma reprodutivel (nao so as vezes); decidir se o cap de 30s deveria valer tambem com error object, ou se o teste que esta errado",
   "commit": null,
   "criado": "2026-08-22 00:00"
  },
