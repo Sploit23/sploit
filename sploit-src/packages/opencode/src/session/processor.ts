@@ -19,6 +19,7 @@ import { SessionRetry } from "./retry"
 import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
 import type { Provider } from "@/provider/provider"
+import { ProviderHealth } from "@/provider/health"
 import { Question } from "@/question"
 import { errorMessage } from "@/util/error"
 import { isRecord } from "@/util/record"
@@ -662,6 +663,9 @@ const layer = Layer.effect(
                 provider: input.model.providerID,
                 parse,
                 set: (info) => {
+                  if (info.action?.reason === "free_tier_limit" || info.action?.reason === "account_rate_limit") {
+                    ProviderHealth.markBlocked(input.model.providerID, info.next)
+                  }
                   return status.set(ctx.sessionID, {
                     type: "retry",
                     attempt: info.attempt,

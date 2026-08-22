@@ -31,6 +31,7 @@ import { ModelV2 } from "@sploit-ai/core/model"
 import { ModelStatus } from "./model-status"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderError } from "./error"
+import { ProviderHealth } from "./health"
 
 const OPENAI_HEADER_TIMEOUT_DEFAULT = 300_000
 
@@ -1982,9 +1983,26 @@ const layer = Layer.effect(
 
     const defaultModel = Effect.fn("Provider.defaultModel")(function* () {
       const cfg = yield* config.get()
-      if (cfg.model) return parseModel(cfg.model)
-
       const s = yield* InstanceState.get(state)
+
+      // If the candidate's provider just hit a hard rate limit/quota error
+      // (see ProviderHealth.markBlocked in session/retry wiring), skip it in
+      // favor of the first configured, available, non-blocked fallback. This
+      // only kicks in for auto-selected defaults; an explicit per-agent model
+      // override still wins even if that provider is blocked.
+      const withFallback = (candidate: { providerID: ProviderV2.ID; modelID: ModelV2.ID }) => {
+        if (!ProviderHealth.isBlocked(candidate.providerID)) return candidate
+        for (const raw of cfg.model_fallback ?? []) {
+          const fallback = parseModel(raw)
+          if (ProviderHealth.isBlocked(fallback.providerID)) continue
+          if (!s.providers[fallback.providerID]?.models[fallback.modelID]) continue
+          return fallback
+        }
+        return candidate
+      }
+
+      if (cfg.model) return withFallback(parseModel(cfg.model))
+
       const recent = yield* fs.readJson(path.join(Global.Path.state, "model.json")).pipe(
         Effect.map((x): { providerID: ProviderV2.ID; modelID: ModelV2.ID }[] => {
           if (!isRecord(x) || !Array.isArray(x.recent)) return []
@@ -2001,7 +2019,7 @@ const layer = Layer.effect(
         const provider = s.providers[entry.providerID]
         if (!provider) continue
         if (!provider.models[entry.modelID]) continue
-        return { providerID: entry.providerID, modelID: entry.modelID }
+        return withFallback({ providerID: entry.providerID, modelID: entry.modelID })
       }
 
       const configured = Object.keys(cfg.provider ?? {})
@@ -2009,10 +2027,10 @@ const layer = Layer.effect(
       if (!provider) return yield* new NoProvidersError()
       const [model] = sort(Object.values(provider.models))
       if (!model) return yield* new NoModelsError({ providerID: provider.id })
-      return {
+      return withFallback({
         providerID: provider.id,
         modelID: model.id,
-      }
+      })
     })
 
     return Service.of({ list, getProvider, getModel, getLanguage, closest, getSmallModel, defaultModel })
