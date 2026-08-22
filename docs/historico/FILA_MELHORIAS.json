@@ -84,9 +84,9 @@
   "id": "melh-10",
   "status": "feito",
   "titulo": "CI minimo (GitHub Actions: typecheck + testes no push)",
-  "evidencia": "Analise sincera de 22/08 (pedido explicito do Flavio): zero .github/workflows no repo. Todo 'typecheck passou'/'build OK' e autorreportado por quem esta no teclado (IA ou humano, em qualquer um dos 2 PCs) — foi exatamente essa lacuna que deixou passar a regressao do v0.1.7 (ver feedback_concurrent_ai_on_sploit na memoria). Prioridade 1 da fila por ser o de menor custo e maior alcance. Validado localmente antes do commit: bun turbo typecheck passa limpo (16/16), mas bun turbo run test JA PEGOU uma quebra real preexistente em @sploit-ai/core (6 fail, provider-xai-responses.test.ts — reasoningEffort 'xhigh' nao aceito pelo schema/patch do @ai-sdk/xai trazido pelo sync upstream do outro PC) — prova de valor do CI no primeiro uso.",
+  "evidencia": "Analise sincera de 22/08 (pedido explicito do Flavio): zero .github/workflows no repo. Todo 'typecheck passou'/'build OK' e autorreportado por quem esta no teclado (IA ou humano, em qualquer um dos 2 PCs) — foi exatamente essa lacuna que deixou passar a regressao do v0.1.7 (ver feedback_concurrent_ai_on_sploit na memoria). Prioridade 1 da fila por ser o de menor custo e maior alcance. Validado localmente antes do commit: bun turbo typecheck passa limpo (16/16). A 1a rodada de bun turbo run test acusou 6 fail em @sploit-ai/core, mas a causa era node_modules deste PC desatualizado (patches novos de @ai-sdk/xai etc. trazidos pelo merge nao tinham sido aplicados via bun install ainda) — apos bun install, so sobrou 1 bug real: instruction-context.test.ts usava a env var OPENCODE_DISABLE_PROJECT_CONFIG (nome do upstream) em vez de SPLOIT_DISABLE_PROJECT_CONFIG (nome renomeado pelo sploit em flag.ts:54), corrigido no commit 9f74aca. Suite final: 1105 pass/7 skip/0 fail. Prova de valor do CI no primeiro uso real.",
   "verificacao": "Push/PR de teste dispara o workflow no GitHub Actions e falha de verdade quando typecheck/teste quebra",
-  "commit": "b6d8043",
+  "commit": "b6d8043, 9f74aca",
   "criado": "2026-08-22 00:00"
  },
  {
