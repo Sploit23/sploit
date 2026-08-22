@@ -653,6 +653,23 @@ Pendências em ordem:
 
 Análise sincera completa (P2) entregue em 21/08 — ver NOTAS.md e a conversa.
 
+## Retomando em OUTRO PC (21/08)
+
+Este estado foi escrito no PC novo ("Maxx"). Para continuar de outra máquina:
+
+1. `git pull` na pasta do repo (tudo abaixo já está no GitHub, branch `master`).
+2. **Binário**: o motor atual está na release `v0.1.12-sploit`
+   (`install-online.ps1`) OU rebuild local: `scripts\build-sploit.ps1`.
+   Os commits pós-release são scripts/docs/config (não exigem rebuild).
+3. **Modelo**: Zen/big-pickle estourou cota em 21/08; este repo agora usa
+   `google/gemini-3.6-flash` (+ `gemini-3.5-flash-lite` no small_model) no
+   `sploit.json` do projeto e no global do PC Maxx. No outro PC, confira o
+   global (`~/.config/sploit/sploit.jsonc`) antes de rodar.
+4. **Fila** (na ordem): dogfood no sploit.exe + amostra G5–G9 ≥5/mutação →
+   `python scripts/avalia_mutacoes.py` e decidir manter/podar; fallback
+   automático de modelo no motor; CI mínimo; limpeza de dívidas.
+5. Contexto completo das últimas sessões: NOTAS.md (entradas 21/08).
+
 ### Histórico (resolvido — manter para contexto)
 
 **18/08: só uma IA (Claude Code) mexe no sploit a partir de agora** — o

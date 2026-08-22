@@ -46,3 +46,16 @@
   de qualquer leitor (o diagnostico morria no sync_genes). Para anexar texto em
   arquivos UTF-8 (NOTAS.md, APRENDIZADO.md, quadro.md), usar Python
   (`open(..., "a", encoding="utf-8")`) ou a tool de edicao — nunca Add-Content.
+
+## Genes de sucesso
+
+- G-causaraiz | 9 observacoes | forte | Investigar a causa raiz antes de decidir (nao tratar sintoma)
+- G-grafo | 4 observacoes | forte | Consultar o grafo Graphify antes de grep/read em bases grandes (contexto certo, menos tokens)
+- G-idempotencia | 9 observacoes | forte | Provar idempotencia rodando 2x antes de concluir (2a execucao sem duplicar)
+- G-isolado | 1 observacoes | ativo | Validar em ambiente isolado (harness fake/DB fake/temp) antes de tocar arquivos reais
+- G-verificacao | 35 observacoes | forte | Verificar antes de concluir: typecheck/build/smoke/compile (nada sem prova)
+
+## Placar de eficácia
+
+- L-bash | ? verificar | 1/3
+- L-edit | ? verificar | 1/3
