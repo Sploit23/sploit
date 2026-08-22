@@ -79,5 +79,41 @@
   "verificacao": "python -c 'from diagnostico import classify_error; classify_error(\"edit\", \"No changes to apply...\")' -> AGENTE",
   "commit": "f778d27",
   "criado": "2026-08-08 20:10"
+ },
+ {
+  "id": "melh-10",
+  "status": "em_andamento",
+  "titulo": "CI minimo (GitHub Actions: typecheck + testes no push)",
+  "evidencia": "Analise sincera de 22/08 (pedido explicito do Flavio): zero .github/workflows no repo. Todo 'typecheck passou'/'build OK' e autorreportado por quem esta no teclado (IA ou humano, em qualquer um dos 2 PCs) — foi exatamente essa lacuna que deixou passar a regressao do v0.1.7 (ver feedback_concurrent_ai_on_sploit na memoria). Prioridade 1 da fila por ser o de menor custo e maior alcance.",
+  "verificacao": "Push/PR de teste dispara o workflow no GitHub Actions e falha de verdade quando typecheck/teste quebra",
+  "commit": null,
+  "criado": "2026-08-22 00:00"
+ },
+ {
+  "id": "melh-11",
+  "status": "proposto",
+  "titulo": "Fallback automatico de modelo (Zen/big-pickle em rate limit -> Gemini -> ...)",
+  "evidencia": "A chave zero-config compartilhada (big-pickle/Zen) estourou cota em 21/08, no mesmo dia de uma instalacao nova (SPLOIT_STATE.md, 'Retomando em OUTRO PC'). O 'conserto' atual e hardcode manual pro Gemini no sploit.json — nao generaliza; se o Gemini tambem limitar, trava de novo. A promessa de zero-config 'funciona de cara' ja quebrou uma vez em menos de 2 semanas de uso real.",
+  "verificacao": "Simular rate limit/erro 429 do provider default e confirmar que o motor troca sozinho pro proximo da lista, sem editar config a mao",
+  "commit": null,
+  "criado": "2026-08-22 00:00"
+ },
+ {
+  "id": "melh-12",
+  "status": "proposto",
+  "titulo": "Consolidar telemetria de dogfood entre maquinas (ou parar de tratar G5-G9 como medicao cientifica)",
+  "evidencia": "sploit.db deste PC: 91 sessoes desde 05/08, mas ZERO sessoes desde 18/08 (4 dias sem uso real aqui), exatamente enquanto a G9 era ativada e 'medida' no PC 'Maxx' — que tem seu proprio banco separado, sem sincronizar (SPLOIT_STATE.md: 'o contexto NAO migra entre DBs'). O criterio 'ate 5 disparos reais por mutacao' (art. 6 da Constituicao) nunca fecha de verdade porque o uso real esta fragmentado em ilhas que nao se somam, e a maior parte das 91 sessoes e anterior a propria G9 existir.",
+  "verificacao": "python scripts/avalia_mutacoes.py rodando sobre uma amostra combinada (export/import de sessao ou DB compartilhado) mostra >=5 disparos reais por mutacao G5-G9; ou decisao explicita de desligar a cerimonia de medicao e manter as mutacoes ligadas por padrao sem art. 6",
+  "commit": null,
+  "criado": "2026-08-22 00:00"
+ },
+ {
+  "id": "melh-13",
+  "status": "proposto",
+  "titulo": "Squad: decidir manter (investir pra orquestrar de verdade) ou cortar pela metade",
+  "evidencia": "Registro anterior (P2, 21/08) subestimou o squad como '21 linhas no motor'. Contagem real em 22/08: ~1200 linhas em sploit-src (engine + TUI: dock, dialog, setup, notifications) + 1401 linhas em scripts/squad.py fora do binario — quase 2600 linhas pra uma feature que a memoria feature_squad_agents classifica como 'SquadDock passivo' (mostra status, nao orquestra nada de fato). Peso de manutencao real por retorno decorativo.",
+  "verificacao": "Decisao registrada com /decisao: ou o squad ganha orquestracao real (verificavel por um agente do squad executando uma tarefa de ponta a ponta sem intervencao manual), ou o footprint cai (menos arquivos/linhas) mantendo so o essencial",
+  "commit": null,
+  "criado": "2026-08-22 00:00"
  }
 ]
