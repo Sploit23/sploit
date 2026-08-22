@@ -81,7 +81,11 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
 
 ## Memória de conhecimento (Graphify)
 
-- Grafo local em `graphify-out/` (ignorado pelo git), gerado com o `graphifyy` (via `venv`).
+- Grafo local em `graphify-out/` (ignorado pelo git), gerado com o `graphifyy` (via
+  `venv`; pin `0.9.32`). Neste PC: `.\venv\Scripts\graphify.exe` (e `graphify-mcp.exe`,
+  apontado pelo MCP no `sploit.json`).
+- Indexar com `--code-only --no-viz` (AST determinístico, sem LLM/key; docs .md já
+  entram estruturalmente). Atualizar incremental: `graphify update .`.
 - Exposição ao agente: servidor MCP `graphify` (registrado em `sploit.json`) + skill oficial em `~/.config/sploit/skills/graphify/` + plugin `.sploit/plugins/graphify.js`.
 - Reindexar após mudanças relevantes de código: `/graphify .` (ou `venv\Scripts\graphify.exe update <caminho>`).
 - Consultar o grafo com `graphify query`/`path`/`explain` antes de grep/read em bases grandes.

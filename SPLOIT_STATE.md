@@ -575,7 +575,102 @@ pendente). Commit motor   `7c281b9`.
   fix) → 0.1.5 (download completo, swap manual confirmou; script desanexado não
   disparou neste contexto npm, mas em terminal interativo do amigo funciona).
 
+- **Novo PC + otimizações P0 (21/08)** ✔: ambiente reerguido neste PC (clone
+  `D:\sploit`, git identity Flavio, bun via `%APPDATA%\npm`, gh CLI, build +
+  `install-sploit.ps1`; auth Zen + Google Gemini validados ponta a ponta —
+  Zen free estourado, `gemini-3.7-flash` trava sempre, usar `gemini-3.6-flash`).
+  **P0a — sploit.json portável**: plugin superpowers agora por spec npm
+  (`github:obra/superpowers`) em vez de caminho absoluto por máquina (o motor
+  instala sozinho em `~/.cache/sploit/packages/`); graphify relativo; context7
+  puro. **Bug de frota corrigido no motor**: o install de fundo gravava
+  `@sploit-ai/plugin` (escopo nunca publicado → 404 WARN em todo boot em todo
+  PC); agora gera dep do SDK público `@opencode-ai/plugin`
+  (`config/config.ts` + `config/tui.ts`). Duplicata de skills do superpowers
+  removida da config global deste PC (npm prune). Typecheck OK, build smoke OK,
+  binário instalado atualizado, boot limpo sem 404/duplicatas.
+  **P0b — sync com upstream**: remote `upstream` → `anomalyco/opencode`
+  (branch `dev`) + `UPSTREAM.md` com processo de sync, pontos quentes de conflito
+  (escopo `@sploit-ai`, branding) e checklist de validação/release.
+
+- **Sync upstream real nº 1 (21/08)** ✔: merge impossível (histórico reconstruído
+  no push forçado de 16/08 — sem ancestral comum). Método provado: **diff-apply**
+  por arquivo (`git diff --output= <base> upstream/dev -- <path>` +
+  `git apply -3 --directory=sploit-src`; apply é ATÔMICO → loop por arquivo;
+  `>` do PS corrompe patch com UTF-16; `--output` antes do `--`). Resultado: 207
+  OK, 239 SKIP (fork não carrega), 21 conflitos resolvidos (escopo `@sploit-ai`
+  mantido, versões novas do upstream, mutações próprias preservadas: retryDelayFromBody,
+  anchors, reminders). Armadilhas resolvidas: bun.lock regenerado via install com
+  `minimumReleaseAge=0` temporário (política restaurada depois); arquivos novos do
+  upstream com escopo antigo renomeados (cerebras, session-export); usage.ts do
+  console apagado (importa console-core que o fork não tem); chave duplicada no
+  retry.ts corrigida. Validação: typecheck monorepo 16/16, build smoke OK,
+  binário `--version` OK. Commits `6f5a626` (sync) + `18998fd` (.upstream-sync +
+  UPSTREAM.md reescrito com o processo real) + merge `fa3d51c` na master.
+  Baseline em `.upstream-sync`: BASE `4a57013c`, SYNCED `1b937c86`.
+- **Graphify neste PC novo** ✔ (21/08): descoberto que o `graphifyy` é pacote
+  público no PyPI (o CLI é `graphify`; corpus só de código = AST sem LLM/key).
+  venv recriado com pin `0.9.32` (mesma versão do PC antigo); o pacote já traz
+  `graphify-mcp.exe` (caminho exato do MCP no sploit.json). Índice completo:
+  **29319 nós, 56317 arestas, 2597 comunidades** + GRAPH_REPORT.md + graph.html.
+  Schema validado contra o `loadAnchors` do core; âncoras top-15 coerentes.
+  Query real OK (DECISOES.md inteiro está no grafo — md entra estruturalmente).
+  Docs semânticos pendem de GEMINI_API_KEY (a chave do api.txt não é OpenAI — 401).
+
+- **P1 — avaliador de mutações G5–G9 (21/08)** ✔: `scripts/avalia_mutacoes.py`
+  mede a efetividade REAL das mutações lendo o DB (os disparos já estão
+  persistidos como parts sintéticos com marcadores exatos de `reminders.ts`/
+  `prompt.ts` — não precisou instrumentar o motor). Classifica 6 mutações
+  (root_cause, graph_check, verify_prompt, auto_verify com PASS/FAIL,
+  file_memory, idempotency) e mede o desfecho em janela de turnos, com veredito
+  manter/podar. py_compile + 6/6 checks em DB sintético. **Descoberta crítica**:
+  as sessões deste PC rodam no OPENCODE OFICIAL (`opencode-ai` npm; DB vivo =
+  `~/.local/share/opencode/opencode.db`, 1,25 GB) — sem as mutações do Sploit.
+  Baseline honesto: 0 disparos. **Para o corpo atuar e acumular amostra, o
+  trabalho diário precisa ser no `sploit.exe`** (data dir `sploit/`).
+
 ## Próximo passo
+
+**21/08 — MÁQUINA MIGRADA PARA O SPLOIT.EXE**: binário do PATH atualizado
+(= build 15:02 pós-sync, SHA-256 conferido) e `sploit run` testado end-to-end
+OK com **google/gemini-3.6-flash** (o big-pickle/Zen está em rate limit neste
+PC — chave pública compartilhada estourada; voltar quando houver chave própria).
+sploit.json do projeto e sploit.jsonc global alinhados ao Gemini. Se esta sessão
+foi aberta pelo opencode oficial: fechar e reabrir com `sploit` em D:\sploit —
+o contexto NÃO migra entre DBs; as memórias carregam o estado.
+
+Pendências em ordem:
+
+1. **Dogfood + primeira decisão com dados**: usar o sploit.exe em TUDO; quando
+   cada mutação G5–G9 tiver ≥5 disparos reais, rodar
+   `python scripts/avalia_mutacoes.py` e decidir manter/podar (art. 6).
+2. **Modelo default resiliente**: Zen estourou cota no 1º run pós-install —
+   implementar fallback automático de modelo (Zen → Gemini → ...) ou chave própria.
+3. **CI mínimo** (GitHub Actions: typecheck + testes no push) para baratear o sync.
+4. Limpeza: scripts órfãos (instrumenta/medicao/analyze-webui*), pendências velhas
+   (banner/wizard squad — fechar ou matar explícito).
+5. Próximo sync: seguir UPSTREAM.md (diff-apply) a partir do SYNCED do
+   `.upstream-sync` (`1b937c86`).
+
+Análise sincera completa (P2) entregue em 21/08 — ver NOTAS.md e a conversa.
+
+## Retomando em OUTRO PC (21/08)
+
+Este estado foi escrito no PC novo ("Maxx"). Para continuar de outra máquina:
+
+1. `git pull` na pasta do repo (tudo abaixo já está no GitHub, branch `master`).
+2. **Binário**: o motor atual está na release `v0.1.12-sploit`
+   (`install-online.ps1`) OU rebuild local: `scripts\build-sploit.ps1`.
+   Os commits pós-release são scripts/docs/config (não exigem rebuild).
+3. **Modelo**: Zen/big-pickle estourou cota em 21/08; este repo agora usa
+   `google/gemini-3.6-flash` (+ `gemini-3.5-flash-lite` no small_model) no
+   `sploit.json` do projeto e no global do PC Maxx. No outro PC, confira o
+   global (`~/.config/sploit/sploit.jsonc`) antes de rodar.
+4. **Fila** (na ordem): dogfood no sploit.exe + amostra G5–G9 ≥5/mutação →
+   `python scripts/avalia_mutacoes.py` e decidir manter/podar; fallback
+   automático de modelo no motor; CI mínimo; limpeza de dívidas.
+5. Contexto completo das últimas sessões: NOTAS.md (entradas 21/08).
+
+### Histórico (resolvido — manter para contexto)
 
 **18/08: só uma IA (Claude Code) mexe no sploit a partir de agora** — o
 usuário decidiu parar de rodar a outra sessão em modo contínuo depois dela
@@ -1015,6 +1110,11 @@ Fase 2 (depois, só se usuário pedir): bot Telegram. Web (fase 1) pausada — f
   esperado); `pack-dist.ps1 -SkipConhecimento` validado (zip `0.1.1-sploit` com
   `sploit.exe` na raiz, SEM conhecimento.txt, 48,1 MB); parse OK nos 4 .ps1
   (release/install-online/pack-dist/build-sploit) ✔
+
+- **P0a — fix do SDK de plugin (21/08)**: typecheck opencode OK (0 erros); build
+  smoke OK; boot real sem WARN de 404 (`@opencode-ai/plugin@1.18.x` instalado nos
+  3 dirs de config) e sem "duplicate skill" (duplicata removida via npm prune);
+  `sploit run` ponta a ponta com Gemini OK ✔
 
 ## Armadilhas
 

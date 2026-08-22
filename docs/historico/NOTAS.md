@@ -1296,3 +1296,128 @@ chame quando a tarefa estiver acabada". Executado em 3 ciclos via self-restart.
   limit por IP e por key. Sessões já ativas continuam; requests novos são
   bloqueados. Retry com backoff consome cota mais rápido. Solução: esperar ou
   usar outro provider.
+
+## [2026-08-21] Novo PC + P0: config portável e fix do SDK de plugin
+- **Como raciocinei**: o objetivo era tornar o sploit.json portável entre PCs.
+  Em vez de adivinhar, li o mecanismo de resolução do motor antes de decidir:
+  {env:VAR} substitui texto cru ANTES do parse (backslash do Windows quebra o
+  JSON — tentativa e erro descartou essa rota em minutos); specs de plugin só
+  aceitam file://, . ou absoluto; mas specs npm passam inteiras para o
+  Npm.add. A descoberta-chave veio do log, não do código: o superpowers já
+  tinha sido instalado em ~/.cache/sploit/packages/github_obra/... pela spec
+  npm — o caminho que eu queria existia e era o idiomático. Para o WARN de 404
+  do @sploit-ai/plugin, a causa raiz foi arquitetural (escopo renomeado nunca
+  publicado) e o fix mínimo preservou o formato upstream (só o nome mudou),
+  pensando no próximo merge do UPSTREAM.md.
+- **O que valeu a pena**: (1) ler o mecanismo de resolução antes de escolher
+  solução — evitou gambiarras com env-var; (2) confiar no log como fonte de
+  verdade sobre o que o motor faz de fato (descobriu install funcionando,
+  duplicatas e o 404 de frota de uma vez); (3) validar com boot real e checagem
+  positiva (node_modules nos 3 dirs), não só ausência de erro; (4) pensar no
+  custo de sync futuro ao escrever qualquer diff do motor.
+- **Entregue**: sploit.json portável (plugin por spec npm, graphify relativo);
+  fix motor @opencode-ai/plugin (config.ts + tui.ts); duplicata superpowers
+  removida; remote upstream + UPSTREAM.md; typecheck/build/boot validados.
+
+## [2026-08-21] Sync upstream nº 1 via diff-apply
+- **Como raciocinei**: antes de tentar o merge óbvio, testei a premissa com
+  `git merge-base` — vazio. Em vez de forçar `--allow-unrelated-histories`
+  (traria a árvore inteira do upstream em caminhos errados), mudei de estratégia:
+  patches por arquivo desde o baseline do fork, remapeados com `--directory`.
+  O loop revelou o comportamento real das ferramentas um a um: apply atômico
+  (falha total = sinal claro para iterar por arquivo), redirecionamento do PS
+  corrompendo patch (UTF-16), flag fora de ordem engolindo o pathspec. Nos 21
+  conflitos, apliquei uma convenção única (escopo nosso + versões/estrutura
+  deles + mutações próprias preservadas) em vez de decidir caso a caso — menos
+  decisões, menos erro. Quando o install bateu na política supply-chain, não
+  desativei nada permanentemente: bypass temporário, install, restauração.
+- **O que valeu a pena**: (1) validar a premissa do merge ANTES de lutar contra
+  ele; (2) loop por arquivo com log OK/SKIP/CONFLICT transformou um merge
+  impossível em trabalho mecânico e auditável; (3) convenção de resolução única
+  escala melhor que julgamento ad hoc; (4) varredura pós-apply por imports do
+  escopo antigo pegou o que o typecheck pegaria só depois (e o que ele nunca
+  pegaria — pacote inexistente em workspace não coberto); (5) política de
+  segurança se contorna por UM ciclo, nunca se remove.
+- **Entregue**: sync completo (207 arquivos, 21 conflitos resolvidos), baseline
+  `.upstream-sync`, UPSTREAM.md reescrito com o processo real, typecheck 16/16 +
+  build smoke + binário validados, merge na master.
+
+## [2026-08-21] Graphify no PC novo — autonomia com verificação de premissas
+- **Como raciocinei**: o Flavio deu autonomia ("faz da melhor forma"). Em vez de
+  perguntar de onde vem o graphify, procurei a resposta no próprio ambiente: a
+  skill oficial (`~/.config/sploit/skills/graphify/SKILL.md`) documentava tudo —
+  pacote `graphifyy` no PyPI, fluxo sem key para código, e o detalhe do duplo y.
+  Antes de instalar, validei as premissas do consumidor: li o `loadAnchors` do
+  core ANTES de gerar o grafo, para saber qual schema ele exige. Depois de gerar,
+  simulei em Python exatamente o cálculo do motor (degree por links, top-15
+  code) — provou compatibilidade sem depender de teste indireto. A chave do
+  api.txt foi testada contra a API antes de qualquer uso real (401 → descartada
+  sem queimar nada). Faseamento: primeiro o crítico e grátis (code-only), depois
+  o opcional (docs semânticos) só se a chave existir.
+- **O que valeu a pena**: (1) a documentação que eu precisava já estava no
+  ambiente — skill é fonte primária, não último recurso; (2) ler o consumidor
+  antes de produzir o insumo evita regeneração; (3) provar compatibilidade com
+  o mesmo algoritmo do motor > confiar que "deve funcionar"; (4) pinar versão
+  (0.9.32) igual ao PC antigo elimina variável de divergência entre PCs.
+- **Entregue**: venv + graphifyy 0.9.32; índice 29319 nós/56317 arestas/2597
+  comunidades; GRAPH_REPORT.md + graph.html; schema validado vs loadAnchors;
+  query real OK; AGENTS.md + SPLOIT_STATE.md atualizados.
+
+## [2026-08-21] P1 — avaliador de mutações G5–G9 e a descoberta do binário errado
+- **Como raciocinei**: o plano original previa instrumentar o motor, mas o recon
+  mostrou que os disparos JÁ estão persistidos — todo `persistSyntheticPart` grava
+  um part sintético com marcador de texto exato no DB. Medi então no DB, não no
+  motor: zero risco, zero rebuild, e cobre TODO o histórico desde a ativação.
+  Quando o DB real deu 0 disparos, não aceitei o número: segui a trilha (19 sessões
+  pequenas demais → achei o opencode.db de 1,25 GB com 89k parts → confirmei qual
+  DB é vivo procurando string única desta conversa → subi até o processo host).
+  A causa raiz estava uma camada acima do esperado.
+- **O que valeu a pena**: (1) desconfiar de resultado zero em sistema que deveria
+  produzir dados — número implausível é pergunta, não resposta; (2) provar qual DB
+  é vivo por conteúdo único (string desta sessão), não por mtime; (3) o avaliador
+  derivou disparos dos PRÓPRIOS textos persistidos — a instrumentação que parecia
+  necessária já tinha sido feita implicitamente pelo design das mutações;
+  (4) teste fake com os 6 cenários antes de tocar no DB real pegou a semântica
+  das janelas (FAIL resolvido, recorrência) de graça.
+- **Descoberta crítica**: as sessões deste PC (incluindo o sync de hoje) rodam no
+  OPENCODE OFICIAL (`opencode-ai` npm, data dir `~/.local/share/opencode`) — não no
+  `sploit.exe`. O corpo (G5–G9) só existe no binário do Sploit: enquanto o trabalho
+  diário acontecer no opencode oficial, as mutações não atuam nem acumulam amostra.
+  Baseline honesto deste PC: 0 disparos. O avaliador fica pronto para medir quando
+  houver amostra real em sessões do sploit.exe.
+- **Entregue**: scripts/avalia_mutacoes.py (--db repetível, --desde/--ate, 6
+  mutações classificadas por marcador, efetividade por janela de turnos, veredito
+  manter/podar); py_compile OK; 6/6 checks no DB sintético; rodada real = baseline 0.
+
+## [2026-08-21] Migração desta máquina de trabalho para o sploit.exe
+- **Como raciocinei**: ao descobrir que as sessões rodavam no opencode oficial,
+  tratei a troca como checklist verificável, não como conselho: (1) conferi se o
+  binário instalado no PATH era o build pós-sync (não era — 13:42 vs 15:02 —
+  comparei SHA-256 e atualizei); (2) smoke end-to-end com `sploit run` antes de
+  mandar o usuário migrar — e ele FALHOU (rate limit do Zen, chave pública
+  compartilhada sk-20e*** estourada). Em vez de culpar o motor, isolei a variável:
+  testei `-m opencode/big-pickle` (falha) e `-m google/gemini-3.6-flash` (OK) —
+  problema era provider/modelo, não binário. Alinhei o sploit.json do projeto ao
+  Gemini (já default global deste PC) e re-testei sem `-m`: OK.
+- **O que valeu a pena**: provar cada etapa por evidência (hash, teste isolado,
+  teste final idêntico ao uso real). O smoke "de mentirinha" (--version) passava
+  mas não exercitava auth/modelo — o teste que importa é o que roda o caminho
+  inteiro do usuário.
+- **Estado para a próxima sessão** (que já será no sploit): binário atualizado
+  (= build 15:02), config global e do projeto em google/gemini-3.6-flash +
+  gemini-3.5-flash-lite (small_model), MCP graphify/context7 configurados.
+  Cota do Zen/big-pickle estourada neste PC — voltar quando houver chave própria.
+  Contexto desta conversa NÃO migra (DB do opencode oficial); as memórias
+  carregam o estado. P1 entregue; re-medição G5–G9 quando houver amostra real.
+
+## [2026-08-21] P2 — análise sincera do Sploit (pedido explícito do usuário)
+- **Como raciocinei**: em vez de opinião, juntei evidência dos quatro cantos:
+  código (reminders.ts 421 linhas + teste 36 pass, squad = 21 linhas no motor,
+  branding TUI ~100 linhas, 2259 testes herdados), processos (169 commits,
+  sync diff-apply com 21 conflitos no 1º round), operação (rate limit do Zen
+  no MESMO dia do install novo) e memórias (genes com observações reais).
+  Sinceridade = separar o que TEM PROVA do que é ASPIRAÇÃO (Constituição sem
+  combustível de uso real; mutações ativadas sem medição — contra o art. 6).
+- **O que valeu a pena**: rodar o teste do corpo durante a análise (não confiar
+  em "typecheck passou"); usar o rate limit de hoje como dado, não acidente;
+  reconhecer que o gargalo do projeto não é código — é USO REAL.

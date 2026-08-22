@@ -238,7 +238,8 @@ const layer = Layer.effect(
           .install(dir, {
             add: [
               {
-                name: "@sploit-ai/plugin",
+                // SDK publico (@opencode-ai/plugin): veja config/config.ts.
+                name: "@opencode-ai/plugin",
                 version: InstallationLocal ? undefined : InstallationVersion,
               },
             ],
