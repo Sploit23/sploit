@@ -131,7 +131,7 @@
   "titulo": "Squad dock: clareza visual (feed da equipe, hierarquia coordenador->agentes, selo do auditor)",
   "evidencia": "Sucessor do melh-13. Plano desenhado com um agente Plan (validado contra o codigo real de squad-dock.tsx/dock-data.ts/dialog-squad-agent.tsx antes de escrever) e aprovado pelo Flavio via EnterPlanMode/ExitPlanMode. Implementado: dock-data.ts ganhou ehAuditor/feedRecente/ultimoPostCoordenador/veredictoAuditor (funcoes puras, reaproveitando SquadPost[] que ja existia); squad-dock.tsx ganhou banner de veredito do auditor no header, linha do Coordenador e bloco 'Feed recente' no topo do scrollbox, sem nenhum avatar/mascote (restricao dura, ja reprovados 2x antes). Zero mudanca em squad.py, no polling ou na logica do auditor em si.",
   "verificacao": "typecheck limpo (tsgo --noEmit no pacote tui); 8 testes novos em dock-data.test.ts (incluindo o caso real de reauditoria bloqueado->feito) + suite completa da tui sem regressao (5 falhas preexistentes de i18n/locale, confirmadas no master limpo antes desta mudanca, nao relacionadas); build v0.1.14-sploit + install-sploit.ps1 -SkipConfig instalados. Verificacao visual real NAO concluida nesta sessao: capturar o render de dentro do ambiente automatizado travou no splash de boot (stdout sem TTY real) apos 3 tentativas (6s/18s/12s, sempre parado no mesmo ponto) - pendente o Flavio abrir 'sploit' em Desktop\\testes\\squad-vista (squad de exemplo criado com Bruno+Auditor, ciclo bloqueado->feito real) e confirmar visualmente.",
-  "commit": null,
+  "commit": "0a926e8",
   "criado": "2026-08-23 00:00"
  }
 ]
