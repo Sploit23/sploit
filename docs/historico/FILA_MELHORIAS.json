@@ -133,5 +133,14 @@
   "verificacao": "typecheck limpo (tsgo --noEmit no pacote tui); 8 testes novos em dock-data.test.ts (incluindo o caso real de reauditoria bloqueado->feito) + suite completa da tui sem regressao (5 falhas preexistentes de i18n/locale, confirmadas no master limpo antes desta mudanca, nao relacionadas); build v0.1.14-sploit + install-sploit.ps1 -SkipConfig instalados. Verificacao visual real NAO concluida nesta sessao: capturar o render de dentro do ambiente automatizado travou no splash de boot (stdout sem TTY real) apos 3 tentativas (6s/18s/12s, sempre parado no mesmo ponto) - pendente o Flavio abrir 'sploit' em Desktop\\testes\\squad-vista (squad de exemplo criado com Bruno+Auditor, ciclo bloqueado->feito real) e confirmar visualmente.",
   "commit": "0a926e8",
   "criado": "2026-08-23 00:00"
+ },
+ {
+  "id": "melh-16",
+  "status": "feito",
+  "titulo": "squad-guard.js: bloqueio mecanico de delegacao (coordenador nao pode ler a pasta do agente)",
+  "evidencia": "Pedido direto do Flavio (23/08): perguntou 'qual a cor do botao do frontend' e o coordenador leu o codigo direto em vez de delegar pra Carla - a delegacao era 100% baseada em prompt (SKILL.md), sem enforcement de verdade. Investigacao (2 Explore + 1 Plan agent) confirmou: nao existia via barata de perguntar a um agente (so squad post, que sobe processo novo pesado); permission do sploit.json nao serve pra isso (grep/glob avaliam o PADRAO de busca, nao a pasta; e config nao distingue quem esta perguntando); mas existe um hook de plugin real (tool.execute.before) que intercepta qualquer tool antes de rodar. Construido .sploit/plugins/squad-guard.js: detecta squad.json, compara instance.directory contra as pastas dos agentes, bloqueia read/edit/write/grep/glob que caem na pasta de outro agente com um erro acionavel. squad.py init/add/create escalam o guard sozinhos em squads novos.",
+  "verificacao": "Passo 0 (plugin descartavel) confirmou que o throw aparece como falha normal de tool, sessao nao trava. Testado end-to-end com sploit run de verdade (nao so leitura de codigo): coordenador bloqueado ao ler pasta de agente; BUG REAL achado e corrigido durante o teste - um subagente (task/Explore Agent) passava filePath com '/' e contornava o bloqueio porque path.resolve() no Windows usa '\\\\', a comparacao de string nunca batia; normalizado separador, reproduzido de novo e confirmado fechado. Agente auditando a propria pasta (--dir <pasta>) continua livre. Projeto sem squad/squad.json fica inerte. Lacunas conhecidas e registradas: bash e apply_patch nao sao cobertos nesta versao.",
+  "commit": "3eea1bc",
+  "criado": "2026-08-23 00:00"
  }
 ]
