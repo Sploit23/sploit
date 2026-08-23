@@ -50,7 +50,7 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
   falhar 2x; deixar o relato em `docs/historico/NOTAS.md` ("Relato do modo contínuo") e o
   `SPLOIT_STATE.md` atualizado. O acionamento NUNCA é um slash — é a fala do
   usuário.
-- **Mudanças no motor**: rode `bun typecheck` (em `sploit-src/packages/opencode`) e `scripts/build-sploit.ps1` antes de reiniciar o binário; registre o resultado na seção `# Verificação`.
+- **Mudanças no motor**: rode `bun typecheck` (em `sploit-src/packages/opencode`) e `scripts/build-sploit.ps1` antes de reiniciar o binário; registre o resultado na seção `# Verificação`. **`build-sploit.ps1` só atualiza o `sploit.exe` da raiz do repo** — o binário registrado no PATH (`%LOCALAPPDATA%\Sploit\bin\sploit.exe`, usado quando o usuário roda `sploit` de qualquer pasta) fica desatualizado até copiar manualmente ou rodar `install-sploit.ps1`. Se a mudança alterou o schema de config (novo campo, etc.), `install-sploit.ps1` reescreve `sploit.jsonc` global com seus próprios defaults "out of the box" (ex.: recoloca `agent.plan/build.model` e `small_model` pro `opencode/big-pickle`) — prefira copiar o `.exe` direto pro caminho do PATH nesse caso, sem rodar o instalador inteiro.
 - **Mudanças de config/skills/plugins**: lembre o usuário de reiniciar (config não é hot-reloaded).
 - **Escopo**: cada alteração em `sploit-src/` é um commit atômico em separado; nunca misturar com mudanças de config.
 - **Reindexar Graphify** após mudanças relevantes de código (`/graphify .`).
