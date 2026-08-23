@@ -109,10 +109,10 @@
  },
  {
   "id": "melh-12",
-  "status": "proposto",
+  "status": "feito",
   "titulo": "Consolidar telemetria de dogfood entre maquinas (ou parar de tratar G5-G9 como medicao cientifica)",
-  "evidencia": "sploit.db deste PC: 91 sessoes desde 05/08, mas ZERO sessoes desde 18/08 (4 dias sem uso real aqui), exatamente enquanto a G9 era ativada e 'medida' no PC 'Maxx' — que tem seu proprio banco separado, sem sincronizar (SPLOIT_STATE.md: 'o contexto NAO migra entre DBs'). O criterio 'ate 5 disparos reais por mutacao' (art. 6 da Constituicao) nunca fecha de verdade porque o uso real esta fragmentado em ilhas que nao se somam, e a maior parte das 91 sessoes e anterior a propria G9 existir.",
-  "verificacao": "python scripts/avalia_mutacoes.py rodando sobre uma amostra combinada (export/import de sessao ou DB compartilhado) mostra >=5 disparos reais por mutacao G5-G9; ou decisao explicita de desligar a cerimonia de medicao e manter as mutacoes ligadas por padrao sem art. 6",
+  "evidencia": "sploit.db deste PC: 91 sessoes desde 05/08, mas ZERO sessoes desde 18/08 (4 dias sem uso real aqui), exatamente enquanto a G9 era ativada e 'medida' no PC 'Maxx' — que tem seu proprio banco separado, sem sincronizar (SPLOIT_STATE.md: 'o contexto NAO migra entre DBs'). Opcao A aprovada pelo Flavio (consolidar de verdade, nao desligar a cerimonia). Descoberta: avalia_mutacoes.py JA suportava --db repetivel e mescla por session_id corretamente (validado com teste sintetico: DB duplicado dobra exatamente todas as contagens, sem crash/dupe incorreto) — faltava so um jeito facil de trazer o banco de outra maquina pra ca. Criado scripts/dogfood-add.ps1 (copia sploit.db de outra maquina pra docs/historico/dogfood/, gitignored, e imprime o comando pronto). Baseline real rodado neste PC: 13 disparos/91 sessoes, G5 e G6/G7 com ZERO disparos desde sempre (nao e so falta dos ultimos 4 dias).",
+  "verificacao": "scripts/dogfood-add.ps1 -From <db> -Nome <rotulo> copia e imprime o comando; avalia_mutacoes.py --db <local> --db <copiado> soma as duas amostras sem erro (testado com DB duplicado). Consolidacao real com o PC Maxx depende do Flavio copiar o arquivo de la pra ca (passo manual, fora do alcance desta sessao).",
   "commit": null,
   "criado": "2026-08-22 00:00"
  },

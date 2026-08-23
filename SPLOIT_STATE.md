@@ -643,15 +643,28 @@ Pendências em ordem:
 1. **Dogfood + primeira decisão com dados**: usar o sploit.exe em TUDO; quando
    cada mutação G5–G9 tiver ≥5 disparos reais, rodar
    `python scripts/avalia_mutacoes.py` e decidir manter/podar (art. 6).
-2. **Modelo default resiliente**: Zen estourou cota no 1º run pós-install —
-   implementar fallback automático de modelo (Zen → Gemini → ...) ou chave própria.
-3. **CI mínimo** (GitHub Actions: typecheck + testes no push) para baratear o sync.
+   Baseline em 22/08 (só este PC): 13 disparos em 91 sessões, G5 e G6/G7 com
+   **zero** disparos desde sempre. Como cada máquina tem seu próprio
+   `sploit.db` sem sincronizar, use `scripts/dogfood-add.ps1 -From <caminho do
+   sploit.db de outra máquina> -Nome <rótulo>` pra copiar o banco de outro PC
+   pra `docs/historico/dogfood/` (gitignored) e rodar `avalia_mutacoes.py --db
+   <local> --db <copiado>` combinado — o script já suportava múltiplos `--db`,
+   só faltava um jeito fácil de trazer o arquivo de outra máquina pra cá.
+2. ~~Modelo default resiliente~~ **FEITO (22/08, melh-11)**: `model_fallback`
+   no config + `provider/health.ts` marcam o provider bloqueado num erro
+   duro (free_tier_limit/account_rate_limit) e `defaultModel()` pula pro
+   fallback configurado automaticamente.
+3. ~~CI mínimo~~ **FEITO (22/08, melh-10)**: `.github/workflows/ci.yml` roda
+   typecheck + teste no push/PR.
 4. Limpeza: scripts órfãos (instrumenta/medicao/analyze-webui*), pendências velhas
    (banner/wizard squad — fechar ou matar explícito).
 5. Próximo sync: seguir UPSTREAM.md (diff-apply) a partir do SYNCED do
    `.upstream-sync` (`1b937c86`).
 
 Análise sincera completa (P2) entregue em 21/08 — ver NOTAS.md e a conversa.
+Continuação em 22/08 (Claude Code, PC "Hp"): merge das duas máquinas, CI
+mínimo, fallback de modelo e essa ferramenta de telemetria combinada — ver
+`docs/historico/FILA_MELHORIAS.json` (melh-10 a melh-14) pro registro completo.
 
 ## Retomando em OUTRO PC (21/08)
 

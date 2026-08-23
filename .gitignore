@@ -26,6 +26,10 @@ opencode-key.txt
 # Senha do servidor web (sploit-web.ps1)
 sploit-web.secret
 
+# Copias locais de sploit.db de outras maquinas, pra avaliar mutacoes G5-G9
+# combinado (scripts/dogfood-add.ps1). Historico de sessao real, nao commitar.
+docs/historico/dogfood/
+
 # Wrangler (Cloudflare) - cache local com ID da conta
 .wrangler/
 
