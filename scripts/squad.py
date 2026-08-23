@@ -123,6 +123,38 @@ def save_cfg(base, cfg):
     )
 
 
+GUARD_SRC = Path(__file__).resolve().parent.parent / ".sploit" / "plugins" / "squad-guard.js"
+GUARD_REF = ".sploit/plugins/squad-guard.js"
+
+
+def ensure_guard_plugin(base):
+    """Escala o squad-guard.js pro projeto (create-if-missing) e garante que
+    o sploit.json do projeto o registra em "plugin". Bloqueia mecanicamente o
+    coordenador de ler/editar direto a pasta de um agente - ver
+    .sploit/plugins/squad-guard.js no repo do sploit. Nunca sobrescreve um
+    guard ja existente (o usuario pode ter customizado) nem outras chaves do
+    sploit.json do projeto."""
+    base = Path(base)
+    dest = base / ".sploit" / "plugins" / "squad-guard.js"
+    if not dest.exists() and GUARD_SRC.exists():
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(GUARD_SRC, dest)
+
+    sj = base / "sploit.json"
+    cfg = {}
+    if sj.exists():
+        try:
+            cfg = json.loads(sj.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            cfg = {}
+    plugins = cfg.get("plugin") or []
+    if GUARD_REF not in plugins:
+        plugins.append(GUARD_REF)
+        cfg["plugin"] = plugins
+        cfg.setdefault("$schema", "https://opencode.ai/config.json")
+        sj.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def cmd_init(args):
     base = args.dir
     sdir = squad_dir(base)
@@ -131,12 +163,14 @@ def cmd_init(args):
     p = cfg_path(base)
     if p.exists():
         cfg = load_cfg(base)
+        ensure_guard_plugin(base)
         print(f"ja existe: squad em {base} ({len(cfg.get('agentes', []))} agentes)")
         return 0
     save_cfg(base, {"projeto": args.projeto, "agentes": []})
     q = quadro_path(base)
     if not q.exists():
         q.write_text(HEADER.format(projeto=args.projeto), encoding="utf-8")
+    ensure_guard_plugin(base)
     print(f"squad iniciado em {base} (projeto {args.projeto})")
     return 0
 
@@ -168,6 +202,7 @@ def cmd_add(args):
             f"`{pasta}`. O que {nome} sabe sobre o projeto:\n- (vazio)\n",
             encoding="utf-8",
         )
+    ensure_guard_plugin(base)
     print(f"agente {nome} adicionado (pasta {pasta})")
     return 0
 

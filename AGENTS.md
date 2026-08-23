@@ -19,7 +19,10 @@ Guia para agentes de IA que trabalham neste repositório (o **Sploit**).
 - `SQUAD.md` — blueprint do **modo squad** (agentes persistentes por área com
   nome, memória própria e quadro de conversa). A skill global `squad`
   (`~/.config/sploit/skills/squad/SKILL.md`) define o fluxo de criação e
-  orquestração; a CLI de apoio é `scripts/squad.py`.
+  orquestração; a CLI de apoio é `scripts/squad.py`. Desde 22/08, a delegação
+  não é mais só combinada por prompt: `.sploit/plugins/squad-guard.js`
+  bloqueia mecanicamente o coordenador de ler/editar direto a pasta de um
+  agente (escalado sozinho por `squad init`/`add`/`create`).
 - `venv/` — ambiente Python usado pelo Graphify (não commitar).
 - `scripts/sploit-web.ps1` — servidor web do Sploit acessível pela rede local
   (celular), com senha em `sploit-web.secret` (gitignored). Subir com
