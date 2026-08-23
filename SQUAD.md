@@ -78,6 +78,43 @@ O usuário quer **ver** os agentes conversando e trabalhando. Opções:
   dá pra ver de longe, no celular. Mais bonito, mais trabalho.
 - **(C) Os dois**: feed no terminal + espelho na web.
 
+## Próxima fase: clareza visual (registrado em 22/08)
+
+Conversa com o Flávio sobre por que o squad ainda não virou uso real: "realmente
+não sei o que falta, acho que mais clareza, tanto em a pessoa ver os agentes
+trabalhando quando em ação em projetos reais". A motivação de fundo, nas
+palavras dele:
+
+> "as pessoas são movidas e gastam por conta do seu ego (...) tem a escolha de
+> pagar por um agente como o Claude Code que codifica, ou por um Sploit, que
+> mostra visualmente como se fosse uma equipe que essa pessoa contratou, cada
+> um no seu lugar, ele vendo tudo, os agentes conversando trabalhando (...)
+> todas as pessoas querem ser chefes e isso motiva elas."
+
+Ou seja: o diferencial do Sploit não é só dividir contexto por área (isso já
+funciona) — é a **sensação de ser o chefe de um time visível**. Isso é
+identidade do produto, não nice-to-have.
+
+**Atenção**: bonecos pixel por agente já foram tentados (11/08) e **reprovados
+2x pelo usuário** ("tá muito feio, nada a ver"; "não quero ver na web, só no
+terminal") — ver Status abaixo. A resposta pra "clareza"/ego NÃO é reciclar
+esse caminho. O usuário confirmou 3 direções (todas juntas, não uma só):
+
+1. **Feed de verdade**: hoje o dock mostra só o ÚLTIMO post de cada agente.
+   Falta uma área com os posts recentes em sequência (tipo chat de equipe
+   rolando), pra ver o raciocínio acontecendo, não um resumo estático.
+2. **Sensação de comando**: agrupar visualmente por hierarquia — o
+   coordenador distribuindo tarefa, cada agente na própria "raia" com o que
+   está fazendo. Organização clara de quem manda em quem, sem avatar.
+3. **Prova de qualidade em destaque**: o veredito do auditor (aprovado com
+   ressalvas / bloqueado com motivo) hoje se perde misturado nos posts comuns
+   do quadro. Precisa de destaque próprio (selo/badge) — é o momento que
+   constrói confiança de "meu time entrega direito".
+
+Ainda em aberto: plano de implementação concreto (qual componente da TUI
+muda, como fica o layout) — a construir e validar com o usuário antes de
+codificar.
+
 ## Pendências de design
 
 - Onde mora o squad (arquivos, configuração de agentes, nomes)?
@@ -258,3 +295,8 @@ O usuário quer **ver** os agentes conversando e trabalhando. Opções:
       suite determinística rodada 2x). Auditor registrou auditoria e
       re-auditoria na memória própria. Commit `936cd2e` (squad.py) + skill
       squad §5.2 e §6 (dock) atualizadas.
+- [ ] **Clareza visual / "sensação de chefe de time" (22/08)**: ver seção
+      "Próxima fase: clareza visual" acima. Feed de posts recentes (não só o
+      último), agrupamento por hierarquia (coordenador → agentes), e destaque
+      próprio pro veredito do auditor. Plano de implementação ainda a
+      construir e validar com o usuário antes de codificar.
