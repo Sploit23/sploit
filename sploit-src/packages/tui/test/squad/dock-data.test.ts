@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test"
-import { detectarPostsInvalidos, estadoAgente, parseQuadro, trabalhando } from "../../src/squad/dock-data"
+import {
+  detectarPostsInvalidos,
+  ehAuditor,
+  estadoAgente,
+  feedRecente,
+  parseQuadro,
+  trabalhando,
+  ultimoPostCoordenador,
+  veredictoAuditor,
+} from "../../src/squad/dock-data"
 
 describe("squad dock-data", () => {
   describe("parseQuadro", () => {
@@ -91,6 +100,94 @@ não é um post
       expect(trabalhando({ estado: "pendente", acao: "aguardando" })).toBe(false)
       expect(trabalhando({ estado: "feito", acao: "revisando PR" })).toBe(false)
       expect(trabalhando({ estado: "bloqueado", acao: "revisando PR" })).toBe(false)
+    })
+  })
+
+  describe("ehAuditor", () => {
+    test("matches role descriptions that mention auditing/QA/review", () => {
+      expect(ehAuditor("especialista em auditoria de qualidade")).toBe(true)
+      expect(ehAuditor("QA")).toBe(true)
+      expect(ehAuditor("revisor de testes")).toBe(true)
+    })
+
+    test("does not match unrelated roles", () => {
+      expect(ehAuditor("backend")).toBe(false)
+      expect(ehAuditor(undefined)).toBe(false)
+    })
+  })
+
+  describe("feedRecente", () => {
+    test("returns the last N posts, most recent first", () => {
+      const posts = parseQuadro(
+        [
+          "**[Carla] (feito) um - [14/08/2026 10:00]**",
+          "**[Carla] (feito) dois - [14/08/2026 10:01]**",
+          "**[Carla] (feito) tres - [14/08/2026 10:02]**",
+        ].join("\n"),
+      )
+      expect(feedRecente(posts, 2).map((p) => p.msg)).toEqual(["tres", "dois"])
+    })
+
+    test("returns all posts reversed when there are fewer than N", () => {
+      const posts = parseQuadro("**[Carla] (feito) unico - [14/08/2026 10:00]**")
+      expect(feedRecente(posts, 6).map((p) => p.msg)).toEqual(["unico"])
+    })
+
+    test("returns an empty array for empty input", () => {
+      expect(feedRecente([], 6)).toEqual([])
+    })
+  })
+
+  describe("ultimoPostCoordenador", () => {
+    test("returns the last Coordenador post among mixed posts", () => {
+      const posts = parseQuadro(
+        [
+          "**[Coordenador] (feito) time formado - [17/08/2026 11:12]**",
+          "**[Carla] (feito) PR revisado - [17/08/2026 11:20]**",
+          "**[Coordenador] (pendente) Webber: integre a API - [17/08/2026 11:25]**",
+        ].join("\n"),
+      )
+      expect(ultimoPostCoordenador(posts)?.msg).toBe("Webber: integre a API")
+    })
+
+    test("returns undefined when the coordinator never posted", () => {
+      const posts = parseQuadro("**[Carla] (feito) PR revisado - [17/08/2026 11:20]**")
+      expect(ultimoPostCoordenador(posts)).toBeUndefined()
+    })
+  })
+
+  describe("veredictoAuditor", () => {
+    const agentes = [
+      { nome: "Bruno", pasta: "backend" },
+      { nome: "Auditor", pasta: "backend", papel: "especialista em auditoria de qualidade" },
+    ]
+
+    test("returns the auditor's latest non-pending post, ignoring regular agents", () => {
+      const posts = parseQuadro(
+        [
+          "**[Bruno] (feito) implementei o endpoint - [17/08/2026 22:54]**",
+          "**[Auditor] (bloqueado) rota desconhecida devolve 200 em vez de 404 - [17/08/2026 22:56]**",
+        ].join("\n"),
+      )
+      expect(veredictoAuditor(posts, agentes)?.estado).toBe("bloqueado")
+    })
+
+    test("returns undefined when no agent has an auditor role", () => {
+      const posts = parseQuadro("**[Bruno] (feito) implementei o endpoint - [17/08/2026 22:54]**")
+      expect(veredictoAuditor(posts, [{ nome: "Bruno", pasta: "backend" }])).toBeUndefined()
+    })
+
+    test("returns the newer verdict after a re-audit (bloqueado -> feito)", () => {
+      const posts = parseQuadro(
+        [
+          "**[Auditor] (bloqueado) 3 problemas encontrados - [17/08/2026 22:56]**",
+          "**[Bruno] (feito) corrigido - [17/08/2026 22:58]**",
+          "**[Auditor] (feito) 0 achados, aprovado - [17/08/2026 23:00]**",
+        ].join("\n"),
+      )
+      const v = veredictoAuditor(posts, agentes)
+      expect(v?.estado).toBe("feito")
+      expect(v?.msg).toBe("0 achados, aprovado")
     })
   })
 })

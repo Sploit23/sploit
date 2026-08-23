@@ -6,10 +6,15 @@ import { EmptyBorder, SplitBorder } from "../../ui/border"
 import { openSquadAgentDialog } from "./dialog-squad-agent"
 import {
   detectarPostsInvalidos,
+  ehAuditor,
   estadoAgente,
+  feedRecente,
   lerAtividade,
   lerModeloAtual,
+  NOME_COORDENADOR,
   parseQuadro,
+  ultimoPostCoordenador,
+  veredictoAuditor,
   verificarTravamento,
   type Atividade,
   type PostInvalido,
@@ -26,6 +31,11 @@ const GRAFO = "▁▂▃▄▅▆▇█"
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+// Detecta se a mensagem de um post menciona outro agente pelo nome ("Nome: ...").
+function alvoMencionado(msg: string, nomes: string[], autor: string): string | undefined {
+  return nomes.filter((x) => x !== autor).find((x) => new RegExp(`${escapeRegExp(x)}\\s*:`).test(msg))
 }
 
 function parseData(data: string): Date | undefined {
@@ -80,7 +90,7 @@ function linha(
       travado: true,
     }
   }
-  const alvo = nomes.filter((x) => x !== a.nome).find((x) => new RegExp(`${escapeRegExp(x)}\\s*:`).test(est.acao))
+  const alvo = alvoMencionado(est.acao, nomes, a.nome)
   if (alvo)
     return { estado: "pendente", rotulo: `perguntando a ${alvo}`, texto: est.acao, trabalhando: true, travado: false }
   if (agora && agora.rotulo !== "aguardando")
@@ -167,7 +177,7 @@ export function SquadDock(props: { directory?: string }) {
 
   function corPapel(papel: string) {
     const p = papel.toLowerCase()
-    if (/audit|qualid|qa|revis|teste/.test(p)) return theme.warning
+    if (ehAuditor(papel)) return theme.warning
     if (/segur|vulner|pentest|hack|ataque/.test(p)) return theme.error
     if (/front|visual|ui|tela|totem|design/.test(p)) return theme.accent
     if (/back|api|server|dado|sql|banco|infra/.test(p)) return theme.info
@@ -223,6 +233,11 @@ export function SquadDock(props: { directory?: string }) {
         )
         const ultimo = data().posts.length > 0 ? data().posts[data().posts.length - 1].data : undefined
         const spark = sparkline(data().posts)
+        const feed = feedRecente(data().posts, 6)
+        const veredito = veredictoAuditor(data().posts, data().agentes)
+        const diretiva = ultimoPostCoordenador(data().posts)
+        const papelPorNome = new Map(data().agentes.map((a) => [a.nome, a.papel]))
+        const nomes = data().agentes.map((a) => a.nome)
         return (
           <box width={42} height="100%" flexDirection="column" {...SplitBorder} borderColor={theme.border}>
             <box flexShrink={0} flexDirection="column" gap={1} paddingTop={1} paddingLeft={2} paddingRight={1}>
@@ -258,6 +273,22 @@ export function SquadDock(props: { directory?: string }) {
                   </Show>
                 </box>
               </box>
+              <Show when={veredito}>
+                {(v) => (
+                  <box flexDirection="column" gap={0}>
+                    <text
+                      fg={v().estado === "bloqueado" ? theme.error : theme.success}
+                      attributes={TextAttributes.BOLD}
+                      wrapMode="none"
+                    >
+                      {(v().estado === "bloqueado" ? "✕ AUDITORIA — bloqueado: " : "✓ AUDITORIA — aprovado: ") + v().nome}
+                    </text>
+                    <text fg={theme.textMuted} attributes={TextAttributes.DIM} truncate>
+                      {"  " + v().msg}
+                    </text>
+                  </box>
+                )}
+              </Show>
               <Show when={data().postsInvalidos.length > 0}>
                 <box flexDirection="column" gap={0}>
                   <text fg={theme.error} attributes={TextAttributes.BOLD} wrapMode="none">
@@ -275,6 +306,67 @@ export function SquadDock(props: { directory?: string }) {
             </box>
             <scrollbox flexGrow={1} backgroundColor={theme.backgroundPanel}>
               <box flexShrink={0} flexDirection="column" gap={1} paddingTop={1} paddingBottom={1} paddingLeft={2} paddingRight={1}>
+                <Show when={diretiva}>
+                  {(d) => (
+                    <box flexDirection="column" gap={0}>
+                      <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
+                        ▸ Coordenador
+                      </text>
+                      <text fg={theme.text} truncate>
+                        {"  " + d().msg}
+                      </text>
+                    </box>
+                  )}
+                </Show>
+                <Show when={feed.length > 0}>
+                  <box
+                    flexDirection="column"
+                    gap={0}
+                    paddingTop={1}
+                    border={["top"]}
+                    customBorderChars={{ ...EmptyBorder, horizontal: "─" }}
+                    borderColor={theme.borderSubtle}
+                  >
+                    <text fg={theme.accent} attributes={TextAttributes.BOLD} wrapMode="none">
+                      Feed recente
+                    </text>
+                    <For each={feed}>
+                      {(p) => {
+                        const autorEhAuditor = ehAuditor(papelPorNome.get(p.nome))
+                        const alvo = alvoMencionado(p.msg, nomes, p.nome)
+                        const fgEstado =
+                          p.estado === "bloqueado" ? theme.error : p.estado === "feito" ? theme.success : theme.textMuted
+                        return (
+                          <box flexDirection="column" gap={0} paddingTop={1}>
+                            <box flexDirection="row" gap={1}>
+                              <text fg={fgEstado} wrapMode="none">
+                                {p.estado === "bloqueado" ? "✕" : p.estado === "feito" ? "✓" : "○"}
+                              </text>
+                              <text
+                                fg={p.nome === NOME_COORDENADOR ? theme.text : corPara(p.nome)}
+                                attributes={autorEhAuditor ? TextAttributes.BOLD : TextAttributes.NONE}
+                                wrapMode="none"
+                              >
+                                {p.nome}
+                                {alvo ? ` → ${alvo}` : ""}
+                              </text>
+                              <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none">
+                                {p.data.slice(-5)}
+                              </text>
+                            </box>
+                            <text
+                              fg={autorEhAuditor ? theme.warning : theme.textMuted}
+                              attributes={autorEhAuditor ? TextAttributes.BOLD : TextAttributes.DIM}
+                              truncate
+                            >
+                              {"  " + p.msg}
+                            </text>
+                          </box>
+                        )
+                      }}
+                    </For>
+                  </box>
+                </Show>
                 <For each={exibidos}>
                   {({ a, l }) => {
                     const est = dadosEstado(l)

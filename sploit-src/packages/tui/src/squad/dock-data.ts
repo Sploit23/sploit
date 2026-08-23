@@ -29,6 +29,13 @@ function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
+export const NOME_COORDENADOR = "Coordenador"
+const AUDITOR_RE = /audit|qualid|qa|revis|teste/
+
+export function ehAuditor(papel?: string): boolean {
+  return AUDITOR_RE.test((papel ?? "").toLowerCase())
+}
+
 export function parseQuadro(text: string) {
   const posts: SquadPost[] = []
   for (const line of text.split(/\r?\n/)) {
@@ -77,6 +84,24 @@ export function estadoAgente(posts: SquadPost[], nome: string): { estado: SquadP
 
 export function trabalhando(est: { estado: SquadPost["estado"]; acao: string }) {
   return est.estado === "pendente" && est.acao !== "aguardando"
+}
+
+// Últimos N posts do quadro inteiro, mais recente primeiro — mesma convenção
+// de ordenação que a lista de posts do agente no dialogo de detalhe.
+export function feedRecente(posts: SquadPost[], n = 6): SquadPost[] {
+  return posts.slice(-n).toReversed()
+}
+
+export function ultimoPostCoordenador(posts: SquadPost[]): SquadPost | undefined {
+  return posts.findLast((p) => p.nome === NOME_COORDENADOR)
+}
+
+// Veredito mais recente de um agente com papel de auditor (feito=aprovado,
+// bloqueado=achados). undefined se nao ha auditor configurado ou ele nunca postou.
+export function veredictoAuditor(posts: SquadPost[], agentes: SquadAgent[]): SquadPost | undefined {
+  const nomesAuditores = new Set(agentes.filter((a) => ehAuditor(a.papel)).map((a) => a.nome))
+  if (nomesAuditores.size === 0) return undefined
+  return posts.findLast((p) => nomesAuditores.has(p.nome) && p.estado !== "pendente")
 }
 
 function limparAnsi(texto: string) {
