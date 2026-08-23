@@ -118,11 +118,11 @@
  },
  {
   "id": "melh-13",
-  "status": "proposto",
-  "titulo": "Squad: decidir manter (investir pra orquestrar de verdade) ou cortar pela metade",
-  "evidencia": "Registro anterior (P2, 21/08) subestimou o squad como '21 linhas no motor'. Contagem real em 22/08: ~1200 linhas em sploit-src (engine + TUI: dock, dialog, setup, notifications) + 1401 linhas em scripts/squad.py fora do binario — quase 2600 linhas pra uma feature que a memoria feature_squad_agents classifica como 'SquadDock passivo' (mostra status, nao orquestra nada de fato). Peso de manutencao real por retorno decorativo.",
-  "verificacao": "Decisao registrada com /decisao: ou o squad ganha orquestracao real (verificavel por um agente do squad executando uma tarefa de ponta a ponta sem intervencao manual), ou o footprint cai (menos arquivos/linhas) mantendo so o essencial",
-  "commit": null,
+  "status": "revisto",
+  "titulo": "[CORRIGIDO 22/08] Squad ja orquestra de verdade -> item vira 'clareza visual', nao 'manter ou cortar'",
+  "evidencia": "Avaliacao original (22/08, mesma sessao) classificou o squad como '~2600 linhas, feature decorativa/peso morto' julgando so por contagem de linhas + uma nota de memoria desatualizada ('SquadDock e so leitor passivo'), sem reler SQUAD.md inteiro. Estava errado: o squad ja tem coordenador orquestrando, agentes com pasta/memoria propria, comunicacao real pelo quadro, e um agente AUDITOR que ja bloqueou trabalho de colegas com achados reais e reaprovou depois da correcao (ciclo real documentado em SQUAD.md, 11/08). Conversa com o Flavio no mesmo dia revelou o motivo real de squad nao estar em producao: nao e tecnico, e falta de CLAREZA (sensacao de 'chefe de time visivel', motivacao de ego - tese central do produto). Ver SQUAD.md secao 'Proxima fase: clareza visual' pro registro completo.",
+  "verificacao": "Este item nao vira mais decisao manter/cortar. Sucessor: implementar as 3 direcoes que o Flavio aprovou (feed de posts recentes por agente, agrupamento visual por hierarquia coordenador->agentes, selo proprio pro veredito do auditor) - plano de implementacao concreto ainda a construir e validar antes de codificar, entra como melh-15 quando o plano estiver pronto.",
+  "commit": "dd9b31e",
   "criado": "2026-08-22 00:00"
  }
 ]
