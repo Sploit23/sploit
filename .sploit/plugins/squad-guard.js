@@ -7,6 +7,13 @@
 // comparando instance.directory (fixo por processo) contra as pastas
 // cadastradas em squad.json.
 //
+// squad.json pode estar em <projeto>/squad/squad.json (convencao padrao do
+// squad.py quando --dir aponta pra raiz do projeto) OU direto em
+// <projeto>/squad.json (quando a sessao interativa roda de dentro da propria
+// pasta "squad/" - caso real encontrado em 23/08). Os dois sao aceitos; os
+// "pasta" dos agentes sempre resolvem relativos a `directory` (onde a sessao
+// atual roda), nunca relativos a onde o squad.json foi encontrado.
+//
 // Lacunas conhecidas, nao escondidas: comandos via bash (ex.: "cat
 // squad/frontend/Botao.tsx") e apply_patch (o path do arquivo fica dentro do
 // texto do patch, nao em um campo simples) nao sao cobertos nesta versao.
@@ -15,17 +22,28 @@ import path from "path"
 
 const GUARDED_TOOLS = new Set(["read", "edit", "write", "grep", "glob"])
 
+function findSquadJson(directory, worktree) {
+  for (const base of [directory, worktree]) {
+    if (!base) continue
+    const nested = path.join(base, "squad", "squad.json")
+    if (existsSync(nested)) return nested
+    const flat = path.join(base, "squad.json")
+    if (existsSync(flat)) return flat
+  }
+  return undefined
+}
+
 export const SquadGuardPlugin = async ({ directory, worktree }) => {
-  const squadRoot = [directory, worktree].find((d) => d && existsSync(path.join(d, "squad", "squad.json")))
-  if (!squadRoot) return {}
+  const squadJsonPath = findSquadJson(directory, worktree)
+  if (!squadJsonPath) return {}
 
   let agentes
   try {
-    const cfg = JSON.parse(readFileSync(path.join(squadRoot, "squad", "squad.json"), "utf-8"))
+    const cfg = JSON.parse(readFileSync(squadJsonPath, "utf-8"))
     agentes = (cfg.agentes ?? [])
       .filter((a) => a && a.nome && a.pasta)
-      .map((a) => ({ nome: a.nome, pasta: path.resolve(squadRoot, a.pasta) }))
-      .filter((a) => a.pasta !== path.resolve(squadRoot))
+      .map((a) => ({ nome: a.nome, pasta: path.resolve(directory, a.pasta) }))
+      .filter((a) => a.pasta !== path.resolve(directory))
   } catch {
     return {}
   }
@@ -69,7 +87,7 @@ export const SquadGuardPlugin = async ({ directory, worktree }) => {
       if (!agente) return
 
       throw new Error(
-        `[squad] "${path.relative(squadRoot, target)}" pertence ao agente ${agente.nome}. ` +
+        `[squad] "${path.relative(directory, target)}" pertence ao agente ${agente.nome}. ` +
           `Nao leia/edite essa pasta direto - use a ferramenta task (persona de ${agente.nome}) ou ` +
           `"squad post --nome ${agente.nome}" pra perguntar/delegar, e repasse ao usuario so a resposta ` +
           `dele + status (trabalhando/salvando/postando no quadro). Nao repita esta chamada direta.`,
