@@ -295,8 +295,21 @@ codificar.
       suite determinística rodada 2x). Auditor registrou auditoria e
       re-auditoria na memória própria. Commit `936cd2e` (squad.py) + skill
       squad §5.2 e §6 (dock) atualizadas.
-- [ ] **Clareza visual / "sensação de chefe de time" (22/08)**: ver seção
-      "Próxima fase: clareza visual" acima. Feed de posts recentes (não só o
-      último), agrupamento por hierarquia (coordenador → agentes), e destaque
-      próprio pro veredito do auditor. Plano de implementação ainda a
-      construir e validar com o usuário antes de codificar.
+- [x] **Clareza visual / "sensação de chefe de time" (22-23/08) — implementado**:
+      `dock-data.ts` ganhou 4 funções puras (`ehAuditor`, `feedRecente`,
+      `ultimoPostCoordenador`, `veredictoAuditor`) com testes cobrindo o caso
+      real de reauditoria (bloqueado → feito). `squad-dock.tsx`: banner fixo
+      no topo do painel com o veredito mais recente do auditor
+      (✓ aprovado/✕ bloqueado + resumo), linha `▸ Coordenador` com a última
+      diretiva, e bloco "Feed recente" (últimos 6 posts de toda a equipe,
+      mais novo primeiro, com seta pra quem foi mencionado). Nenhum avatar —
+      só texto/cor/ícone, mesma linguagem visual do dock já existente.
+      Typecheck limpo, testes novos (8) + suíte da `tui` sem regressão
+      (5 falhas preexistentes de i18n/locale, confirmadas no master limpo,
+      não relacionadas). Build `v0.1.14-sploit` instalado. **Verificação
+      visual real pendente**: não consegui capturar um render completo de
+      dentro desta sessão automatizada (stdout sem TTY real trava no splash
+      de boot, sem chegar na tela com o dock) — pedido ao Flávio pra abrir
+      `sploit` na pasta de teste `Desktop\testes\squad-vista` (squad de
+      exemplo com Bruno + Auditor, ciclo bloqueado→feito) e confirmar
+      visualmente.
