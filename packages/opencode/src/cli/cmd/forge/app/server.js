@@ -627,6 +627,13 @@ function attach(ws) {
 // o caminho WSL/systemd fica pra depois se precisar.
 const UPDATE_BASE = 'https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/';
 const UPDATE_FILES = ['server.js', 'index.html', 'sessions-native.js', 'win-service.js', 'mcp-coordinator.js'];
+// toda vez que um arquivo daqui passar a depender de um pacote npm novo
+// (ex: mcp-coordinator.js precisando de @modelcontextprotocol/sdk+zod),
+// soma aqui -- senão o auto-update baixa o código novo, passa pelo
+// `node --check` (que não pega dependência faltando, só erro de
+// sintaxe), reinicia, e o processo cai com MODULE_NOT_FOUND em toda
+// máquina que nunca rodou o instalador de novo na mão.
+const UPDATE_NPM_DEPS = ['@modelcontextprotocol/sdk', 'zod'];
 async function checkForUpdates() {
   if (!WIN) return;
   try {
@@ -643,6 +650,10 @@ async function checkForUpdates() {
     try { execFileSync(process.execPath, ['--check', tmp]) }
     catch (e) { fs.unlinkSync(tmp); throw new Error('server.js novo tem erro de sintaxe, abortando: ' + e.message, { cause: e }) }
     fs.unlinkSync(tmp);
+    console.log('[update] sintaxe ok, garantindo dependências novas...');
+    // idempotente -- se já estiver instalado, só confirma rápido, não reinstala.
+    try { execFileSync('npm', ['install', ...UPDATE_NPM_DEPS, '--silent'], { cwd: __dirname, timeout: 120000 }) }
+    catch (e) { throw new Error('npm install das dependências novas falhou, abortando: ' + e.message, { cause: e }) }
     console.log('[update] válido, baixando o resto e aplicando...');
     for (const f of UPDATE_FILES) fs.writeFileSync(path.join(__dirname, f), await (await fetch(UPDATE_BASE + f)).text());
     console.log('[update] arquivos atualizados, reiniciando com segurança...');

@@ -187,6 +187,19 @@ vale ler antes de tocar de novo):
 - O Serviço roda como LocalSystem — sem `FORGE_USER_PROFILE` (ver bullet
   do `win-native-install.ps1` acima), nenhuma sessão (nem só o
   Coordenador) via o perfil/conta real da pessoa.
+- O auto-update (`checkForUpdates`, mais abaixo neste documento) só
+  sobrescrevia arquivos `.js`/`.html` -- nunca rodava `npm install`. A
+  virada pro MCP somou duas dependências novas
+  (`@modelcontextprotocol/sdk`, `zod`) que uma máquina nunca reinstalada
+  na mão (ex: Escritório) não tinha -- o auto-update ia baixar o código
+  novo, passar pelo `node --check` (que não pega dependência faltando),
+  reiniciar, e cair com `MODULE_NOT_FOUND` sozinho, sem ninguém olhando.
+  Corrigido: `checkForUpdates` agora roda `npm install` (lista em
+  `UPDATE_NPM_DEPS`, idempotente) antes de aplicar/reiniciar, e aborta
+  do mesmo jeito que já abortava num erro de sintaxe se isso falhar. Mas
+  isso só protege **daqui pra frente** -- uma máquina cujo ciclo de
+  auto-update já estava "no meio" quando essa correção foi escrita ainda
+  precisa de um reinstall manual pra não cair; não é 100% retroativo.
 - `/api/relay-send` (usado pelo `transfer_project`) empacotava a pasta
   inteira com `tar` e **bufferizava tudo em memória** (`Buffer.concat`)
   antes de mandar — pra um projeto JS real (com `node_modules`), isso
