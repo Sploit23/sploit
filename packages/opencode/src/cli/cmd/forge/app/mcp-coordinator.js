@@ -27,14 +27,36 @@ async function fetchJson(url, token, opts) {
 // todo projeto de toda máquina do mesh já aparece aqui.
 async function listAllProjects(ctx) {
   const out = [];
+  // ...p preserva alive/snap/last/dirty (de projectInfo() em server.js) --
+  // a ferramenta MCP ignora esses campos, mas a tela "Projetos" do app
+  // (GET /api/all-projects) precisa deles pra mostrar status de sessão
+  // igual já mostrava antes, só que agora pra local E remoto.
   const local = await fetchJson(`http://127.0.0.1:${ctx.port}/api/projects`, ctx.token);
-  for (const p of local || []) out.push({ alias: p.name, directory: p.path, machine: 'local' });
+  for (const p of local || []) out.push({ ...p, alias: p.name, directory: p.path, machine: 'local' });
   const known = await fetchJson(`http://127.0.0.1:${ctx.port}/api/known-devices`, ctx.token);
   for (const d of known || []) {
     const remote = await fetchJson(`https://${d.dnsName}/api/projects`, d.token);
-    for (const p of remote || []) out.push({ alias: p.name, directory: p.path, machine: d.dnsName, token: d.token });
+    for (const p of remote || []) out.push({ ...p, alias: p.name, directory: p.path, machine: d.dnsName, token: d.token });
   }
   return out;
+}
+
+// despacha uma instrução pra um projeto já resolvido (local ou remoto) --
+// extraído pra ser reusado tanto pela ferramenta MCP `dispatch` quanto
+// por POST /api/projects/:alias/chat em server.js (tocar num ícone no
+// app, sem precisar do Coordenador "adivinhar" qual projeto é).
+async function dispatchToProject(entry, instruction, ctx) {
+  const base = entry.machine === 'local' ? `http://127.0.0.1:${ctx.port}` : `https://${entry.machine}`;
+  const token = entry.machine === 'local' ? ctx.token : entry.token;
+  const res = await fetch(`${base}/api/coordinator/prompt`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ directory: entry.directory, instruction }),
+    signal: AbortSignal.timeout(120000),
+  });
+  const j = await res.json();
+  if (j.error) throw new Error(j.error);
+  return j.reply || '(sem resposta)';
 }
 
 function createMcpServer(ctx) {
@@ -61,18 +83,9 @@ function createMcpServer(ctx) {
       const names = entries.map(e => e.alias).join(', ') || '(nenhum)';
       return { content: [{ type: 'text', text: `Projeto "${project}" não encontrado. Conhecidos: ${names}` }], isError: true };
     }
-    const base = entry.machine === 'local' ? `http://127.0.0.1:${ctx.port}` : `https://${entry.machine}`;
-    const token = entry.machine === 'local' ? ctx.token : entry.token;
     try {
-      const res = await fetch(`${base}/api/coordinator/prompt`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directory: entry.directory, instruction }),
-        signal: AbortSignal.timeout(120000),
-      });
-      const j = await res.json();
-      if (j.error) throw new Error(j.error);
-      return { content: [{ type: 'text', text: j.reply || '(sem resposta)' }] };
+      const text = await dispatchToProject(entry, instruction, ctx);
+      return { content: [{ type: 'text', text }] };
     } catch (e) {
       return { content: [{ type: 'text', text: `"${project}" (${entry.machine}) falhou: ${String(e.message || e)}` }], isError: true };
     }
@@ -122,4 +135,4 @@ async function handleMcpRequest(req, res, ctx) {
   await transport.handleRequest(req, res);
 }
 
-module.exports = { handleMcpRequest };
+module.exports = { handleMcpRequest, listAllProjects, dispatchToProject };

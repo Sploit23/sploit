@@ -307,6 +307,13 @@ const srv = http.createServer(async (req, res) => {
         // Autenticado -- só quem já tem token de ALGUM FORGE da rede lê esta lista.
         return J(KNOWN);
       }
+      if (u.pathname === '/api/all-projects' && req.method === 'GET') {
+        // lista unificada cross-PC pra tela "Projetos" -- mesma descoberta
+        // ao vivo que list_projects do MCP já faz (local + /api/known-devices
+        // + /api/projects de cada um), reusada daqui pra não duplicar lógica
+        // entre "o Coordenador fala sozinho" e "a pessoa toca num ícone".
+        return J(await mcpCoordinator.listAllProjects({ token: TOKEN, port: PORT }));
+      }
       if (u.pathname === '/api/coordinator/prompt' && req.method === 'POST') {
         // ponte pro dispatch remoto: outra máquina do mesh chama isso quando
         // o projeto que o coordenador dela resolveu vive aqui (ver dispatch

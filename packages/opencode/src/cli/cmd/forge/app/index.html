@@ -265,17 +265,26 @@ function renderList(ps){
   const L=$('#list');L.replaceChildren();
   if(!ps.length)L.append(h('div','mu','nenhum projeto ainda — clique em "+ projeto" pra criar ou importar um'));
   ps.forEach(p=>{
+    const remote=p.machine&&p.machine!=='local';
     const c=h('article','proj'),hd=h('div','ph'),st=h('span','st '+(p.alive?'on':'off'),p.alive?'● viva':'○ parada'),tk=h('span','think');
     tk.dataset.name=p.name;st.append(tk);
     hd.append(h('b',0,'📁 '+p.name),st);
+    if(remote)hd.append(h('span','tag',p.machine));
     const sn=h('pre','snap',p.snap&&p.snap.length?p.snap.join('\n'):'(sem sessão ainda)');
     const ft=h('div','pf'),bt=h('div','bt');
     ft.append(h('span','mu',p.last?'atualizado há '+ago(p.last):'nunca aberta'));
-    [['opencode','continue','go'],['claude','claude',''],['shell','shell',''],['⋯','menu','']].forEach(([t,m,k])=>{const b=h('button',k,t);b.onclick=()=>m==='menu'?openMenu(p):openTerm(p,m);bt.append(b)});
+    // projeto remoto ainda não tem ação por aqui -- abrir terminal é uma
+    // sessão WS desta própria máquina, não faz sentido pra pasta que vive
+    // em outra. "iniciar conversa" (despacha pra lá de verdade) chega numa
+    // fase seguinte; por ora só mostra que existe e onde mora.
+    if(!remote)[['opencode','continue','go'],['claude','claude',''],['shell','shell',''],['⋯','menu','']].forEach(([t,m,k])=>{const b=h('button',k,t);b.onclick=()=>m==='menu'?openMenu(p):openTerm(p,m);bt.append(b)});
     ft.append(bt);c.append(hd,h('div','pp',p.path),sn,ft);L.append(c);
   });
 }
-async function refresh(){if(DEMO){renderList(DEMO_P);return}try{renderList(await api('/api/projects'))}catch{}}
+async function refresh(){
+  if(DEMO){renderList(DEMO_P);return}
+  try{renderList((await api('/api/all-projects')).map(e=>({...e,name:e.alias,path:e.directory})))}catch{}
+}
 function pollThink(){
   if(!$('#projects').classList.contains('on')&&!$('#home').classList.contains('on'))return;
   if(DEMO){
