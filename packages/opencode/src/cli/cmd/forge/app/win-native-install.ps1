@@ -1,7 +1,16 @@
 # FORGE — instalador de um comando, 100% Windows nativo (sem WSL, sem Linux,
 # sem nenhuma VM no meio). Idempotente: seguro rodar de novo no mesmo PC.
 #
-#   irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
+#   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
+#
+# A linha de TLS 1.2 antes do irm é necessária em PCs mais antigos -- sem
+# ela, o PRIMEIRO download (deste próprio arquivo) pode falhar silenciosamente
+# antes mesmo do script começar a rodar (o TLS 1.2 que o script seta lá
+# embaixo só vale depois que ele já foi baixado).
+#
+# Pra instalar sem opencode/Claude Code (PC que só vai ser controlado
+# remotamente, sem IA rodando local nele):
+#   $env:FORGE_SKIP_CLI=1; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
 #
 # Se faltar alguma dependência (winget, Node), o script avisa exatamente o
 # que falta em vez de travar silenciosamente.
@@ -103,25 +112,28 @@ if (-not (Test-Path $tailscaleExe) -and -not (Test-Command "tailscale")) {
     throw "Tailscale não foi instalado corretamente (winget falhou?). Verifique a conexão e rode de novo."
 }
 
-# $ErrorActionPreference="Stop" não pega sozinho um executável externo que
-# retorna código de saída != 0 (só pega erros de cmdlet/.NET) -- sem checar
-# $LASTEXITCODE na mão, uma falha de rede no meio do npm passaria batido e
-# o script terminaria dizendo "tudo pronto" com o opencode/claude ausentes.
-function Invoke-Checked($description) {
-    if ($LASTEXITCODE -ne 0) { throw "$description falhou (código $LASTEXITCODE) -- veja o log acima e rode o script de novo." }
-}
-
-if (-not (Test-Command "opencode")) {
-    Write-Host "==> Instalando o opencode (CLI que roda dentro de cada sessão)..."
-    npm install -g opencode-ai@latest
-    Invoke-Checked "Instalação do opencode"
-    Sync-PathFromRegistry
-}
-if (-not (Test-Command "claude")) {
-    Write-Host "==> Instalando o Claude Code (segunda opção de CLI dentro de cada sessão)..."
-    npm install -g @anthropic-ai/claude-code
-    Invoke-Checked "Instalação do Claude Code"
-    Sync-PathFromRegistry
+# opencode/claude code são opcionais: só fazem falta se alguém for abrir uma
+# sessão de IA *direto nesse PC* pelo app (botão "opencode"/"claude" num
+# projeto). Pra um PC que só existe pra ser controlado remotamente (shell/
+# /api/exec), o FORGE funciona 100% sem nenhum dos dois -- então uma falha
+# aqui (rede instável, npm sem conseguir falar com o registry etc) não pode
+# derrubar o instalador inteiro. $env:FORGE_SKIP_CLI=1 antes do irm pula os
+# dois de propósito, pra instalações "só de bandeja".
+if ($env:FORGE_SKIP_CLI) {
+    Write-Host "==> FORGE_SKIP_CLI definido -- pulando opencode/Claude Code (só shell remoto nesta máquina)."
+} else {
+    if (-not (Test-Command "opencode")) {
+        Write-Host "==> Instalando o opencode (CLI que roda dentro de cada sessão)..."
+        npm install -g opencode-ai@latest
+        if ($LASTEXITCODE -ne 0) { Write-Host "AVISO: instalação do opencode falhou (código $LASTEXITCODE) -- seguindo sem ele. O resto do FORGE funciona normal; só o botão 'opencode' num projeto não vai funcionar nesta máquina até rodar 'npm install -g opencode-ai' manualmente." }
+        else { Sync-PathFromRegistry }
+    }
+    if (-not (Test-Command "claude")) {
+        Write-Host "==> Instalando o Claude Code (segunda opção de CLI dentro de cada sessão)..."
+        npm install -g @anthropic-ai/claude-code
+        if ($LASTEXITCODE -ne 0) { Write-Host "AVISO: instalação do Claude Code falhou (código $LASTEXITCODE) -- seguindo sem ele. O resto do FORGE funciona normal; só o botão 'claude' num projeto não vai funcionar nesta máquina até rodar 'npm install -g @anthropic-ai/claude-code' manualmente." }
+        else { Sync-PathFromRegistry }
+    }
 }
 
 # `npm install -g`/winget instalam no perfil de QUEM roda o script -- o

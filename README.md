@@ -44,6 +44,17 @@ FORGE como Serviço do Windows (`node-windows`) e imprime o link de
 pareamento. Idempotente -- seguro rodar de novo. Detalhes em
 `packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1`.
 
+Pra um PC que só vai ser controlado remotamente (sem IA rodando local
+nele, só shell/`/api/exec`), dá pra pular o opencode/Claude Code
+(ambos opcionais -- uma falha de rede ao instalá-los não derruba mais
+o resto do instalador, mas dá pra pular de propósito também):
+
+```powershell
+$env:FORGE_SKIP_CLI = 1
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
+```
+
 Sessões de terminal usam ConPTY nativo (mesma base do terminal do VS
 Code) em vez de tmux -- sobrevivem a desconectar/reconectar o celular,
 mas são encerradas se o serviço for reiniciado (ex: ao atualizar o
