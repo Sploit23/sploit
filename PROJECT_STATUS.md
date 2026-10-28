@@ -7,8 +7,14 @@ zero. Escrito em 2026-10-28.
 ## O que é isso
 
 - **Sploit** — fork do [opencode](https://github.com/sst/opencode) (CLI de
-  agente de código no terminal), com um subsistema `coordinator` que roteia
-  instruções entre sessões de projetos diferentes.
+  agente de código no terminal). Hoje **sem nenhuma modificação própria**
+  pra fins de produto — o que existia (sistema `coordinator` dentro do
+  CLI) foi deliberadamente revertido em 28/10 e virou uma feature do
+  Sploit-Forge via MCP (ver seção "Coordenador"), justamente pra não
+  precisar manter um fork remesclado pra sempre. O repo continua sendo
+  esse fork só porque é onde o código-fonte do Sploit-Forge mora
+  (`packages/opencode/src/cli/cmd/forge/`), não porque o CLI em si
+  precise ser diferente do opencode oficial.
 - **Sploit-Forge** (código ainda com nome interno "FORGE" em vários
   lugares) — sistema de controle remoto multi-PC: um servidor Node roda em
   cada máquina como Serviço do Windows, acessível via PWA (celular/
@@ -31,7 +37,11 @@ zero. Escrito em 2026-10-28.
 - `packages/opencode/src/cli/cmd/forge/app/` — **código-fonte canônico**
   do servidor FORGE:
   - `server.js` — servidor HTTP+WS principal (projetos, terminal,
-    explorer, `/api/exec`, auto-update, auto-anúncio entre PCs).
+    explorer, `/api/exec`, auto-update, auto-anúncio entre PCs, servidor
+    MCP do Coordenador, `opencode serve` supervisionado).
+  - `mcp-coordinator.js` — servidor MCP (`list_projects`/`dispatch`/
+    `transfer_project`) que `server.js` expõe em `POST /mcp`. Ver seção
+    "Coordenador" abaixo.
   - `index.html` — o app inteiro (PWA + conteúdo das janelas do Electron)
     num arquivo só. Visual: paleta azul/roxo (`#4F7CFF`/`#A855F7`/
     `#D946EF`/`#22C55E`), fonte Inter/Segoe UI, sidebar fixa (desktop) ou
@@ -46,7 +56,11 @@ zero. Escrito em 2026-10-28.
   - `win-native-install.ps1` — instalador de um comando. Variáveis de
     ambiente que mudam o comportamento: `FORGE_HEADLESS=1` pula
     opencode/Claude Code *e* o app de bandeja (PC só controlado
-    remotamente, nada visível).
+    remotamente, nada visível). Captura `%USERPROFILE%` real na hora da
+    instalação e passa como `FORGE_USER_PROFILE` pro Serviço — sem isso,
+    `os.homedir()` dentro de qualquer sessão cairia no profile vazio do
+    SYSTEM (o Serviço roda como LocalSystem), e opencode/claude nunca
+    enxergariam a conta/créditos já logados da pessoa de verdade.
 - `packages/opencode/src/cli/cmd/forge/assets.ts` — **gerado**, não editar
   na mão. Depois de qualquer mudança em `app/`, rodar:
   ```
@@ -99,37 +113,92 @@ nem entre PCs, nem entre o usuário e o agente.
 - PWA instalável no celular, usa o mesmo registro automático de
   dispositivos — "Outros dispositivos" já aparece com token preenchido
   sozinho.
+- **Coordenador** (terminal cross-PC pelo celular) — ver seção própria
+  abaixo. Validado de ponta a ponta nos 3 PCs reais (listar projetos,
+  transferir projeto, despachar instrução remota).
 
-## Em andamento / próximo passo: "Coordenador"
+## Coordenador (terminal cross-PC, via MCP)
 
-Pedido do usuário: um terminal fixo (tipo "fica no começo da tela") onde
-ele digita `opencode` e conversa com um agente que consegue:
-- Trocar de contexto entre projetos ("vamos continuar o projeto X").
-- Disparar ações **cross-PC** em linguagem natural ("manda o projeto do
-  Escritório pro Servidor", "ajusta o código do servidor").
-- Só aparecer/funcionar em PCs com app desktop (não em instalações
-  `FORGE_HEADLESS`).
+Pedido original do usuário: um terminal fixo (tipo "fica no começo da
+tela") onde ele digita `opencode`/`claude` e conversa com um agente que
+consegue trocar de contexto entre projetos e disparar ações **cross-PC**
+em linguagem natural ("manda o projeto do Escritório pro Servidor",
+"ajusta o código do servidor").
 
-**Descoberta importante**: o Sploit já tem metade disso pronto —
-`packages/opencode/src/tool/coordinator.ts` + `src/coordinator/registry.ts`
-implementam `coordinator_register_project`/`coordinator_list_projects`/
-`coordinator_dispatch`, mas só funcionam **na mesma máquina** (via
-`InstanceStore.provide({directory})`, sem conceito de rede).
+**Primeira versão (manhã de 28/10) foi via fork** — um agente customizado
+(`.opencode/agent/coordinator.md`) + ferramentas TypeScript dentro do
+próprio Sploit. Funcionou, mas pra ativar precisou compilar o Sploit e
+substituir o `opencode.exe` global de verdade na máquina — ou seja,
+manter essa feature significaria remesclar o fork pra sempre a cada
+atualização real do opencode/Claude Code. **Foi inteiramente revertido**
+no mesmo dia (`tool/coordinator.ts`, `coordinator/registry.ts` e o
+`.opencode/agent/coordinator.md` foram apagados).
 
-Também existe uma **API HTTP completa do opencode** (`opencode serve`,
-`packages/opencode/src/cli/cmd/serve.ts`) — `POST /session` +
-`POST /session/:id/message` devolve a resposta em JSON sincronamente. É
-melhor caminho pro dispatch remoto do que fazer `/api/exec` rodar
-`opencode run` e parsear stdout.
+**Versão atual (a que vale): o Coordenador é só um servidor MCP que o
+próprio FORGE expõe**, não precisa de nenhuma modificação no CLI:
 
-Plano (ainda não implementado, ver conversa pra detalhes): rodar
-`opencode serve` localmente em cada PC desktop-capable, FORGE expõe um
-endpoint autenticado que faz a ponte (`/api/coordinator/prompt` ou
-similar) pra essa API local, e o `coordinator_dispatch` passa a saber
-quando um projeto está em outro PC (via `/api/known-devices`) e rotear
-pra lá em vez de rodar local. Falta também escrever
-`.opencode/agent/coordinator.md` ensinando o agente a operar nesse
-contexto (hoje não existe esse arquivo).
+- `server.js` roda `POST /mcp` (autenticado com o Bearer de sempre),
+  implementado em `mcp-coordinator.js` com
+  `@modelcontextprotocol/sdk` (`server/mcp` + `server/streamableHttp`,
+  modo *stateless*). Três ferramentas: `list_projects` (descoberta ao
+  vivo via `/api/projects` local + `/api/known-devices` + `/api/projects`
+  de cada device conhecido), `dispatch` (manda instrução pra outro
+  projeto, local ou remoto) e `transfer_project` (move os arquivos de um
+  projeto inteiro entre máquinas, reaproveitando `/api/relay-send` — veja
+  a ressalva de memória abaixo).
+- `server.js` também supervisiona um `opencode serve` local (porta fixa
+  127.0.0.1:4097, Basic Auth via `OPENCODE_SERVER_PASSWORD`, sempre o
+  binário oficial via `OPENCODE_BIN`) — é o motor que de fato executa a
+  instrução num projeto (`promptProject()`: `POST /session` +
+  `POST /session/:id/message` com header `x-opencode-directory`). Rota
+  `POST /api/coordinator/prompt` (autenticada) é a ponte que outra
+  máquina bate quando o `dispatch` resolve um projeto remoto.
+- Pra qualquer CLI oficial (opencode **ou** Claude Code) ganhar essas
+  ferramentas, só precisa ter esse MCP configurado — `server.js` grava
+  isso sozinho (`ensureCoordinatorMcpConfig`) em
+  `.coordinator/opencode.json` e `.coordinator/.mcp.json`, uma pasta
+  fixa dentro de `FORGE_ROOT` (não é um projeto normal, não aparece no
+  Explorer). A pessoa escolhe qual dos dois CLIs quer no terminal do
+  Coordenador via `coordinator-cli.txt`/`PUT /api/coordinator-cli`
+  (seletor na UI) — isso só decide o que ela digita; o motor que executa
+  a instrução no projeto-alvo continua sempre sendo `opencode serve`.
+- Tela "Coordenador" (`index.html`, ícone 🧭) só aparece quando
+  `/api/stats` diz `desktop:true` (`isDesktopInstalled()` — detecta o
+  app de bandeja, instalação de produção OU modo dev via
+  `AppData\Roaming\forge-tray`, ver comentário no código). No celular,
+  esconde a barra de abas (terminal/preview/tela) e os botões de teclado
+  que só servem pra shell — sobra mais tela pra ler a conversa.
+
+**Armadilhas reais encontradas e corrigidas** (documentadas no código,
+vale ler antes de tocar de novo):
+- `spawn('opencode', ...)` sem shell dá `EFTYPE` no Windows (é um
+  wrapper `.cmd`/`.ps1`, não um `.exe` puro) — vai via
+  `powershell.exe -Command "& '...'"`, igual `sessions-native.js` já
+  fazia pros outros modos.
+- `claude --continue` falha com exit code != 0 ("no conversation to
+  continue") quando não existe sessão prévia — ao contrário do opencode,
+  que começa do zero sozinho. `winCommand()` tenta `--continue` e cai
+  pra uma sessão nova se o exit code vier diferente de zero.
+- Trocar o CLI no seletor não tinha efeito nenhum sozinho — a sessão do
+  coordenador fica viva em background mesmo depois que a pessoa "sai" da
+  tela. `PUT /api/coordinator-cli` agora mata a sessão atual
+  (`sessions.killAll('coordinator')`) pra forçar reconectar com o CLI
+  novo.
+- O Serviço roda como LocalSystem — sem `FORGE_USER_PROFILE` (ver bullet
+  do `win-native-install.ps1` acima), nenhuma sessão (nem só o
+  Coordenador) via o perfil/conta real da pessoa.
+
+**Pendências conhecidas, não resolvidas de propósito:**
+- `transfer_project`/`/api/relay-send` empacota a pasta inteira com
+  `tar`, sem excluir `node_modules`/`.git`, e **bufferiza o tar inteiro
+  em memória** antes de mandar (`Buffer.concat`) — ótimo pra projeto
+  pequeno, arriscado (pode derrubar o processo por memória) pra pasta
+  grande. Não tentar transferir o próprio `sploit-codigo-fonte` (tem uns
+  6GB com `node_modules`) até isso ser corrigido com streaming/exclusões.
+- `coordinator_register_project`/registro manual de projeto fora do
+  FORGE foi cortado deliberadamente desta rodada (`CoordinatorRegistry`
+  foi apagado) — hoje só existe descoberta ao vivo via `/api/projects`.
+  Se precisar de projeto fora de qualquer FORGE, é um reopen, não um bug.
 
 ## Workflow de deploy (pros 3 PCs reais)
 
@@ -139,12 +208,21 @@ contexto (hoje não existe esse arquivo).
 2. Pra cada PC: baixar o(s) arquivo(s) mudado(s) via `/api/exec`
    (`Invoke-WebRequest` nos raw URLs do GitHub), **verificar** com
    `Select-String` que o arquivo baixado tem a mudança esperada (o CDN do
-   GitHub às vezes serve uma versão em cache por ~20s depois do push) —
-   só depois disso disparar o restart.
+   GitHub às vezes serve uma versão em cache por bem mais que ~20s depois
+   do push — se acontecer, usar a URL fixada no commit exato,
+   `raw.githubusercontent.com/Sploit23/sploit/<sha>/...`, resolve sempre)
+   — só depois disso disparar o restart.
+   - `C:\ProgramData\SploitForge\*` só aceita escrita de
+     SYSTEM/Administradores (ACL) — `/api/exec` funciona porque roda como
+     SYSTEM; sem o token, precisa de um PowerShell **admin** de verdade
+     na máquina (não um comum) pra sobrescrever `server.js` etc.
 3. Se mudou `server.js`/`sessions-native.js`/`win-service.js`: `node
    win-service.js safe-restart` (Task Scheduler, não `Restart-Service`
-   direto). Se mudou só `index.html`: não precisa reiniciar nada, é
-   servido fresco do disco a cada request.
+   direto) — ou, de um PowerShell admin externo (RDP/físico, não uma
+   sessão hospedada pelo próprio FORGE), `Restart-Service sploitforge.exe`
+   direto é seguro (`Start-Service` se o status já estiver `Stopped`). Se
+   mudou só `index.html`: não precisa reiniciar nada, é servido fresco do
+   disco a cada request.
 4. `node --check` nos `.js`, `bunx oxlint` nos arquivos tocados,
    regenerar `assets.ts`, `bun run --cwd packages/opencode typecheck`
    **antes** de commitar — sempre.
