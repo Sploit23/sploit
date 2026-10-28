@@ -123,6 +123,23 @@ nem entre PCs, nem entre o usuário e o agente.
   própria" em vez de só responder quando chamado -- pedido explícito do
   usuário depois de ele descrever uma sensação de "falta algo" no
   produto.
+- **Projetos como ícones cross-PC, arrastáveis entre máquinas** (tela
+  "Projetos" em `index.html`) — grade de ícones estilo tela de apps
+  (pasta SVG + cor gerada por hash do nome, `iconColor()`/`FOLDER_SVG`),
+  reunindo projetos de TODA a rede (`GET /api/all-projects`, que chama
+  `mcpCoordinator.listAllProjects`). Três gestos num ícone só
+  (`wireIcon()`): toque rápido abre um chat leve focado só naquele
+  projeto ("iniciar conversa", `POST /api/projects/:alias/chat` →
+  `dispatchToProject`, local ou remoto); segurar sem mover abre o menu
+  completo; segurar e arrastar até outro dispositivo move o projeto de
+  verdade (`POST /api/projects/:alias/transfer` →
+  `mcpCoordinator.transferProjectTo`, funciona com origem local OU
+  remota -- diferente do `sendToDevice()` antigo no cliente, que só
+  sabia mandar a partir desta própria máquina). Projeto some de onde
+  estava e aparece com a tag da máquina nova, na mesma pasta padrão
+  (`FORGE_ROOT`) de sempre -- não decide pasta, só decide PC.
+  Visão do usuário: "o Coordenador virar um Jarvis que programa entre
+  os dispositivos" -- essa feature é o coração visual disso.
 
 ## Coordenador (terminal cross-PC, via MCP)
 
