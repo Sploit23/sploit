@@ -116,6 +116,13 @@ nem entre PCs, nem entre o usuário e o agente.
 - **Coordenador** (terminal cross-PC pelo celular) — ver seção própria
   abaixo. Validado de ponta a ponta nos 3 PCs reais (listar projetos,
   transferir projeto, despachar instrução remota).
+- **Check-in proativo diário** — o Coordenador manda, sozinho (sem
+  ninguém pedir), uma notificação push resumindo o estado da rede todo
+  dia às 8h (`coordinatorCheckIn()`/`CHECKIN_HOUR` em `server.js`,
+  sessão própria `.coordinator-checkin`). Primeiro passo de "presença
+  própria" em vez de só responder quando chamado -- pedido explícito do
+  usuário depois de ele descrever uma sensação de "falta algo" no
+  produto.
 
 ## Coordenador (terminal cross-PC, via MCP)
 
