@@ -738,4 +738,36 @@ async function promptProject(directory, instruction) {
 // promptProject acima), não em todo boot de todo PC instalado. Evita um
 // processo ocioso em máquinas que nunca vão usar o Coordenador.
 
+// --- Coordenador proativo: além de só reagir quando chamado, ele mesmo
+// escreve e manda uma notificação resumindo o estado da rede, sem ninguém
+// pedir -- diferença entre "ferramenta que só responde" e "tem presença
+// própria" (pedido explícito do usuário, depois de ver o resto
+// funcionando). Sessão própria (.coordinator-checkin), separada da
+// conversa real do Coordenador -- não quer poluir um histórico de
+// trabalho com esse ritual diário.
+const CHECKIN_DIR = path.join(ROOT, '.coordinator-checkin');
+const CHECKIN_HOUR = 8; // horário local da máquina -- ajustável se pegar bem
+let lastCheckinDay = null;
+async function coordinatorCheckIn() {
+  if (!WIN) return;
+  try {
+    fs.mkdirSync(CHECKIN_DIR, { recursive: true });
+    const peers = await discoverForgePeers();
+    const offline = KNOWN.filter(k => !peers.some(p => p.dnsName === k.dnsName)).map(k => k.hostname);
+    const lines = [
+      `${getDeviceName()} (esta máquina): online.`,
+      ...peers.map(p => `${p.hostname}: online.`),
+      ...offline.map(h => `${h}: não respondeu agora (pode estar desligada).`),
+    ];
+    const prompt = `Você é o Coordenador do Sploit-Forge, mandando um resumo proativo pro celular da pessoa pela manhã -- ela não pediu agora, você que está avisando. Escreva 1-3 frases curtas e naturais (sem lista, sem "relatório"), como uma mensagem direta mesmo. Dados reais coletados agora:\n${lines.join('\n')}\nSe tudo estiver normal, diga isso breve e com variação (não repita a mesma frase todo dia). Nunca invente problema que não está nos dados acima.`;
+    const text = await promptProject(CHECKIN_DIR, prompt);
+    await notify('Coordenador', text.slice(0, 500));
+  } catch (e) { console.error('[checkin] falhou:', e.message); }
+}
+function maybeRunCheckIn() {
+  const day = new Date().toDateString();
+  if (new Date().getHours() >= CHECKIN_HOUR && lastCheckinDay !== day) { lastCheckinDay = day; void coordinatorCheckIn(); }
+}
+if (WIN) { setInterval(maybeRunCheckIn, 30 * 60 * 1000); maybeRunCheckIn(); }
+
 srv.listen(PORT, HOST, () => console.log(`FORGE em http://${HOST}:${PORT}`));
