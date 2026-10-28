@@ -19,7 +19,6 @@ import { SkillTool } from "./skill"
 import { ToolSearchTool } from "./tool-search"
 import { BashOutputTool } from "./bash-output"
 import { DeferredTools } from "./deferred-tools"
-import { CoordinatorRegisterTool, CoordinatorListTool, CoordinatorDispatchTool, CoordinatorTransferTool } from "./coordinator"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@opencode-ai/plugin"
@@ -143,10 +142,6 @@ const layer = Layer.effect(
     const skilltool = yield* SkillTool
     const toolsearch = yield* ToolSearchTool
     const bashoutput = yield* BashOutputTool
-    const coordinatorRegister = yield* CoordinatorRegisterTool
-    const coordinatorList = yield* CoordinatorListTool
-    const coordinatorDispatch = yield* CoordinatorDispatchTool
-    const coordinatorTransfer = yield* CoordinatorTransferTool
     const agent = yield* Agent.Service
     const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
@@ -258,10 +253,6 @@ const layer = Layer.effect(
           plan: Tool.init(plan),
           toolsearch: Tool.init(toolsearch),
           bashoutput: Tool.init(bashoutput),
-          coordinatorRegister: Tool.init(coordinatorRegister),
-          coordinatorList: Tool.init(coordinatorList),
-          coordinatorDispatch: Tool.init(coordinatorDispatch),
-          coordinatorTransfer: Tool.init(coordinatorTransfer),
           ...(codeModeTool ? { execute: Tool.init(codeModeTool) } : {}),
         })
 
@@ -282,10 +273,6 @@ const layer = Layer.effect(
           tool.search,
           tool.skill,
           tool.patch,
-          tool.coordinatorRegister,
-          tool.coordinatorList,
-          tool.coordinatorDispatch,
-          tool.coordinatorTransfer,
           ...(tool.execute ? [tool.execute] : []),
           ...(flags.experimentalLspTool ? [tool.lsp] : []),
           ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),

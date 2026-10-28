@@ -160,12 +160,13 @@ function Get-Asset($name, $dest) {
         Invoke-WebRequest -Uri "$BASE_URL/$name" -OutFile $dest -UseBasicParsing
     }
 }
-Write-Host "==> Baixando server.js, index.html, sessions-*.js, win-service.js e vendor/..."
+Write-Host "==> Baixando server.js, index.html, sessions-*.js, win-service.js, mcp-coordinator.js e vendor/..."
 Get-Asset "server.js" (Join-Path $FORGE_DIR "server.js")
 Get-Asset "sessions-native.js" (Join-Path $FORGE_DIR "sessions-native.js")
 Get-Asset "sessions-tmux.js" (Join-Path $FORGE_DIR "sessions-tmux.js")
 Get-Asset "index.html" (Join-Path $FORGE_DIR "index.html")
 Get-Asset "win-service.js" (Join-Path $FORGE_DIR "win-service.js")
+Get-Asset "mcp-coordinator.js" (Join-Path $FORGE_DIR "mcp-coordinator.js")
 New-Item -ItemType Directory -Force -Path (Join-Path $FORGE_DIR "vendor") | Out-Null
 foreach ($f in @("xterm.min.js", "xterm.min.css", "xterm-addon-fit.min.js", "qrcode.min.js")) {
     Get-Asset "vendor/$f" (Join-Path $FORGE_DIR "vendor\$f")
@@ -173,8 +174,8 @@ foreach ($f in @("xterm.min.js", "xterm.min.css", "xterm-addon-fit.min.js", "qrc
 
 Push-Location $FORGE_DIR
 try {
-    Write-Host "==> Instalando dependências node (ws, node-pty, node-windows, web-push)..."
-    npm install ws node-pty node-windows web-push --silent
+    Write-Host "==> Instalando dependências node (ws, node-pty, node-windows, web-push, @modelcontextprotocol/sdk, zod)..."
+    npm install ws node-pty node-windows web-push @modelcontextprotocol/sdk zod --silent
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
         Write-Host "Falha instalando as dependências node. node-pty normalmente já vem com"

@@ -61,10 +61,11 @@ fetch_asset() {
     curl -fsSL "$BASE_URL/$name" -o "$dest"
   fi
 }
-echo "==> Baixando server.js, sessions-tmux.js, index.html e vendor/..."
+echo "==> Baixando server.js, sessions-tmux.js, index.html, mcp-coordinator.js e vendor/..."
 fetch_asset server.js "$FORGE_DIR/server.js"
 fetch_asset sessions-tmux.js "$FORGE_DIR/sessions-tmux.js"
 fetch_asset index.html "$FORGE_DIR/index.html"
+fetch_asset mcp-coordinator.js "$FORGE_DIR/mcp-coordinator.js"
 mkdir -p "$FORGE_DIR/vendor"
 for f in xterm.min.js xterm.min.css xterm-addon-fit.min.js qrcode.min.js; do
   fetch_asset "vendor/$f" "$FORGE_DIR/vendor/$f"
@@ -72,7 +73,7 @@ done
 
 cd "$FORGE_DIR"
 echo "==> Instalando dependências node (ws, node-pty, web-push)..."
-npm i ws node-pty web-push --silent
+npm i ws node-pty web-push @modelcontextprotocol/sdk zod --silent
 
 if [ -f "$ENV_FILE" ] && grep -q '^FORGE_TOKEN=' "$ENV_FILE"; then
   echo "==> Token existente mantido (evita invalidar o app já pareado no celular)."

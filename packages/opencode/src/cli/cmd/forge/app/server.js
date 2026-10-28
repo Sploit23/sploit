@@ -3,6 +3,7 @@
 const http = require('http'), fs = require('fs'), os = require('os'), path = require('path'), net = require('net');
 const crypto = require('crypto'), { execFileSync, execFile, spawn } = require('child_process');
 const { WebSocketServer } = require('ws'), webpush = require('web-push');
+const mcpCoordinator = require('./mcp-coordinator');
 
 // Linux/WSL usa tmux (sessão sobrevive a updates do FORGE, processo
 // separado); Windows nativo usa um motor em memória próprio via ConPTY
@@ -33,6 +34,12 @@ const save = () => fs.writeFileSync(DB, JSON.stringify(PROJECTS, null, 2));
 // de verdade (/health, /api/peers). Puramente cosmético.
 const NAME_FILE = path.join(__dirname, 'device-name.txt');
 const getDeviceName = () => { try { return fs.readFileSync(NAME_FILE, 'utf8').trim() || os.hostname() } catch { return os.hostname() } };
+// qual CLI a pessoa quer como coordenador (opencode oficial ou Claude Code)
+// -- puramente o que ela digita no terminal; o motor que executa a
+// instrução num projeto-alvo (promptProject) continua sendo sempre o
+// `opencode serve`, que é o único dos dois com API HTTP programável.
+const CLI_FILE = path.join(__dirname, 'coordinator-cli.txt');
+const getCoordinatorCli = () => { try { const v = fs.readFileSync(CLI_FILE, 'utf8').trim(); return v === 'claude' ? 'claude' : 'opencode' } catch { return 'opencode' } };
 // Coordenador só aparece em PCs com o app de bandeja instalado (desktop
 // de verdade na frente, não um PC controlado só remotamente). Detecta pela
 // presença do electron.exe que o instalador baixa -- mesmo truque de
@@ -249,6 +256,14 @@ const srv = http.createServer(async (req, res) => {
     saveKnown();
     return send('application/json', '{"ok":true}');
   }
+  // servidor MCP do coordenador -- fora do /api/* de propósito (não é JSON
+  // simples, o SDK assume controle total de req/res pro handshake MCP),
+  // mas com o mesmo Bearer de sempre. Ver mcp-coordinator.js.
+  if (u.pathname === '/mcp' && req.method === 'POST') {
+    if (!ok((req.headers.authorization || '').replace('Bearer ', ''))) return send('application/json', '{"error":401}', 401);
+    try { return await mcpCoordinator.handleMcpRequest(req, res, { token: TOKEN, port: PORT }); }
+    catch (e) { return send('application/json', JSON.stringify({ error: String(e.message || e) }), 500); }
+  }
   // vendored locally -- never depend on an external CDN being reachable at runtime
   if (u.pathname === '/vendor/xterm.min.js') return send('text/javascript', fs.readFileSync(path.join(__dirname, 'vendor/xterm.min.js')));
   if (u.pathname === '/vendor/xterm.min.css') return send('text/css', fs.readFileSync(path.join(__dirname, 'vendor/xterm.min.css')));
@@ -290,6 +305,18 @@ const srv = http.createServer(async (req, res) => {
         // diferente de /api/peers: isso tem token de cada um (ver /api/announce).
         // Autenticado -- só quem já tem token de ALGUM FORGE da rede lê esta lista.
         return J(KNOWN);
+      }
+      if (u.pathname === '/api/coordinator/prompt' && req.method === 'POST') {
+        // ponte pro dispatch remoto: outra máquina do mesh chama isso quando
+        // o projeto que o coordenador dela resolveu vive aqui (ver dispatch
+        // em mcp-coordinator.js). directory já vem resolvido -- quem chamou
+        // já sabe o caminho via o /api/projects desta própria máquina.
+        const b = await readBody(req);
+        const directory = String(b.directory || '').trim();
+        const instruction = String(b.instruction || '');
+        if (!directory || !instruction) return J({ error: 'directory e instruction são obrigatórios' }, 400);
+        try { return J({ reply: await promptProject(directory, instruction) }); }
+        catch (e) { return J({ error: String(e.message || e).slice(0, 300) }); }
       }
       if (u.pathname === '/api/push-vapid-key' && req.method === 'GET') return J({ key: VAPID.publicKey });
       if (u.pathname === '/api/push-subscribe' && req.method === 'POST') {
@@ -492,6 +519,15 @@ const srv = http.createServer(async (req, res) => {
       fs.writeFileSync(NAME_FILE, name);
       return J({ ok: true, name });
     }
+    if (u.pathname === '/api/coordinator-cli' && req.method === 'GET') {
+      return J({ cli: getCoordinatorCli() });
+    }
+    if (u.pathname === '/api/coordinator-cli' && req.method === 'PUT') {
+      const b = await readBody(req);
+      const cli = b.cli === 'claude' ? 'claude' : 'opencode';
+      fs.writeFileSync(CLI_FILE, cli);
+      return J({ ok: true, cli });
+    }
     if (u.pathname === '/api/stats') {
       return send('application/json', JSON.stringify({
         cpu: cpuPercent(),
@@ -524,6 +560,34 @@ srv.on('upgrade', (req, sock, head) => {
 // em PROJECTS/explorer, é interna do próprio FORGE.
 const COORD_DIR = path.join(ROOT, '.coordinator');
 
+// Garante (idempotente, sem apagar outras entradas que a pessoa já tenha
+// configurado ali) que a pasta do coordenador tenha os dois formatos de
+// config de MCP remoto apontando pro /mcp deste próprio FORGE -- é isso
+// que dá ao opencode oficial/Claude Code as ferramentas do coordenador,
+// sem precisar de nenhum fork nem `--agent` especial.
+function mergeJsonFile(filePath, mutate) {
+  let data = {};
+  try { data = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch {}
+  mutate(data);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+function ensureCoordinatorMcpConfig() {
+  const url = `http://127.0.0.1:${PORT}/mcp`;
+  const headers = { Authorization: `Bearer ${TOKEN}` };
+  try {
+    mergeJsonFile(path.join(COORD_DIR, 'opencode.json'), (data) => {
+      data.mcp = data.mcp || {};
+      data.mcp['sploit-forge'] = { type: 'remote', url, headers };
+    });
+  } catch {}
+  try {
+    mergeJsonFile(path.join(COORD_DIR, '.mcp.json'), (data) => {
+      data.mcpServers = data.mcpServers || {};
+      data.mcpServers['sploit-forge'] = { type: 'http', url, headers };
+    });
+  } catch {}
+}
+
 function attach(ws) {
   const timeout = setTimeout(() => ws.close(), 5000);
   ws.once('message', m => {
@@ -533,7 +597,8 @@ function attach(ws) {
     if (a.mode === 'coordinator') {
       if (!isDesktopInstalled()) return ws.close();
       fs.mkdirSync(COORD_DIR, { recursive: true });
-      return sessions.attachWs(ws, { name: 'coordinator', path: COORD_DIR }, 'coordinator', a.cols, a.rows, notify, { FORGE_TOKEN: TOKEN, PORT: String(PORT) });
+      ensureCoordinatorMcpConfig();
+      return sessions.attachWs(ws, { name: 'coordinator', path: COORD_DIR }, 'coordinator', a.cols, a.rows, notify, getCoordinatorCli());
     }
     const p = PROJECTS.find(x => x.name === a.project);
     if (!p) return ws.close();
@@ -546,7 +611,7 @@ function attach(ws) {
 // o safe-restart (via win-service.js, Task Scheduler) já existe e é seguro;
 // o caminho WSL/systemd fica pra depois se precisar.
 const UPDATE_BASE = 'https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/';
-const UPDATE_FILES = ['server.js', 'index.html', 'sessions-native.js', 'win-service.js'];
+const UPDATE_FILES = ['server.js', 'index.html', 'sessions-native.js', 'win-service.js', 'mcp-coordinator.js'];
 async function checkForUpdates() {
   if (!WIN) return;
   try {
@@ -573,5 +638,70 @@ if (WIN) { void checkForUpdates(); setInterval(() => void checkForUpdates(), 24 
 // de hora em hora -- pega PCs instalados depois sem precisar esperar o ciclo
 // de 24h do auto-update, e é barato (só sonda quem já responde no /health).
 if (WIN) { void announceToPeers(); setInterval(() => void announceToPeers(), 60 * 60 * 1000); }
+
+// --- motor de execução do coordenador: um `opencode serve` supervisionado
+// nesta máquina. Toda instrução despachada (local ou vinda de outra máquina
+// via /api/coordinator/prompt) roda através dele -- é a única das duas CLIs
+// (opencode/Claude Code) com API HTTP programável; qual CLI a PESSOA digita
+// no terminal do coordenador (ver getCoordinatorCli) é uma escolha
+// separada, não muda o motor que executa a instrução no projeto-alvo.
+// Sempre o opencode oficial (OPENCODE_BIN) -- nunca precisa de fork aqui.
+const OPENCODE_SERVE_PORT = 4097;
+const OPENCODE_SERVE_PASSWORD = crypto.createHash('sha256').update(TOKEN + ':opencode-serve').digest('hex');
+let openCodeServeProc = null;
+function ensureOpenCodeServe() {
+  if (!WIN) return;
+  if (openCodeServeProc && !openCodeServeProc.killed) return;
+  const bin = process.env.OPENCODE_BIN || 'opencode';
+  const child = spawn(bin, ['serve', '--hostname', '127.0.0.1', '--port', String(OPENCODE_SERVE_PORT)], {
+    env: { ...CHILD_ENV, OPENCODE_SERVER_PASSWORD: OPENCODE_SERVE_PASSWORD },
+    stdio: 'ignore',
+    windowsHide: true,
+  });
+  child.on('exit', () => { if (openCodeServeProc === child) openCodeServeProc = null; });
+  openCodeServeProc = child;
+}
+function openCodeServeFetch(pathname, directory, opts) {
+  const auth = 'Basic ' + Buffer.from('opencode:' + OPENCODE_SERVE_PASSWORD).toString('base64');
+  const headers = { Authorization: auth, 'Content-Type': 'application/json', ...(directory ? { 'x-opencode-directory': directory } : {}), ...(opts && opts.headers) };
+  return fetch(`http://127.0.0.1:${OPENCODE_SERVE_PORT}${pathname}`, { ...opts, headers, signal: AbortSignal.timeout(120000) });
+}
+// espera curta só quando o `opencode serve` acabou de ser spawnado (boot ou
+// depois de cair) -- no caminho comum (já de pé) a primeira tentativa já
+// responde e isso não espera nada.
+async function waitOpenCodeServe(tries = 20) {
+  for (let i = 0; i < tries; i++) {
+    try { const r = await openCodeServeFetch('/doc', null, { method: 'GET' }); if (r.ok || r.status < 500) return true } catch {}
+    await new Promise(r => setTimeout(r, 300));
+  }
+  return false;
+}
+async function promptProject(directory, instruction) {
+  ensureOpenCodeServe();
+  await waitOpenCodeServe();
+  let sessionId;
+  try {
+    const listRes = await openCodeServeFetch('/session', directory, { method: 'GET' });
+    if (listRes.ok) {
+      const list = await listRes.json();
+      if (Array.isArray(list) && list.length) sessionId = list.toSorted((a, b) => (b.time?.updated || 0) - (a.time?.updated || 0))[0].id;
+    }
+  } catch {}
+  if (!sessionId) {
+    const createRes = await openCodeServeFetch('/session', directory, { method: 'POST', body: JSON.stringify({ title: 'Coordenador: ' + instruction.slice(0, 60) }) });
+    if (!createRes.ok) throw new Error('não consegui criar sessão: ' + createRes.status);
+    sessionId = (await createRes.json()).id;
+  }
+  const msgRes = await openCodeServeFetch(`/session/${sessionId}/message`, directory, {
+    method: 'POST',
+    body: JSON.stringify({ parts: [{ type: 'text', text: instruction }] }),
+  });
+  if (!msgRes.ok) throw new Error('prompt falhou: ' + msgRes.status + ' ' + (await msgRes.text()).slice(0, 200));
+  const result = await msgRes.json();
+  const parts = result.parts || result.info?.parts || [];
+  const textPart = [...parts].reverse().find(p => p.type === 'text');
+  return textPart ? textPart.text : '(sem resposta)';
+}
+if (WIN) ensureOpenCodeServe();
 
 srv.listen(PORT, HOST, () => console.log(`FORGE em http://${HOST}:${PORT}`));

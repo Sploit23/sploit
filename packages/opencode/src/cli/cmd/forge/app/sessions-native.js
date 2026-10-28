@@ -76,7 +76,13 @@ function killAll(name) {
 // via `& 'caminho'` -- `-ExecutionPolicy Bypass` restringe isso só a
 // este processo (não muda nada no sistema), mesmo padrão já usado nos
 // scripts de instalação.
-function winCommand(mode) {
+// mode:'coordinator' roda um CLI normal, sem flag especial -- as
+// ferramentas do coordenador vêm do servidor MCP que o FORGE expõe
+// (ver mcp-coordinator.js), configurado no opencode.json/.mcp.json
+// dentro de project.path (.coordinator), não de um `--agent` do fork.
+// coordinatorCli ('opencode'|'claude') escolhe qual dos dois binários a
+// pessoa quer como coordenador -- ver coordinator-cli.txt em server.js.
+function winCommand(mode, coordinatorCli) {
   const opencodeBin = process.env.OPENCODE_BIN || 'opencode'
   const claudeBin = process.env.CLAUDE_BIN || 'claude'
   if (mode === 'shell') return { file: 'powershell.exe', args: ['-ExecutionPolicy', 'Bypass'] }
@@ -88,22 +94,17 @@ function winCommand(mode) {
         : mode === 'claude'
           ? `& '${claudeBin}' --continue`
           : mode === 'coordinator'
-            ? `& '${opencodeBin}' --continue --agent coordinator`
+            ? `& '${coordinatorCli === 'claude' ? claudeBin : opencodeBin}' --continue`
             : `& '${opencodeBin}' --continue`
   return { file: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', inner] }
 }
 
-function attachWs(ws, project, mode, cols, rows, notify, extraEnv) {
+function attachWs(ws, project, mode, cols, rows, notify, coordinatorCli) {
   const kind = kindOf(mode)
   const key = keyOf(project.name, kind)
   let s = sessions.get(key)
   if (!s || s.exited) {
-    const { file, args } = winCommand(mode)
-    // só o coordenador recebe FORGE_TOKEN/PORT de volta no ambiente -- ele
-    // precisa se autenticar na própria API local pra descobrir o resto do
-    // mesh (server.js passa isso via extraEnv só pra mode:'coordinator').
-    // Toda outra sessão (shell/opencode/claude) continua sem o token.
-    const env = mode === 'coordinator' && extraEnv ? { ...CHILD_ENV, ...extraEnv } : CHILD_ENV
+    const { file, args } = winCommand(mode, coordinatorCli)
     let term
     try {
       term = pty.spawn(file, args, {
@@ -111,7 +112,7 @@ function attachWs(ws, project, mode, cols, rows, notify, extraEnv) {
         cols: cols || 80,
         rows: rows || 24,
         cwd: project.path,
-        env, // Windows já popula USERPROFILE/HOME certo, sem o truque que o lado Linux precisa
+        env: CHILD_ENV, // Windows já popula USERPROFILE/HOME certo, sem o truque que o lado Linux precisa
       })
     } catch (e) {
       // não deixa um spawn falho (binário ausente etc) derrubar o processo

@@ -191,7 +191,7 @@ table.extbl tr.rowbtn:hover td{background:#0d1320}
 </div>
 
 <div class="screen" id="term">
-  <div class="tbar"><button id="back">‹ sair</button><b id="tname"></b><span class="tag" id="tmode"></span></div>
+  <div class="tbar"><button id="back">‹ sair</button><b id="tname"></b><span class="tag" id="tmode"></span><select id="coordcli" style="display:none"><option value="opencode">opencode</option><option value="claude">Claude Code</option></select></div>
   <div class="tabs" id="tabs"><button data-t="xt" class="on">terminal</button><button data-t="pv">preview</button><button data-t="sc">tela</button></div>
   <div id="xt"></div>
   <div class="pane" id="pv">
@@ -536,6 +536,9 @@ $('#nav').addEventListener('click',e=>{
 // mode:'coordinator' (server.js reconhece esse mode e ignora o nome do
 // projeto enviado, ver attach() em server.js).
 function openCoordinator(){openTerm({name:'Coordenador',path:'.coordinator'},'coordinator')}
+// só persiste a escolha -- vale a partir da próxima vez que o terminal do
+// coordenador abrir (não reinicia a sessão já em andamento).
+$('#coordcli').onchange=()=>{if(!DEMO)call('PUT','/api/coordinator-cli',{cli:$('#coordcli').value}).catch(()=>{})};
 function openPairing(){
   refreshDevices();
   const url='https://'+location.hostname+'/#t='+TOKEN;
@@ -590,6 +593,11 @@ function din(d){if(d==='\r')term.write('\r\n\x1b[32m❯\x1b[0m ');else if(d==='\
 let termSeq=0;
 function openTerm(p,mode){
   show('term');cur=p;setTab('xt');$('#tname').textContent=p.name;$('#tmode').textContent=mode==='shell'?'SHELL':mode==='claude'||mode==='claude-new'?'CLAUDE':mode==='coordinator'?'COORDENADOR':'OPENCODE';
+  const coordSel=$('#coordcli');
+  if(mode==='coordinator'){
+    coordSel.style.display='';
+    if(!DEMO)api('/api/coordinator-cli').then(r=>coordSel.value=r.cli).catch(()=>{});
+  }else coordSel.style.display='none';
   $('#xt').replaceChildren();
   term=new Terminal({fontFamily:'ui-monospace,Menlo,Consolas,monospace',fontSize:window.innerWidth<600?11:13,cursorBlink:true,scrollback:5000,
     theme:{background:'#111827',foreground:'#e5e7eb',cursor:'#4f7cff',selectionBackground:'#4f7cff33'}});
