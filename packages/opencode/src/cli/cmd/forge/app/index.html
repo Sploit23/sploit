@@ -66,7 +66,8 @@ button.ic{padding:6px 9px;font-size:12px}
 .icongrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:18px 8px;padding:4px 0}
 .icon{display:flex;flex-direction:column;align-items:center;gap:7px;background:transparent;border:0;padding:0;text-align:center;min-width:0;transition:transform .12s}
 .icon:active{transform:scale(.92)}
-.icon .ig{position:relative;width:58px;height:58px;border-radius:17px;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;letter-spacing:.3px;color:#fff;text-shadow:0 1px 2px #0004;box-shadow:0 4px 10px -2px #00000055,inset 0 1px 0 #ffffff26}
+.icon .ig{position:relative;width:58px;height:58px;border-radius:17px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px -2px #00000055,inset 0 1px 0 #ffffff26}
+.icon .ig svg{filter:drop-shadow(0 1px 1px #00000030)}
 .icon .ig .dot{position:absolute;right:-3px;bottom:-3px;width:14px;height:14px;border-radius:50%;background:#4a5568;border:3px solid var(--bg)}
 .icon .ig .dot.on{background:var(--ok);box-shadow:0 0 6px #22c55e80}
 .icon .ig .think{position:absolute;right:2px;bottom:10px;width:7px;height:7px;background:#fff}
@@ -279,13 +280,17 @@ function iconColor(name){
   const hue=hash%360;
   return 'linear-gradient(135deg,hsl('+hue+',70%,58%),hsl('+((hue+45)%360)+',70%,40%))';
 }
+// pasta desenhada (não o emoji achatado) -- corpo + risco da aba, com um
+// toque de sombra pra ter profundidade de verdade em cima do tile colorido.
+const FOLDER_SVG='<svg viewBox="0 0 24 24" width="30" height="30" fill="none"><path d="M3 6.8A1.8 1.8 0 0 1 4.8 5h3.9c.5 0 1 .25 1.3.66l1.1 1.5c.3.4.8.64 1.3.64h7A1.8 1.8 0 0 1 21 9.6v7.6A1.8 1.8 0 0 1 19.2 19H4.8A1.8 1.8 0 0 1 3 17.2V6.8Z" fill="#fff" fill-opacity=".97"/><path d="M3 9.6h18" stroke="#000" stroke-opacity=".08"/></svg>';
 function renderList(ps){
   const L=$('#list');L.replaceChildren();
   if(!ps.length){L.append(h('div','mu','nenhum projeto ainda — clique em "+ projeto" pra criar ou importar um'));return}
   const grid=h('div','icongrid');
   ps.forEach(p=>{
     const remote=p.machine&&p.machine!=='local';
-    const btn=h('button','icon'),ig=h('span','ig',p.name.slice(0,2).toUpperCase());
+    const btn=h('button','icon'),ig=h('span','ig');
+    ig.innerHTML=FOLDER_SVG;
     ig.style.background=iconColor(p.name);
     const dot=h('span','dot '+(p.alive?'on':'')),tk=h('span','think');
     tk.dataset.name=p.name;ig.append(dot,tk);
