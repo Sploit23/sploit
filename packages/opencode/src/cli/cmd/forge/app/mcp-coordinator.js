@@ -83,6 +83,20 @@ async function transferProjectTo(entry, toMachine, ctx) {
   });
   const j = await res.json();
   if (j.error) throw new Error(j.error);
+  // é "transferir" de verdade, não "copiar" -- depois de garantir a cópia
+  // no destino, remove a origem (lixeira, recuperável -- não exclusão
+  // definitiva). Sem bloquear a transferência inteira se essa limpeza
+  // falhar (ex: pasta fora do FORGE_ROOT da origem, mesma trava de
+  // segurança que o DELETE normal já tem): o projeto já está seguro no
+  // destino, só avisa no log em vez de reportar a operação como falha.
+  try {
+    const delRes = await fetch(`${sourceBase}/api/projects/${encodeURIComponent(entry.alias)}?mode=trash`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${sourceToken}` },
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!delRes.ok) console.error('[transfer] não consegui limpar a origem:', delRes.status, await delRes.text().catch(() => ''));
+  } catch (e) { console.error('[transfer] não consegui limpar a origem:', e.message) }
   return dest.hostname;
 }
 
