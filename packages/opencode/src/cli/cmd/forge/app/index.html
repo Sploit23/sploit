@@ -73,6 +73,9 @@ button.ic{padding:6px 9px;font-size:12px}
 #xt{flex:1;min-height:0;padding:6px 6px 0}
 .keys{display:flex;gap:6px;overflow-x:auto;padding:8px 8px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--ln);background:var(--panel);scrollbar-width:none}
 .keys button{flex:none;min-width:44px;padding:9px 10px}
+/* Coordenador é conversa, não shell -- Tab/^D/"/"/"-"/"|"/"~" não têm uso
+   ali; esconder sobra espaço de verdade numa tela de celular. */
+.keys.coord [data-shell-only]{display:none}
 #sheet{display:none;position:fixed;inset:0;background:#000a;z-index:40;align-items:flex-end;justify-content:center}
 #sheet.on{display:flex}
 #sheet>div{width:min(560px,100%);background:var(--panel);border:1px solid var(--ln);border-radius:18px 18px 0 0;padding:20px 18px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
@@ -203,9 +206,9 @@ table.extbl tr.rowbtn:hover td{background:#0d1320}
     <div class="scw"><div id="scmsg"></div><img id="scimg" alt=""></div>
   </div>
   <div class="keys" id="keys">
-    <button data-k="&#27;">Esc</button><button data-k="&#9;">Tab</button><button data-k="&#3;">^C</button><button data-k="&#4;">^D</button>
+    <button data-k="&#27;">Esc</button><button data-k="&#9;" data-shell-only>Tab</button><button data-k="&#3;">^C</button><button data-k="&#4;" data-shell-only>^D</button>
     <button data-k="&#27;[A">↑</button><button data-k="&#27;[B">↓</button><button data-k="&#27;[D">←</button><button data-k="&#27;[C">→</button>
-    <button data-k="/">/</button><button data-k="-">-</button><button data-k="|">|</button><button data-k="~">~</button><button data-k="&#13;">↵</button>
+    <button data-k="/" data-shell-only>/</button><button data-k="-" data-shell-only>-</button><button data-k="|" data-shell-only>|</button><button data-k="~" data-shell-only>~</button><button data-k="&#13;">↵</button>
   </div>
 </div>
 
@@ -593,19 +596,27 @@ function din(d){if(d==='\r')term.write('\r\n\x1b[32m❯\x1b[0m ');else if(d==='\
 let termSeq=0;
 function openTerm(p,mode){
   show('term');cur=p;setTab('xt');$('#tname').textContent=p.name;$('#tmode').textContent=mode==='shell'?'SHELL':mode==='claude'||mode==='claude-new'?'CLAUDE':mode==='coordinator'?'COORDENADOR':'OPENCODE';
-  const coordSel=$('#coordcli');
-  if(mode==='coordinator'){
+  const coordSel=$('#coordcli'),isCoord=mode==='coordinator';
+  if(isCoord){
     coordSel.style.display='';
     if(!DEMO)api('/api/coordinator-cli').then(r=>coordSel.value=r.cli).catch(()=>{});
   }else coordSel.style.display='none';
+  // Coordenador é conversa (sem site pra prever, sem shell cru) -- esconde
+  // as abas e as teclas que só servem pra projeto de código normal, pra
+  // sobrar mais espaço de tela pra ler a conversa em si.
+  $('#tabs').style.display=isCoord?'none':'';
+  $('#keys').classList.toggle('coord',isCoord);
   $('#xt').replaceChildren();
-  term=new Terminal({fontFamily:'ui-monospace,Menlo,Consolas,monospace',fontSize:window.innerWidth<600?11:13,cursorBlink:true,scrollback:5000,
+  // fonte igual em qualquer tela (não só 11px no celular) + lineHeight/
+  // letterSpacing -- xterm por padrão vem bem apertado, ótimo pra código
+  // denso mas ruim pra ler parágrafo de resposta do opencode/claude.
+  term=new Terminal({fontFamily:'ui-monospace,Menlo,Consolas,monospace',fontSize:13,lineHeight:1.35,letterSpacing:0.2,cursorBlink:true,scrollback:5000,
     theme:{background:'#111827',foreground:'#e5e7eb',cursor:'#4f7cff',selectionBackground:'#4f7cff33'}});
   fit=new FitAddon.FitAddon();term.loadAddon(fit);term.open($('#xt'));fit.fit();
   term.onData(input);
   term.onResize(({cols,rows})=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({t:'r',cols,rows}))});
   if(DEMO){
-    term.write('\x1b[32mforge@node01\x1b[0m:\x1b[34m'+p.path+'\x1b[0m$ '+(mode==='shell'?'bash':mode==='coordinator'?'opencode --continue --agent coordinator':'opencode --continue')+'\r\n\x1b[90m[modo demo — rode o server.js para sessões reais]\x1b[0m\r\n\r\n');
+    term.write('\x1b[32mforge@node01\x1b[0m:\x1b[34m'+p.path+'\x1b[0m$ '+(mode==='shell'?'bash':'opencode --continue')+'\r\n\x1b[90m[modo demo — rode o server.js para sessões reais]\x1b[0m\r\n\r\n');
     (p.snap||[]).forEach(l=>term.write(l+'\r\n'));term.write('\r\n\x1b[32m❯\x1b[0m ');
   }else{
     const mySeq=++termSeq;
