@@ -211,6 +211,12 @@ $env:PORT = $PORT
 $env:FORGE_ROOT = $FORGE_ROOT
 if ($opencodeBin) { $env:OPENCODE_BIN = $opencodeBin }
 if ($claudeBin) { $env:CLAUDE_BIN = $claudeBin }
+# o Serviço roda como LocalSystem -- sem isso, os.homedir() dentro de
+# qualquer sessão de terminal cairia no profile vazio do SYSTEM, não no
+# da pessoa instalando agora (quebra conta/créditos do opencode/claude,
+# que guardam tudo sob ~/.config e ~/.local/share). Captura o %USERPROFILE%
+# real aqui, enquanto ainda roda como ela, igual já faz com OPENCODE_BIN.
+$env:FORGE_USER_PROFILE = $env:USERPROFILE
 Push-Location $FORGE_DIR
 try {
     & $nodeExe win-service.js install

@@ -13,6 +13,13 @@ const pty = require('node-pty')
 // o processo spawnado (powershell/opencode/claude) não precisa do token do FORGE --
 // sem isso ele aparece em claro em qualquer scrollback/histórico do terminal.
 const CHILD_ENV = { ...process.env }; delete CHILD_ENV.FORGE_TOKEN
+// o Serviço roda como LocalSystem -- sem isso, os.homedir() dentro da
+// sessão cairia no profile vazio do SYSTEM, não no da pessoa de verdade,
+// quebrando qualquer coisa que dependa do perfil real (conta/créditos do
+// opencode/claude, git config, etc. -- tudo guardado sob ~/.config,
+// ~/.local/share). FORGE_USER_PROFILE vem capturado uma vez, na instalação,
+// enquanto o instalador ainda roda como a pessoa (ver win-native-install.ps1).
+if (process.env.FORGE_USER_PROFILE) CHILD_ENV.USERPROFILE = process.env.FORGE_USER_PROFILE
 
 const RING_MAX = 64 * 1024 // equivalente ao 'tmux capture-pane -S -40' -- o suficiente pra
 // re-popular a tela de quem acabou de reconectar sem guardar o historico todo em memoria.

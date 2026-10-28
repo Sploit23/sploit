@@ -43,7 +43,7 @@ const svc = new Service({
   description: 'FORGE (controle remoto do opencode/claude pelo celular)',
   script: path.join(__dirname, 'server.js'),
   env: Object.entries(process.env)
-    .filter(([k]) => ['FORGE_TOKEN', 'FORGE_ROOT', 'PORT', 'HOST', 'OPENCODE_BIN', 'CLAUDE_BIN'].includes(k))
+    .filter(([k]) => ['FORGE_TOKEN', 'FORGE_ROOT', 'PORT', 'HOST', 'OPENCODE_BIN', 'CLAUDE_BIN', 'FORGE_USER_PROFILE'].includes(k))
     .map(([name, value]) => ({ name, value })),
 })
 
