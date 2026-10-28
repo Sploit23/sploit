@@ -19,7 +19,8 @@ const RING_MAX = 64 * 1024 // equivalente ao 'tmux capture-pane -S -40' -- o suf
 const sessions = new Map() // chave: "nome:kind" -> { pty, ring, lastActivity, clients, exited }
 
 const keyOf = (name, kind) => name + ':' + (kind || '')
-const kindOf = (mode) => (mode === 'shell' ? 'sh' : mode === 'claude' || mode === 'claude-new' ? 'claude' : '')
+const kindOf = (mode) =>
+  mode === 'shell' ? 'sh' : mode === 'claude' || mode === 'claude-new' ? 'claude' : mode === 'coordinator' ? 'coordinator' : ''
 
 function pushRing(s, chunk) {
   s.ring += chunk
@@ -48,7 +49,7 @@ function isThinking(name) {
 }
 
 function killAll(name) {
-  ;['', 'sh', 'claude'].forEach((kind) => {
+  ;['', 'sh', 'claude', 'coordinator'].forEach((kind) => {
     const key = keyOf(name, kind)
     const s = sessions.get(key)
     if (s) {
@@ -86,16 +87,23 @@ function winCommand(mode) {
         ? `& '${claudeBin}'`
         : mode === 'claude'
           ? `& '${claudeBin}' --continue`
-          : `& '${opencodeBin}' --continue`
+          : mode === 'coordinator'
+            ? `& '${opencodeBin}' --continue --agent coordinator`
+            : `& '${opencodeBin}' --continue`
   return { file: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', inner] }
 }
 
-function attachWs(ws, project, mode, cols, rows, notify) {
+function attachWs(ws, project, mode, cols, rows, notify, extraEnv) {
   const kind = kindOf(mode)
   const key = keyOf(project.name, kind)
   let s = sessions.get(key)
   if (!s || s.exited) {
     const { file, args } = winCommand(mode)
+    // só o coordenador recebe FORGE_TOKEN/PORT de volta no ambiente -- ele
+    // precisa se autenticar na própria API local pra descobrir o resto do
+    // mesh (server.js passa isso via extraEnv só pra mode:'coordinator').
+    // Toda outra sessão (shell/opencode/claude) continua sem o token.
+    const env = mode === 'coordinator' && extraEnv ? { ...CHILD_ENV, ...extraEnv } : CHILD_ENV
     let term
     try {
       term = pty.spawn(file, args, {
@@ -103,7 +111,7 @@ function attachWs(ws, project, mode, cols, rows, notify) {
         cols: cols || 80,
         rows: rows || 24,
         cwd: project.path,
-        env: CHILD_ENV, // Windows já popula USERPROFILE/HOME certo, sem o truque que o lado Linux precisa
+        env, // Windows já popula USERPROFILE/HOME certo, sem o truque que o lado Linux precisa
       })
     } catch (e) {
       // não deixa um spawn falho (binário ausente etc) derrubar o processo

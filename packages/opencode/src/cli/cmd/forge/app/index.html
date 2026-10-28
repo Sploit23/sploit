@@ -149,6 +149,7 @@ table.extbl tr.rowbtn:hover td{background:#0d1320}
   <button class="navitem" data-go="home">🖥️ Dispositivos</button>
   <button class="navitem" data-go="projects">📁 Projetos</button>
   <button class="navitem" data-go="browse" id="navexplorer">🗂️ Arquivos</button>
+  <button class="navitem" data-go="coordinator" id="navcoordinator" style="display:none">🧭 Coordenador</button>
   <button class="navitem" data-go="devices">📲 Pareamento</button>
   <div class="navspacer"></div>
 </nav>
@@ -350,7 +351,7 @@ async function refreshDevices(){
 }
 async function stats(){
   try{
-    const s=DEMO?{cpu:15+Math.random()*30,mem:62,up:196000,host:'forge-node-01',screen:true}:await api('/api/stats');
+    const s=DEMO?{cpu:15+Math.random()*30,mem:62,up:196000,host:'forge-node-01',screen:true,desktop:true}:await api('/api/stats');
     $('#vc').textContent=Math.round(s.cpu)+'%';$('#bc').style.width=Math.min(100,s.cpu)+'%';
     $('#vm').textContent=Math.round(s.mem)+'%';$('#bm').style.width=s.mem+'%';
     const d=Math.floor(s.up/86400),hr=Math.floor(s.up%86400/3600);$('#vu').textContent=d+'d '+hr+'h';
@@ -359,6 +360,9 @@ async function stats(){
     // tela remota (Xvfb/xdotool) so existe no motor Linux -- esconde o botao
     // em vez de deixar morto numa instalacao Windows nativa.
     const scBtn=document.querySelector('[data-t="sc"]');if(scBtn)scBtn.style.display=s.screen===false?'none':'';
+    // Coordenador só em PCs com app desktop instalado -- em headless
+    // (FORGE_HEADLESS) não tem pra onde despachar nem sentido em existir.
+    const coordBtn=$('#navcoordinator');if(coordBtn)coordBtn.style.display=s.desktop?'':'none';
   }catch{}
 }
 async function init(){
@@ -522,8 +526,16 @@ $('#bruse').onclick=async()=>{
 /* ---------- menu lateral / nav ---------- */
 $('#nav').addEventListener('click',e=>{
   const go=e.target.closest('.navitem')?.dataset.go;if(!go)return;
-  if(go==='browse')openExplorer();else{show(go);if(go==='devices')openPairing();refresh();}
+  if(go==='browse')openExplorer();
+  else if(go==='coordinator')openCoordinator();
+  else{show(go);if(go==='devices')openPairing();refresh();}
 });
+// Coordenador não é uma tela própria -- reaproveita 100% o terminal que já
+// existe pros projetos, só com uma "pasta" sintética fixa (.coordinator,
+// vive no server.js, não aparece no Explorer nem em /api/projects) e
+// mode:'coordinator' (server.js reconhece esse mode e ignora o nome do
+// projeto enviado, ver attach() em server.js).
+function openCoordinator(){openTerm({name:'Coordenador',path:'.coordinator'},'coordinator')}
 function openPairing(){
   refreshDevices();
   const url='https://'+location.hostname+'/#t='+TOKEN;
@@ -577,7 +589,7 @@ function input(d){if(DEMO)din(d);else if(ws&&ws.readyState===1)ws.send(JSON.stri
 function din(d){if(d==='\r')term.write('\r\n\x1b[32m❯\x1b[0m ');else if(d==='\x7f')term.write('\b \b');else if(d>=' ')term.write(d)}
 let termSeq=0;
 function openTerm(p,mode){
-  show('term');cur=p;setTab('xt');$('#tname').textContent=p.name;$('#tmode').textContent=mode==='shell'?'SHELL':mode==='claude'||mode==='claude-new'?'CLAUDE':'OPENCODE';
+  show('term');cur=p;setTab('xt');$('#tname').textContent=p.name;$('#tmode').textContent=mode==='shell'?'SHELL':mode==='claude'||mode==='claude-new'?'CLAUDE':mode==='coordinator'?'COORDENADOR':'OPENCODE';
   $('#xt').replaceChildren();
   term=new Terminal({fontFamily:'ui-monospace,Menlo,Consolas,monospace',fontSize:window.innerWidth<600?11:13,cursorBlink:true,scrollback:5000,
     theme:{background:'#111827',foreground:'#e5e7eb',cursor:'#4f7cff',selectionBackground:'#4f7cff33'}});
@@ -585,7 +597,7 @@ function openTerm(p,mode){
   term.onData(input);
   term.onResize(({cols,rows})=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({t:'r',cols,rows}))});
   if(DEMO){
-    term.write('\x1b[32mforge@node01\x1b[0m:\x1b[34m'+p.path+'\x1b[0m$ '+(mode==='shell'?'bash':'opencode --continue')+'\r\n\x1b[90m[modo demo — rode o server.js para sessões reais]\x1b[0m\r\n\r\n');
+    term.write('\x1b[32mforge@node01\x1b[0m:\x1b[34m'+p.path+'\x1b[0m$ '+(mode==='shell'?'bash':mode==='coordinator'?'opencode --continue --agent coordinator':'opencode --continue')+'\r\n\x1b[90m[modo demo — rode o server.js para sessões reais]\x1b[0m\r\n\r\n');
     (p.snap||[]).forEach(l=>term.write(l+'\r\n'));term.write('\r\n\x1b[32m❯\x1b[0m ');
   }else{
     const mySeq=++termSeq;

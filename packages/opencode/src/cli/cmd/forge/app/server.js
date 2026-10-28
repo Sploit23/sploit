@@ -33,6 +33,30 @@ const save = () => fs.writeFileSync(DB, JSON.stringify(PROJECTS, null, 2));
 // de verdade (/health, /api/peers). Puramente cosmético.
 const NAME_FILE = path.join(__dirname, 'device-name.txt');
 const getDeviceName = () => { try { return fs.readFileSync(NAME_FILE, 'utf8').trim() || os.hostname() } catch { return os.hostname() } };
+// Coordenador só aparece em PCs com o app de bandeja instalado (desktop
+// de verdade na frente, não um PC controlado só remotamente). Detecta pela
+// presença do electron.exe que o instalador baixa -- mesmo truque de
+// enumerar C:\Users\* que o /api/browse usa, já que o Serviço roda como
+// LocalSystem e não tem "o próprio" perfil de usuário pra olhar.
+let desktopCache = { at: 0, value: false };
+function isDesktopInstalled() {
+  if (!WIN) return false;
+  if (Date.now() - desktopCache.at < 5 * 60 * 1000) return desktopCache.value;
+  let value = false;
+  try {
+    value = fs.readdirSync('C:\\Users', { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .some(e =>
+        // instalação de produção (win-native-install.ps1)
+        fs.existsSync(path.join('C:\\Users', e.name, 'AppData', 'Local', 'SploitForgeTray', 'electron', 'electron.exe')) ||
+        // modo dev -- `bunx electron .` direto do repo (packages/forge-tray):
+        // app.setName('forge-tray') faz o Electron criar essa pasta de userData
+        // em vez da genérica %APPDATA%\Electron compartilhada.
+        fs.existsSync(path.join('C:\\Users', e.name, 'AppData', 'Roaming', 'forge-tray')));
+  } catch {}
+  desktopCache = { at: Date.now(), value };
+  return value;
+}
 // --- registro de outros FORGE que já se anunciaram (ver announceToPeers()) ---
 // PC sem interface gráfica nenhuma não tem como ninguém copiar/colar token de
 // lugar nenhum -- cada FORGE se apresenta sozinho pros outros da mesma rede
@@ -472,7 +496,8 @@ const srv = http.createServer(async (req, res) => {
       return send('application/json', JSON.stringify({
         cpu: cpuPercent(),
         mem: (1 - os.freemem() / os.totalmem()) * 100, up: os.uptime(), host: getDeviceName(),
-        screen: !WIN // tela remota (Xvfb/xdotool) so existe no motor Linux por enquanto
+        screen: !WIN, // tela remota (Xvfb/xdotool) so existe no motor Linux por enquanto
+        desktop: isDesktopInstalled() // Coordenador só aparece quando isso é true
       }));
     }
   }
@@ -495,13 +520,23 @@ srv.on('upgrade', (req, sock, head) => {
   wss.handleUpgrade(req, sock, head, attach);
 });
 
+// pasta de trabalho fixa do coordenador -- não é um projeto que aparece
+// em PROJECTS/explorer, é interna do próprio FORGE.
+const COORD_DIR = path.join(ROOT, '.coordinator');
+
 function attach(ws) {
   const timeout = setTimeout(() => ws.close(), 5000);
   ws.once('message', m => {
     clearTimeout(timeout);
     let a; try { a = JSON.parse(m); } catch { return ws.close(); }
+    if (a.t !== 'a' || !ok(a.token)) return ws.close();
+    if (a.mode === 'coordinator') {
+      if (!isDesktopInstalled()) return ws.close();
+      fs.mkdirSync(COORD_DIR, { recursive: true });
+      return sessions.attachWs(ws, { name: 'coordinator', path: COORD_DIR }, 'coordinator', a.cols, a.rows, notify, { FORGE_TOKEN: TOKEN, PORT: String(PORT) });
+    }
     const p = PROJECTS.find(x => x.name === a.project);
-    if (a.t !== 'a' || !ok(a.token) || !p) return ws.close();
+    if (!p) return ws.close();
     sessions.attachWs(ws, p, a.mode, a.cols, a.rows, notify);
   });
 }
