@@ -31,13 +31,18 @@ PowerShell comum (não precisa já estar como Administrador, o script
 pede sozinho):
 
 ```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
 ```
 
-(a primeira linha força TLS 1.2 -- sem ela, o PowerShell do Windows
-costuma usar um TLS antigo que o GitHub recusa, e o download falha
-silenciosamente)
+(a 1ª linha libera rodar o script só nesta sessão do PowerShell -- a
+política padrão de vários Windows bloqueia `iex` de script baixado com
+`PSSecurityException: UnauthorizedAccess`, mesmo sem salvar nada em
+disco; `-Scope Process` não muda nada permanente na máquina, só vale
+enquanto essa janela do PowerShell estiver aberta. A 2ª linha força TLS
+1.2 -- sem ela, o PowerShell do Windows costuma usar um TLS antigo que
+o GitHub recusa, e o download falha silenciosamente)
 
 Instala Node/Tailscale/opencode/claude via `winget`/`npm`, registra o
 FORGE como Serviço do Windows (`node-windows`) e imprime o link de
@@ -51,6 +56,7 @@ o resto do instalador, mas dá pra pular de propósito também):
 
 ```powershell
 $env:FORGE_SKIP_CLI = 1
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
 ```

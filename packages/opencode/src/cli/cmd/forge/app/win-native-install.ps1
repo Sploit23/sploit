@@ -1,16 +1,19 @@
 # FORGE — instalador de um comando, 100% Windows nativo (sem WSL, sem Linux,
 # sem nenhuma VM no meio). Idempotente: seguro rodar de novo no mesmo PC.
 #
-#   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
+#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
 #
-# A linha de TLS 1.2 antes do irm é necessária em PCs mais antigos -- sem
-# ela, o PRIMEIRO download (deste próprio arquivo) pode falhar silenciosamente
-# antes mesmo do script começar a rodar (o TLS 1.2 que o script seta lá
-# embaixo só vale depois que ele já foi baixado).
+# A linha de ExecutionPolicy evita um PSSecurityException/UnauthorizedAccess
+# que a política padrão de vários Windows dá no "iex" de script baixado
+# (-Scope Process não muda nada permanente, só vale nesta janela). A linha
+# de TLS 1.2 é necessária em PCs mais antigos -- sem ela, o PRIMEIRO
+# download (deste próprio arquivo) pode falhar silenciosamente antes mesmo
+# do script começar a rodar (o TLS 1.2 que o script seta lá embaixo só vale
+# depois que ele já foi baixado).
 #
 # Pra instalar sem opencode/Claude Code (PC que só vai ser controlado
 # remotamente, sem IA rodando local nele):
-#   $env:FORGE_SKIP_CLI=1; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
+#   $env:FORGE_SKIP_CLI=1; Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
 #
 # Se faltar alguma dependência (winget, Node), o script avisa exatamente o
 # que falta em vez de travar silenciosamente.
