@@ -11,6 +11,8 @@ node_modules
 playground
 tmp
 dist
+!packages/forge-tray/dist/
+!packages/forge-tray/dist/**
 ts-dist
 .turbo
 **/.serena

@@ -45,17 +45,20 @@ enquanto essa janela do PowerShell estiver aberta. A 2ª linha força TLS
 o GitHub recusa, e o download falha silenciosamente)
 
 Instala Node/Tailscale/opencode/claude via `winget`/`npm`, registra o
-FORGE como Serviço do Windows (`node-windows`) e imprime o link de
-pareamento. Idempotente -- seguro rodar de novo. Detalhes em
+FORGE como Serviço do Windows (`node-windows`) e também instala o **app
+de bandeja** (ícone + janela nativa, `packages/forge-tray/`) com atalho
+na Área de Trabalho e autostart no login -- imprime o link de pareamento
+no final. Idempotente -- seguro rodar de novo. Detalhes em
 `packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1`.
 
 Pra um PC que só vai ser controlado remotamente (sem IA rodando local
-nele, só shell/`/api/exec`), dá pra pular o opencode/Claude Code
-(ambos opcionais -- uma falha de rede ao instalá-los não derruba mais
-o resto do instalador, mas dá pra pular de propósito também):
+nele, sem ícone nenhum visível -- só shell/`/api/exec`), dá pra pular
+opencode/Claude Code *e* o app de bandeja (nenhum dos dois é essencial;
+uma falha de rede ao instalá-los também não derruba mais o resto do
+instalador, mas dá pra pular de propósito):
 
 ```powershell
-$env:FORGE_SKIP_CLI = 1
+$env:FORGE_HEADLESS = 1
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex

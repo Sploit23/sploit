@@ -13,7 +13,7 @@
 #
 # Pra instalar sem opencode/Claude Code (PC que só vai ser controlado
 # remotamente, sem IA rodando local nele):
-#   $env:FORGE_SKIP_CLI=1; Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
+#   $env:FORGE_HEADLESS=1; Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
 #
 # Se faltar alguma dependência (winget, Node), o script avisa exatamente o
 # que falta em vez de travar silenciosamente.
@@ -120,10 +120,11 @@ if (-not (Test-Path $tailscaleExe) -and -not (Test-Command "tailscale")) {
 # projeto). Pra um PC que só existe pra ser controlado remotamente (shell/
 # /api/exec), o FORGE funciona 100% sem nenhum dos dois -- então uma falha
 # aqui (rede instável, npm sem conseguir falar com o registry etc) não pode
-# derrubar o instalador inteiro. $env:FORGE_SKIP_CLI=1 antes do irm pula os
-# dois de propósito, pra instalações "só de bandeja".
-if ($env:FORGE_SKIP_CLI) {
-    Write-Host "==> FORGE_SKIP_CLI definido -- pulando opencode/Claude Code (só shell remoto nesta máquina)."
+# derrubar o instalador inteiro. $env:FORGE_HEADLESS=1 antes do irm pula os
+# dois de propósito -- junto com o app de bandeja mais abaixo -- pra
+# instalações 100% headless, controladas só por fora.
+if ($env:FORGE_HEADLESS) {
+    Write-Host "==> FORGE_HEADLESS definido -- pulando opencode/Claude Code (só shell remoto nesta máquina)."
 } else {
     if (-not (Test-Command "opencode")) {
         Write-Host "==> Instalando o opencode (CLI que roda dentro de cada sessão)..."
@@ -216,6 +217,61 @@ try {
     Pop-Location
 }
 Start-Sleep -Seconds 2
+
+# --- App de bandeja (ícone + janela nativa) -- roda como o usuário logado,
+# não como o Serviço (LocalSystem não tem sessão de desktop pra mostrar
+# ícone nenhum). $env:FORGE_HEADLESS pula isso de propósito, pra PCs que só
+# vão ser controlados remotamente (shell/`/api/exec`), sem nada visível.
+if ($env:FORGE_HEADLESS) {
+    Write-Host "==> FORGE_HEADLESS definido -- pulando o app de bandeja (só o serviço, controlado remotamente)."
+} else {
+    Write-Host ""
+    Write-Host "==> Instalando o app de bandeja..."
+    $TRAY_DIR = Join-Path $env:LOCALAPPDATA "SploitForgeTray"
+    New-Item -ItemType Directory -Force -Path (Join-Path $TRAY_DIR "src") | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $TRAY_DIR "assets") | Out-Null
+    $trayBase = "https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/forge-tray/dist"
+    $trayOk = $true
+    try {
+        foreach ($f in @("package.json", "src/main.js", "src/pairing.js", "launch-tray.vbs", "assets/tray-icon-16.png", "assets/tray-icon-32.png", "assets/tray-icon-64.png", "assets/tray-icon-128.png", "assets/forge-tray.ico")) {
+            Invoke-WebRequest -Uri "$trayBase/$f" -OutFile (Join-Path $TRAY_DIR $f) -UseBasicParsing
+        }
+        # electron.exe vem do zip oficial direto, não via `npm install electron`
+        # -- confirmado nesta mesma sessão de testes que a extração via
+        # node_modules/extract-zip trava em silêncio (sem erro, sem completar,
+        # exit 0) nesta máquina; Expand-Archive nativo do Windows extrai o
+        # mesmo zip sem problema nenhum. Menos uma dependência (npm) também.
+        if (-not (Test-Path (Join-Path $TRAY_DIR "electron\electron.exe"))) {
+            Write-Host "==> Baixando o runtime do Electron (~115MB, só na primeira vez)..."
+            $electronZip = Join-Path $env:TEMP "sploit-forge-electron.zip"
+            Invoke-WebRequest -Uri "https://github.com/electron/electron/releases/download/v33.2.1/electron-v33.2.1-win32-x64.zip" -OutFile $electronZip -UseBasicParsing
+            Expand-Archive -Path $electronZip -DestinationPath (Join-Path $TRAY_DIR "electron") -Force
+            Remove-Item $electronZip -Force
+        }
+    } catch {
+        $trayOk = $false
+        Write-Host "AVISO: instalação do app de bandeja falhou ($($_.Exception.Message)) -- o FORGE continua funcionando normal, só sem o ícone na bandeja nesta máquina. Rode o script de novo pra tentar de novo só essa parte."
+    }
+
+    if ($trayOk -and (Test-Path (Join-Path $TRAY_DIR "electron\electron.exe"))) {
+        $WshShell = New-Object -ComObject WScript.Shell
+        $desktop = [Environment]::GetFolderPath("Desktop")
+        $startupDir = [Environment]::GetFolderPath("Startup")
+        $shortcutPath = Join-Path $desktop "Sploit-Forge.lnk"
+        $Shortcut = $WshShell.CreateShortcut($shortcutPath)
+        $Shortcut.TargetPath = "$env:WINDIR\System32\wscript.exe"
+        $Shortcut.Arguments = "`"$(Join-Path $TRAY_DIR 'launch-tray.vbs')`""
+        $Shortcut.IconLocation = Join-Path $TRAY_DIR "assets\forge-tray.ico"
+        $Shortcut.WorkingDirectory = $TRAY_DIR
+        $Shortcut.Description = "Abre o app de bandeja do Sploit-Forge"
+        $Shortcut.Save()
+        # Área de Trabalho pra abrir na hora + Startup pra abrir sozinho no login
+        # seguinte (sem precisar de admin -- é a pasta Startup do usuário, não a
+        # de todo mundo).
+        Copy-Item $shortcutPath (Join-Path $startupDir "Sploit-Forge.lnk") -Force
+        Write-Host "==> App de bandeja instalado -- ícone 'Sploit-Forge' na Área de Trabalho, abre sozinho no próximo login."
+    }
+}
 
 Write-Host ""
 Write-Host "==> Tailscale..."
