@@ -63,13 +63,14 @@ button.ic{padding:6px 9px;font-size:12px}
 .think{display:inline-block;width:6px;height:6px;margin-left:6px;border-radius:50%;background:var(--blue);opacity:0;transform:scale(.6);transition:opacity .25s}
 .think.on{opacity:1;animation:think 1.1s ease-in-out infinite}
 /* ---------- grade de ícones (tela Projetos) -- cross-PC, não só local ---------- */
-.icongrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:16px 8px;padding:4px 0}
-.icon{display:flex;flex-direction:column;align-items:center;gap:6px;background:transparent;border:1px solid transparent;padding:10px 4px;border-radius:14px;text-align:center;min-width:0}
-.icon:active{background:var(--panel);border-color:var(--ln)}
-.icon .ig{position:relative;font-size:32px;line-height:1;width:100%}
-.icon .ig .dot{position:absolute;right:calc(50% - 20px);bottom:-2px;border:2px solid var(--bg)}
-.icon .ig .think{position:absolute;right:calc(50% - 20px);bottom:7px;width:7px;height:7px}
-.icon b{font-size:11.5px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icongrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:18px 8px;padding:4px 0}
+.icon{display:flex;flex-direction:column;align-items:center;gap:7px;background:transparent;border:0;padding:0;text-align:center;min-width:0;transition:transform .12s}
+.icon:active{transform:scale(.92)}
+.icon .ig{position:relative;width:58px;height:58px;border-radius:17px;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;letter-spacing:.3px;color:#fff;text-shadow:0 1px 2px #0004;box-shadow:0 4px 10px -2px #00000055,inset 0 1px 0 #ffffff26}
+.icon .ig .dot{position:absolute;right:-3px;bottom:-3px;width:14px;height:14px;border-radius:50%;background:#4a5568;border:3px solid var(--bg)}
+.icon .ig .dot.on{background:var(--ok);box-shadow:0 0 6px #22c55e80}
+.icon .ig .think{position:absolute;right:2px;bottom:10px;width:7px;height:7px;background:#fff}
+.icon b{font-size:11.5px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tx)}
 .icon small{font-size:10px;color:var(--mu)}
 @keyframes think{0%,100%{transform:scale(.8)}50%{transform:scale(1.5);box-shadow:0 0 8px 1px var(--blue)}}
 .pp{color:var(--mu);font-size:12px;margin:3px 0 10px}
@@ -270,13 +271,22 @@ async function boot(){
   el.append(h('span','cur','█'),' ',h('span','noise',bits(16)));
   setInterval(()=>{const nz=el.querySelector('.noise');if(nz&&!document.hidden)nz.textContent=bits(16)},450);
 }
+// cor consistente por nome (mesmo projeto = sempre a mesma cor, sem
+// precisar guardar nada) -- hash simples da string vira o tom do
+// gradiente do "ícone do app".
+function iconColor(name){
+  let hash=0;for(let i=0;i<name.length;i++)hash=(hash*31+name.charCodeAt(i))>>>0;
+  const hue=hash%360;
+  return 'linear-gradient(135deg,hsl('+hue+',70%,58%),hsl('+((hue+45)%360)+',70%,40%))';
+}
 function renderList(ps){
   const L=$('#list');L.replaceChildren();
   if(!ps.length){L.append(h('div','mu','nenhum projeto ainda — clique em "+ projeto" pra criar ou importar um'));return}
   const grid=h('div','icongrid');
   ps.forEach(p=>{
     const remote=p.machine&&p.machine!=='local';
-    const btn=h('button','icon'),ig=h('span','ig','📁');
+    const btn=h('button','icon'),ig=h('span','ig',p.name.slice(0,2).toUpperCase());
+    ig.style.background=iconColor(p.name);
     const dot=h('span','dot '+(p.alive?'on':'')),tk=h('span','think');
     tk.dataset.name=p.name;ig.append(dot,tk);
     btn.append(ig,h('b',0,p.name));
