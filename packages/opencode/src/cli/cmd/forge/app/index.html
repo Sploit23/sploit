@@ -289,10 +289,20 @@ function renameDevice(d){
   },'go');
   sheet(h('b',0,'renomear dispositivo'),i,go,mk('cancelar',closeSheet));
 }
-function mergeDevices(online){
+function mergeDevices(online,known){
   const byDns={};
   online.forEach(p=>{if(p.dnsName)byDns[p.dnsName]={hostname:p.hostname,dnsName:p.dnsName,online:true}});
-  loadDevices().forEach(d=>{byDns[d.dnsName]=Object.assign({hostname:d.hostname,dnsName:d.dnsName,online:false},byDns[d.dnsName],{token:d.token,nickname:d.nickname})});
+  // /api/known-devices -- registro automático (cada Sploit-Forge se anuncia
+  // sozinho pros outros, ver announceToPeers() no server.js): preenche o
+  // token sem precisar colar nada aqui, nenhum celular/navegador precisa
+  // "aprender" os outros PCs na mão, um de cada vez.
+  (known||[]).forEach(d=>{if(d.dnsName)byDns[d.dnsName]=Object.assign({hostname:d.hostname,dnsName:d.dnsName,online:false},byDns[d.dnsName],{token:d.token})});
+  // localStorage ainda por último -- se o usuário salvou um apelido ou colou
+  // um token manual aqui, isso tem prioridade sobre o que veio automático.
+  // d.token pode vir vazio (renomear um device que só tinha nickname, sem
+  // token salvo ainda) -- nesse caso não pode apagar um token bom que já
+  // veio do /api/known-devices.
+  loadDevices().forEach(d=>{byDns[d.dnsName]=Object.assign({hostname:d.hostname,dnsName:d.dnsName,online:false},byDns[d.dnsName],{token:d.token||byDns[d.dnsName]?.token,nickname:d.nickname})});
   return Object.values(byDns);
 }
 // grid compacto na tela Dispositivos -- só status + entrar (sem gerenciar token aqui)
@@ -329,9 +339,12 @@ function renderPairList(all){
   });
 }
 async function refreshDevices(){
-  let online=[];
-  if(!DEMO){try{online=await api('/api/peers')}catch{}}
-  const all=mergeDevices(online);
+  let online=[],known=[];
+  if(!DEMO){
+    try{online=await api('/api/peers')}catch{}
+    try{known=await api('/api/known-devices')}catch{}
+  }
+  const all=mergeDevices(online,known);
   renderDeviceGrid(all);
   renderPairList(all);
 }
