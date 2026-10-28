@@ -378,7 +378,7 @@ async function init(){
   try{const ps=await api('/api/projects');start(ps)}
   catch(e){if(e===401){show('login');return}DEMO=true;$('#mode').textContent='● demo';start(DEMO_P)}
 }
-function start(ps){show('home');boot();renderList(ps);stats();refreshDevices();clearInterval(timer);timer=setInterval(()=>{stats();refreshDevices()},5000);clearInterval(thinkTimer);pollThink();thinkTimer=setInterval(pollThink,2000);if(DEEP_LINK_VIEW==='explorer'){DEEP_LINK_VIEW='';openExplorer()}else if(DEEP_LINK_VIEW==='coordinator'){DEEP_LINK_VIEW='';openCoordinator()}}
+function start(ps){show('home');boot();renderList(ps);stats();refreshDevices();clearInterval(timer);timer=setInterval(()=>{stats();refreshDevices()},5000);clearInterval(thinkTimer);pollThink();thinkTimer=setInterval(pollThink,2000);if(DEEP_LINK_VIEW==='explorer'){DEEP_LINK_VIEW='';openExplorer()}else if(DEEP_LINK_VIEW==='coordinator'){DEEP_LINK_VIEW='';openCoordinator()}else if(DEEP_LINK_VIEW.startsWith('term:')){const[,name,mode]=DEEP_LINK_VIEW.split(':');DEEP_LINK_VIEW='';const p=ps.find(x=>x.name===decodeURIComponent(name));if(p)openTerm(p,mode)}}
 $('#tkgo').onclick=async()=>{
   let v=$('#tk').value.trim();
   const m=v.match(/[#?&]t=([^&\s]+)/); // aceita colar o link inteiro, não só o token puro
@@ -618,7 +618,7 @@ if(micSupported){
 let termSeq=0;
 function openTerm(p,mode){
   show('term');cur=p;setTab('xt');$('#tname').textContent=p.name;$('#tmode').textContent=mode==='shell'?'SHELL':mode==='claude'||mode==='claude-new'?'CLAUDE':mode==='coordinator'?'COORDENADOR':'OPENCODE';
-  const coordSel=$('#coordcli'),isCoord=mode==='coordinator';
+  const coordSel=$('#coordcli'),isCoord=mode==='coordinator',isChat=mode!=='shell';
   if(isCoord){
     coordSel.style.display='';
     if(!DEMO)api('/api/coordinator-cli').then(r=>coordSel.value=r.cli).catch(()=>{});
@@ -628,13 +628,20 @@ function openTerm(p,mode){
   // sobrar mais espaço de tela pra ler a conversa em si.
   $('#tabs').style.display=isCoord?'none':'';
   $('#keys').classList.toggle('coord',isCoord);
-  $('#mic').style.display=isCoord&&micSupported?'':'none';
+  // ditar faz sentido em qualquer conversa com IA (opencode/claude/novo/
+  // Coordenador) -- só não em shell puro, onde não tem o que "ditar".
+  $('#mic').style.display=isChat&&micSupported?'':'none';
   // iOS bloqueia SpeechRecognition dentro do PWA instalado (funciona numa
   // aba normal do mesmo Safari/Chrome) -- sem alternativa client-side,
   // o fallback é escapar pro navegador de verdade com o mesmo token.
+  // Coordenador tem seu próprio atalho de deep-link; projeto normal usa
+  // o esquema genérico term:<nome>:<mode> (ver start()).
   const micFb=$('#micfallback');
-  if(isCoord&&!micSupported){micFb.style.display='';micFb.href=location.origin+'/#t='+encodeURIComponent(TOKEN)+'&view=coordinator'}
-  else micFb.style.display='none';
+  if(isChat&&!micSupported){
+    micFb.style.display='';
+    const view=isCoord?'coordinator':'term:'+encodeURIComponent(p.name)+':'+mode;
+    micFb.href=location.origin+'/#t='+encodeURIComponent(TOKEN)+'&view='+view;
+  }else micFb.style.display='none';
   $('#xt').replaceChildren();
   // fonte igual em qualquer tela (não só 11px no celular) + lineHeight/
   // letterSpacing -- xterm por padrão vem bem apertado, ótimo pra código
