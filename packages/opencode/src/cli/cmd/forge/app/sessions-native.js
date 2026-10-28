@@ -93,6 +93,17 @@ function winCommand(mode, coordinatorCli) {
   const opencodeBin = process.env.OPENCODE_BIN || 'opencode'
   const claudeBin = process.env.CLAUDE_BIN || 'claude'
   if (mode === 'shell') return { file: 'powershell.exe', args: ['-ExecutionPolicy', 'Bypass'] }
+  if (mode === 'coordinator') {
+    const bin = coordinatorCli === 'claude' ? claudeBin : opencodeBin
+    // .coordinator é uma pasta nova -- na primeira vez, não existe sessão
+    // pra retomar. Confirmado ao vivo: o Claude Code trata isso como erro
+    // fatal (sai com código != 0, "no conversation to continue"/"deferred
+    // tool marker") em vez de só começar uma conversa nova como o opencode
+    // já faz sozinho -- sem esse fallback, a sessão nunca nascia (caía,
+    // reconectava, caía de novo, pra sempre).
+    const inner = `& '${bin}' --continue; if ($LASTEXITCODE -ne 0) { & '${bin}' }`
+    return { file: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', inner] }
+  }
   const inner =
     mode === 'new'
       ? `& '${opencodeBin}'`
@@ -100,9 +111,7 @@ function winCommand(mode, coordinatorCli) {
         ? `& '${claudeBin}'`
         : mode === 'claude'
           ? `& '${claudeBin}' --continue`
-          : mode === 'coordinator'
-            ? `& '${coordinatorCli === 'claude' ? claudeBin : opencodeBin}' --continue`
-            : `& '${opencodeBin}' --continue`
+          : `& '${opencodeBin}' --continue`
   return { file: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', inner] }
 }
 
