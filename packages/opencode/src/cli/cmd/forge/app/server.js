@@ -33,6 +33,55 @@ const save = () => fs.writeFileSync(DB, JSON.stringify(PROJECTS, null, 2));
 // de verdade (/health, /api/peers). Puramente cosmético.
 const NAME_FILE = path.join(__dirname, 'device-name.txt');
 const getDeviceName = () => { try { return fs.readFileSync(NAME_FILE, 'utf8').trim() || os.hostname() } catch { return os.hostname() } };
+// --- registro de outros FORGE que já se anunciaram (ver announceToPeers()) ---
+// PC sem interface gráfica nenhuma não tem como ninguém copiar/colar token de
+// lugar nenhum -- cada FORGE se apresenta sozinho pros outros da mesma rede
+// Tailscale ao subir, e quem já souber de UM FORGE passa a enxergar todos que
+// já se apresentaram entre si. /api/announce não exige token de propósito
+// (mesmo nível de confiança que /health já tem hoje -- só diz "existo, meu
+// token é X"); só LER essa lista (/api/known-devices) exige token de algum
+// FORGE da rede.
+const KNOWN_FILE = path.join(__dirname, 'known-devices.json');
+let KNOWN = fs.existsSync(KNOWN_FILE) ? JSON.parse(fs.readFileSync(KNOWN_FILE, 'utf8')) : [];
+const saveKnown = () => fs.writeFileSync(KNOWN_FILE, JSON.stringify(KNOWN, null, 2));
+// mesma descoberta usada por /api/peers e por announceToPeers() -- sonda o
+// /health de cada peer do Tailscale direto por IP, sem trocar token nenhum.
+async function discoverForgePeers() {
+  let peers = [];
+  try { peers = Object.values(JSON.parse(await sh('tailscale', ['status', '--json'])).Peer || {}); } catch { return [] }
+  const found = await Promise.all(peers.map(async p => {
+    const ip = (p.TailscaleIPs || [])[0];
+    if (!ip) return null;
+    const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 800);
+    try {
+      const r = await fetch('http://' + ip + ':' + PORT + '/health', { signal: ctrl.signal });
+      const j = r.ok ? await r.json() : null;
+      return j && j.forge ? { hostname: p.HostName, dnsName: (p.DNSName || '').replace(/\.$/, ''), ip } : null;
+    } catch { return null }
+    finally { clearTimeout(t) }
+  }));
+  return found.filter(Boolean);
+}
+// anuncia pra cada FORGE já descoberto na rede quem eu sou -- roda no boot e
+// periodicamente (pega PCs instalados depois). Sem isso, um PC sem tela
+// nenhuma nunca aparece pra ninguém sem alguém copiar/colar token na mão.
+async function announceToPeers() {
+  if (!WIN) return;
+  let selfDns = '';
+  try { selfDns = (JSON.parse(await sh('tailscale', ['status', '--json'])).Self || {}).DNSName || '' } catch {}
+  selfDns = selfDns.replace(/\.$/, '');
+  if (!selfDns) return;
+  const peers = await discoverForgePeers();
+  await Promise.all(peers.map(async p => {
+    const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 2000);
+    try {
+      await fetch('http://' + p.ip + ':' + PORT + '/api/announce', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+        body: JSON.stringify({ hostname: os.hostname(), dnsName: selfDns, token: TOKEN }),
+      });
+    } catch {} finally { clearTimeout(t) }
+  }));
+}
 // --- Notificação push (web push padrão, sem serviço de terceiro) ---
 const VAPID_FILE = path.join(__dirname, '.push-vapid.json');
 const SUBS_FILE = path.join(__dirname, 'push-subscriptions.json');
@@ -163,6 +212,19 @@ const srv = http.createServer(async (req, res) => {
   if (u.pathname === '/icon.svg') return send('image/svg+xml', ICON_ANY_SVG);
   // sem token: só pra outro FORGE na mesma rede Tailscale se reconhecer (ver /api/peers)
   if (u.pathname === '/health') return send('application/json', JSON.stringify({ forge: true, name: os.hostname() }));
+  // sem token de propósito -- ver comentário em KNOWN_FILE acima. Só grava
+  // "existo, meu token é X"; nunca devolve nada, nunca lê o registro (isso é
+  // /api/known-devices, autenticado).
+  if (u.pathname === '/api/announce' && req.method === 'POST') {
+    const b = await readBody(req);
+    const hostname = String(b.hostname || '').trim().slice(0, 64);
+    const dnsName = String(b.dnsName || '').trim().slice(0, 253);
+    const token = String(b.token || '').trim();
+    if (!hostname || !dnsName || token.length < 16) return send('application/json', '{"error":"dados inválidos"}', 400);
+    KNOWN = [...KNOWN.filter(d => d.dnsName !== dnsName), { hostname, dnsName, token, announcedAt: Date.now() }];
+    saveKnown();
+    return send('application/json', '{"ok":true}');
+  }
   // vendored locally -- never depend on an external CDN being reachable at runtime
   if (u.pathname === '/vendor/xterm.min.js') return send('text/javascript', fs.readFileSync(path.join(__dirname, 'vendor/xterm.min.js')));
   if (u.pathname === '/vendor/xterm.min.css') return send('text/css', fs.readFileSync(path.join(__dirname, 'vendor/xterm.min.css')));
@@ -198,20 +260,12 @@ const srv = http.createServer(async (req, res) => {
       if (u.pathname === '/api/peers' && req.method === 'GET') {
         // outras máquinas da mesma rede Tailscale que também têm um FORGE rodando.
         // nunca troca token entre instâncias -- só "existo" (ver /health).
-        let peers = [];
-        try { peers = Object.values(JSON.parse(await sh('tailscale', ['status', '--json'])).Peer || {}); } catch {}
-        const found = await Promise.all(peers.map(async p => {
-          const ip = (p.TailscaleIPs || [])[0];
-          if (!ip) return null;
-          const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 800);
-          try {
-            const r = await fetch('http://' + ip + ':' + PORT + '/health', { signal: ctrl.signal });
-            const j = r.ok ? await r.json() : null;
-            return j && j.forge ? { hostname: p.HostName, dnsName: (p.DNSName || '').replace(/\.$/, ''), ip } : null;
-          } catch { return null }
-          finally { clearTimeout(t) }
-        }));
-        return J(found.filter(Boolean));
+        return J(await discoverForgePeers());
+      }
+      if (u.pathname === '/api/known-devices' && req.method === 'GET') {
+        // diferente de /api/peers: isso tem token de cada um (ver /api/announce).
+        // Autenticado -- só quem já tem token de ALGUM FORGE da rede lê esta lista.
+        return J(KNOWN);
       }
       if (u.pathname === '/api/push-vapid-key' && req.method === 'GET') return J({ key: VAPID.publicKey });
       if (u.pathname === '/api/push-subscribe' && req.method === 'POST') {
@@ -481,5 +535,8 @@ async function checkForUpdates() {
   } catch (e) { console.error('[update] checagem falhou:', e.message); }
 }
 if (WIN) { void checkForUpdates(); setInterval(() => void checkForUpdates(), 24 * 60 * 60 * 1000); }
+// de hora em hora -- pega PCs instalados depois sem precisar esperar o ciclo
+// de 24h do auto-update, e é barato (só sonda quem já responde no /health).
+if (WIN) { void announceToPeers(); setInterval(() => void announceToPeers(), 60 * 60 * 1000); }
 
 srv.listen(PORT, HOST, () => console.log(`FORGE em http://${HOST}:${PORT}`));
