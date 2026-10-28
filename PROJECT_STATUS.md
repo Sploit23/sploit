@@ -187,14 +187,17 @@ vale ler antes de tocar de novo):
 - O Serviço roda como LocalSystem — sem `FORGE_USER_PROFILE` (ver bullet
   do `win-native-install.ps1` acima), nenhuma sessão (nem só o
   Coordenador) via o perfil/conta real da pessoa.
+- `/api/relay-send` (usado pelo `transfer_project`) empacotava a pasta
+  inteira com `tar` e **bufferizava tudo em memória** (`Buffer.concat`)
+  antes de mandar — pra um projeto JS real (com `node_modules`), isso
+  sozinho podia derrubar o processo por falta de memória. Corrigido:
+  `--exclude=node_modules` no `tar` (de longe o maior vilão de tamanho,
+  reproduzível com `npm install` no destino) + streaming direto
+  (`Readable.toWeb(tar.stdout)` como body do `fetch`, `duplex:'half'`)
+  em vez de acumular chunks -- nada fica na memória de uma vez, não
+  importa o tamanho da pasta.
 
 **Pendências conhecidas, não resolvidas de propósito:**
-- `transfer_project`/`/api/relay-send` empacota a pasta inteira com
-  `tar`, sem excluir `node_modules`/`.git`, e **bufferiza o tar inteiro
-  em memória** antes de mandar (`Buffer.concat`) — ótimo pra projeto
-  pequeno, arriscado (pode derrubar o processo por memória) pra pasta
-  grande. Não tentar transferir o próprio `sploit-codigo-fonte` (tem uns
-  6GB com `node_modules`) até isso ser corrigido com streaming/exclusões.
 - `coordinator_register_project`/registro manual de projeto fora do
   FORGE foi cortado deliberadamente desta rodada (`CoordinatorRegistry`
   foi apagado) — hoje só existe descoberta ao vivo via `/api/projects`.

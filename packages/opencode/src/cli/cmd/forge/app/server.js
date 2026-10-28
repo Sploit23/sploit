@@ -2,6 +2,7 @@
 // npm i ws node-pty   |   FORGE_TOKEN=<24+ chars> node server.js
 const http = require('http'), fs = require('fs'), os = require('os'), path = require('path'), net = require('net');
 const crypto = require('crypto'), { execFileSync, execFile, spawn } = require('child_process');
+const { Readable } = require('stream');
 const { WebSocketServer } = require('ws'), webpush = require('web-push');
 const mcpCoordinator = require('./mcp-coordinator');
 
@@ -483,15 +484,22 @@ const srv = http.createServer(async (req, res) => {
         let st; try { st = fs.statSync(srcPath) } catch { return J({ error: 'pasta não encontrada' }, 404) }
         if (!st.isDirectory()) return J({ error: 'precisa ser uma pasta' }, 400);
         try {
-          const tar = spawn('tar', ['czf', '-', '-C', path.dirname(srcPath), path.basename(srcPath)]);
-          const chunks = [];
-          tar.stdout.on('data', c => chunks.push(c));
-          await new Promise((done, fail) => {
-            tar.on('close', code => code === 0 ? done() : fail(new Error('tar falhou')));
-            tar.on('error', fail);
-          });
+          // node_modules é de longe o maior vilão de tamanho em qualquer
+          // projeto JS/TS real (reproduzível com npm/bun install no
+          // destino, não precisa viajar) -- exclui já evita a maior parte
+          // do caso que derrubava o processo. O resto do problema era
+          // acumular o .tar.gz inteiro num array de chunks + Buffer.concat
+          // antes de mandar: pra uma pasta grande, isso sozinho já estoura
+          // a memória do processo. Agora o stdout do tar vira o corpo do
+          // fetch direto, streaming -- nunca fica tudo na memória de uma
+          // vez, não importa o tamanho da pasta.
+          const tar = spawn('tar', ['czf', '-', '--exclude=node_modules', '-C', path.dirname(srcPath), path.basename(srcPath)]);
+          tar.on('error', (e) => { try { tar.stdout.destroy(e) } catch {} });
           const r = await fetch(targetUrl + '/api/import?name=' + encodeURIComponent(name), {
-            method: 'POST', headers: { Authorization: 'Bearer ' + targetToken, 'Content-Type': 'application/gzip' }, body: Buffer.concat(chunks)
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + targetToken, 'Content-Type': 'application/gzip' },
+            body: Readable.toWeb(tar.stdout),
+            duplex: 'half',
           });
           const j = await r.json().catch(() => ({}));
           if (!r.ok) return J({ error: j.error || ('destino respondeu ' + r.status) }, 502);
