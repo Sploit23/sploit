@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<link rel="manifest" href="/manifest.webmanifest">
+<!-- iOS não lê o ícone do manifest.json pra "Adicionar à Tela de Início" --
+     precisa de um <link rel="apple-touch-icon"> explícito apontando pra isso. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sploit-Forge">
+<link rel="apple-touch-icon" href="/icon.svg">
+<title>Sploit-Forge</title>
+<link rel="stylesheet" href="/vendor/xterm.min.css">
+<style>
+:root{--bg:#111827;--panel:#1a2234;--ln:#2a3344;--mu:#8b96a8;--tx:#e5e7eb;--blue:#4f7cff;--purple:#a855f7;--pink:#d946ef;--ok:#22c55e;--er:#ef4444}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font:14px/1.5 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.screen{display:none;max-width:760px;margin:auto;padding:max(20px,env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom))}
+.screen.on{display:block}
+button,input{font:inherit;color:inherit}
+button{background:var(--panel);border:1px solid var(--ln);border-radius:10px;padding:9px 13px;cursor:pointer;transition:border-color .15s,background .15s}
+button:hover{border-color:#3a4558}
+button:active{border-color:var(--blue)}
+button.go{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border-color:transparent;font-weight:600}
+button.go:disabled{opacity:.5;cursor:default}
+input{width:100%;background:#0d1320;border:1px solid var(--ln);border-radius:10px;padding:11px 13px;margin:10px 0}
+input:focus{outline:none;border-color:var(--blue)}
+.top{display:flex;justify-content:space-between;align-items:center;padding-bottom:14px}
+.brand{font-weight:800;letter-spacing:.5px;font-size:16px}
+.brand b{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand small{display:block;font-size:10px;letter-spacing:1px;color:var(--mu);font-weight:500}
+.tag{font-size:11px;border:1px solid var(--ln);color:var(--mu);border-radius:20px;padding:3px 10px}
+#boot{margin:4px 0 16px;color:var(--mu);font-size:12px;white-space:pre-wrap;min-height:30px}
+.cur{color:var(--blue);animation:bl 1s steps(2) infinite}@keyframes bl{50%{opacity:0}}
+.noise{color:#44506a;font-size:10px;letter-spacing:1px;opacity:.7}
+.card{border:1px solid var(--ln);border-radius:14px;background:var(--panel);padding:16px}
+#stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.m{border:1px solid var(--ln);border-radius:12px;padding:12px;background:var(--panel)}
+.m i{font-style:normal;font-size:10px;color:var(--mu);letter-spacing:1px}
+.m b{display:block;font-size:19px;margin:3px 0 7px;font-weight:700}
+.m u{display:block;height:5px;background:#0d1320;border-radius:4px;overflow:hidden}
+.m s{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .6s}
+h2{font-size:12px;letter-spacing:1px;color:var(--mu);margin:26px 0 12px;font-weight:600}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.dcard{border:1px solid var(--ln);background:var(--panel);border-radius:14px;padding:14px}
+.dcard .ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.dcard b{font-size:14px}
+.dname{display:flex;align-items:center;gap:9px}
+.dicon{width:22px;height:22px;flex:none;color:var(--blue)}
+.selfname{display:flex;align-items:center;gap:8px}
+.selfname .dicon{width:28px;height:28px}
+.selfname #host{font-size:19px;font-weight:700;letter-spacing:.3px;color:var(--tx)}
+button.ic{padding:6px 9px;font-size:12px}
+.proj{border:1px solid var(--ln);background:var(--panel);border-radius:14px;padding:16px;margin-bottom:10px}
+.ph{display:flex;justify-content:space-between;align-items:center}
+.ph b{font-size:15px}.st{font-size:11px;display:inline-flex;align-items:center;gap:5px}.st.on{color:var(--ok)}.st.off{color:var(--mu)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--mu);display:inline-block}
+.dot.on{background:var(--ok);box-shadow:0 0 6px #22c55e80}
+.dot.off{background:#4a5568}
+.think{display:inline-block;width:6px;height:6px;margin-left:6px;border-radius:50%;background:var(--blue);opacity:0;transform:scale(.6);transition:opacity .25s}
+.think.on{opacity:1;animation:think 1.1s ease-in-out infinite}
+@keyframes think{0%,100%{transform:scale(.8)}50%{transform:scale(1.5);box-shadow:0 0 8px 1px var(--blue)}}
+.pp{color:var(--mu);font-size:12px;margin:3px 0 10px}
+.snap{margin:0;padding:10px;background:#0d1320;border-left:2px solid var(--blue);border-radius:8px;color:#9fb0c9;font-size:11px;line-height:1.45;white-space:pre-wrap;overflow:hidden;max-height:72px}
+.pf{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+.mu{color:var(--mu);font-size:12px}.bt{display:flex;gap:7px;flex-wrap:wrap}
+#term.on{display:flex;flex-direction:column;height:100dvh;max-width:none;padding:env(safe-area-inset-top) 0 0}
+.tbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--ln);background:var(--panel)}
+.tbar b{color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#xt{flex:1;min-height:0;padding:6px 6px 0}
+.keys{display:flex;gap:6px;overflow-x:auto;padding:8px 8px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--ln);background:var(--panel);scrollbar-width:none}
+.keys button{flex:none;min-width:44px;padding:9px 10px}
+#sheet{display:none;position:fixed;inset:0;background:#000a;z-index:40;align-items:flex-end;justify-content:center}
+#sheet.on{display:flex}
+#sheet>div{width:min(560px,100%);background:var(--panel);border:1px solid var(--ln);border-radius:18px 18px 0 0;padding:20px 18px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+#sheet button{display:block;width:100%;text-align:left;margin:7px 0}
+#sheet .mu{white-space:pre-wrap;margin:6px 0 10px}
+button.dg{border-color:#ef444466;color:var(--er)}button.dg:disabled{opacity:.35}
+#menubtn{margin-right:10px;padding:6px 10px}
+.hd{display:flex;gap:8px;align-items:center}
+.tabs{display:flex;gap:6px;padding:8px 14px;border-bottom:1px solid var(--ln)}
+.tabs button{flex:1;padding:7px}.tabs button.on{border-color:var(--blue);color:var(--blue)}
+.pane{display:none;flex:1;min-height:0;flex-direction:column}.pane.on{display:flex}
+.pvbar{display:flex;gap:6px;padding:8px;border-bottom:1px solid var(--ln)}
+.pvbar input{margin:0;min-width:0;padding:8px}.pvbar button{flex:none;padding:7px 10px}
+#pvport{width:92px;flex:none}#pvf{flex:1;border:0;width:100%;background:#fff}
+.scw{flex:1;overflow:auto}#scimg{display:block;width:100%;height:auto}#scmsg{padding:14px;color:var(--mu)}
+
+/* ---------- nav: sidebar fixa (largo) / barra inferior (estreito) ---------- */
+#nav{display:none;position:fixed;z-index:30;background:var(--panel);border-color:var(--ln)}
+body.with-nav #nav{display:flex}
+.navitem{background:transparent;border-color:transparent;border-radius:10px;text-align:left;display:flex;align-items:center;gap:9px}
+.navitem.on{background:#0d1320;color:var(--blue)}
+@media (min-width:900px){
+  #nav{top:0;left:0;bottom:0;width:220px;flex-direction:column;border-right:1px solid var(--ln);border-bottom:none;padding:22px 12px;gap:2px}
+  .navbrand{padding:0 10px 18px}
+  .navitem{width:100%;padding:10px 12px;font-size:13px}
+  .navspacer{flex:1}
+  body.with-nav .screen.on{margin-left:252px;margin-right:auto;max-width:1040px}
+}
+@media (max-width:899px){
+  #nav{left:0;right:0;bottom:0;height:64px;flex-direction:row;border-top:1px solid var(--ln);padding:0 4px;justify-content:space-around;align-items:center}
+  .navbrand,.navspacer{display:none}
+  .navitem{flex-direction:column;gap:2px;font-size:10px;padding:6px 10px;border-radius:8px}
+  body.with-nav .screen.on{padding-bottom:84px}
+}
+
+/* ---------- explorer em tabela ---------- */
+.exwrap{display:flex;gap:16px;align-items:flex-start}
+.exside{flex:none;width:170px;display:flex;flex-direction:column;gap:2px}
+.exside button{width:100%;text-align:left;background:transparent;border-color:transparent;padding:8px 10px;font-size:13px}
+.exside button.on{background:var(--panel);border-color:var(--ln);color:var(--blue)}
+.exmain{flex:1;min-width:0}
+.crumb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12px;color:var(--mu);margin-bottom:10px}
+.crumb button{background:none;border:none;padding:2px 4px;color:var(--mu);font-size:12px}
+.crumb button:last-child{color:var(--tx)}
+table.extbl{width:100%;border-collapse:collapse;font-size:13px}
+table.extbl th{text-align:left;color:var(--mu);font-weight:500;font-size:11px;letter-spacing:.5px;padding:0 10px 8px;border-bottom:1px solid var(--ln)}
+table.extbl td{padding:9px 10px;border-bottom:1px solid #1f2937}
+table.extbl tr:last-child td{border-bottom:none}
+table.extbl tr.rowbtn{cursor:pointer}
+table.extbl tr.rowbtn:hover td{background:#0d1320}
+.exname{display:flex;align-items:center;gap:8px}
+@media (max-width:899px){.exwrap{flex-direction:column}.exside{width:100%;flex-direction:row;overflow-x:auto;gap:6px}.exside button{width:auto;white-space:nowrap}}
+
+/* ---------- pareamento ---------- */
+.pairgrid{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start}
+#qrbox{display:flex;justify-content:center;margin:4px 0;background:#fff;border-radius:12px;padding:14px}
+#qrbox svg{width:180px;height:180px}
+@media (max-width:899px){.pairgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="screen" id="login">
+  <div class="top"><div class="brand"><b>Sploit-Forge</b><small>PRIVATE NODE</small></div></div>
+  <h2>Autenticação</h2>
+  <div class="mu">cole o token ou o link de pareamento</div>
+  <input id="tk" type="password" autocomplete="off" placeholder="FORGE_TOKEN">
+  <button class="go" id="tkgo">entrar</button>
+  <p class="mu" id="tkerr"></p>
+</div>
+
+<nav id="nav">
+  <div class="navbrand brand"><b>Sploit-Forge</b></div>
+  <button class="navitem" data-go="home">🖥️ Dispositivos</button>
+  <button class="navitem" data-go="projects">📁 Projetos</button>
+  <button class="navitem" data-go="browse" id="navexplorer">🗂️ Arquivos</button>
+  <button class="navitem" data-go="devices">📲 Pareamento</button>
+  <div class="navspacer"></div>
+</nav>
+
+<div class="screen" id="home">
+  <div class="top"><div class="brand"><b>Sploit-Forge</b></div><div class="hd"><button id="pushbtn" title="notificações">🔕</button><button id="newp">+ projeto</button><span class="tag" id="mode">● link ok</span></div></div>
+  <div class="selfname" style="margin:10px 0 16px">
+    <span id="selficon"></span><small id="host">PRIVATE NODE</small>
+    <button class="ic" id="renameself" title="renomear">✎</button>
+  </div>
+  <pre id="boot" class="mono"></pre>
+  <div id="stats">
+    <div class="m"><i>CPU</i><b id="vc">–</b><u><s id="bc"></s></u></div>
+    <div class="m"><i>RAM</i><b id="vm">–</b><u><s id="bm"></s></u></div>
+    <div class="m"><i>UPTIME</i><b id="vu">–</b><u><s id="bu" style="width:100%;opacity:.25"></s></u></div>
+  </div>
+  <h2>Outros dispositivos</h2>
+  <div id="devgrid" class="dgrid"></div>
+</div>
+
+<div class="screen" id="projects">
+  <div class="top"><div class="brand"><b>Projetos</b></div><button id="newp2">+ projeto</button></div>
+  <div id="list"></div>
+</div>
+
+<div class="screen" id="devices">
+  <div class="top"><div class="brand"><b>Pareamento</b></div></div>
+  <div class="pairgrid">
+    <div class="card">
+      <div class="mu" style="margin-bottom:10px">escaneie com a câmera do outro aparelho</div>
+      <div id="qrbox"></div>
+      <button class="go" id="copylink" style="width:100%;margin-top:12px">copiar link</button>
+    </div>
+    <div>
+      <h2 style="margin-top:0">Dispositivos pareados</h2>
+      <div id="devlist"></div>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="term">
+  <div class="tbar"><button id="back">‹ sair</button><b id="tname"></b><span class="tag" id="tmode"></span></div>
+  <div class="tabs" id="tabs"><button data-t="xt" class="on">terminal</button><button data-t="pv">preview</button><button data-t="sc">tela</button></div>
+  <div id="xt"></div>
+  <div class="pane" id="pv">
+    <div class="pvbar"><input id="pvport" inputmode="numeric" placeholder="porta"><input id="pvpath" placeholder="/"><button id="pvgo" class="go">ir</button><button id="pvrf">↻</button></div>
+    <iframe id="pvf"></iframe>
+  </div>
+  <div class="pane" id="sc">
+    <div class="pvbar"><button id="scpause">⏸</button><button data-dy="-1">▲</button><button data-dy="1">▼</button><input id="sctx" placeholder="digitar no PC"><button id="sctxgo">↵</button><button data-sk="Return">⏎</button><button data-sk="Escape">Esc</button></div>
+    <div class="scw"><div id="scmsg"></div><img id="scimg" alt=""></div>
+  </div>
+  <div class="keys" id="keys">
+    <button data-k="&#27;">Esc</button><button data-k="&#9;">Tab</button><button data-k="&#3;">^C</button><button data-k="&#4;">^D</button>
+    <button data-k="&#27;[A">↑</button><button data-k="&#27;[B">↓</button><button data-k="&#27;[D">←</button><button data-k="&#27;[C">→</button>
+    <button data-k="/">/</button><button data-k="-">-</button><button data-k="|">|</button><button data-k="~">~</button><button data-k="&#13;">↵</button>
+  </div>
+</div>
+
+<div class="screen" id="browse">
+  <div class="top"><div class="brand"><b>Arquivos</b></div></div>
+  <div class="exwrap">
+    <div class="exside" id="exside"></div>
+    <div class="exmain">
+      <div class="crumb" id="crumb"></div>
+      <table class="extbl"><thead><tr><th>Nome</th><th>Tipo</th><th>Modificado</th><th></th></tr></thead><tbody id="brlist"></tbody></table>
+      <div class="keys" style="justify-content:flex-end;border:0;background:none;padding:14px 0 0"><button id="bruse" class="go">usar esta pasta como projeto</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="sheet" onclick="if(event.target===this)this.classList.remove('on')"><div></div></div>
+<script src="/vendor/xterm.min.js"></script>
+<script src="/vendor/xterm-addon-fit.min.js"></script>
+<script src="/vendor/qrcode.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+let DEEP_LINK_VIEW='';
+(function(){const h=location.hash;const m=h.match(/t=([^&]+)/);if(m){localStorage.forge_token=decodeURIComponent(m[1])}const v=h.match(/view=([^&]+)/);if(v)DEEP_LINK_VIEW=decodeURIComponent(v[1]);if(m||v)history.replaceState(null,'',location.pathname+location.search)})();
+let TOKEN=localStorage.forge_token||'',DEMO=false,term,fit,ws,timer,thinkTimer,booted=false;
+const h=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const NAV_SCREENS=['home','projects','browse','devices'];
+const show=id=>{
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));
+  document.body.classList.toggle('with-nav',NAV_SCREENS.includes(id));
+  document.querySelectorAll('.navitem').forEach(b=>b.classList.toggle('on',b.dataset.go===id));
+};
+const ago=t=>{const s=Math.max(0,Date.now()/1e3-t);return s<60?'agora':s<3600?Math.floor(s/60)+' min':s<86400?Math.floor(s/3600)+' h':Math.floor(s/86400)+' d'};
+const api=async p=>{const r=await fetch(p,{headers:{Authorization:'Bearer '+TOKEN}});if(r.status===401)throw 401;return r.json()};
+const n0=Date.now()/1e3;
+const DEMO_P=[
+ {name:'control-hub',path:'~/projects/control-hub',alive:true,last:n0-120,snap:['> adicionar auth no painel','✓ editou src/auth.ts','aguardando sua resposta…']},
+ {name:'landing-studio',path:'~/projects/landing-studio',alive:true,last:n0-1700,snap:['✓ build ok (1.2s)','> ajustar hero no mobile']},
+ {name:'financas-pwa',path:'~/projects/financas-pwa',alive:false,last:n0-86400,snap:['sessão encerrada ontem']}];
+
+const bits=n=>{let s='';for(let i=0;i<n;i++)s+=Math.random()<.5?'0':'1';return s};
+async function boot(){
+  if(booted)return;booted=true;const el=$('#boot');el.textContent='';
+  for(const c of 'link seguro estabelecido\nsessões persistentes · opencode --continue\n'){el.textContent+=c;await new Promise(r=>setTimeout(r,14))}
+  el.append(h('span','cur','█'),' ',h('span','noise',bits(16)));
+  setInterval(()=>{const nz=el.querySelector('.noise');if(nz&&!document.hidden)nz.textContent=bits(16)},450);
+}
+function renderList(ps){
+  const L=$('#list');L.replaceChildren();
+  if(!ps.length)L.append(h('div','mu','nenhum projeto ainda — clique em "+ projeto" pra criar ou importar um'));
+  ps.forEach(p=>{
+    const c=h('article','proj'),hd=h('div','ph'),st=h('span','st '+(p.alive?'on':'off'),p.alive?'● viva':'○ parada'),tk=h('span','think');
+    tk.dataset.name=p.name;st.append(tk);
+    hd.append(h('b',0,'📁 '+p.name),st);
+    const sn=h('pre','snap',p.snap&&p.snap.length?p.snap.join('\n'):'(sem sessão ainda)');
+    const ft=h('div','pf'),bt=h('div','bt');
+    ft.append(h('span','mu',p.last?'atualizado há '+ago(p.last):'nunca aberta'));
+    [['opencode','continue','go'],['claude','claude',''],['shell','shell',''],['⋯','menu','']].forEach(([t,m,k])=>{const b=h('button',k,t);b.onclick=()=>m==='menu'?openMenu(p):openTerm(p,m);bt.append(b)});
+    ft.append(bt);c.append(hd,h('div','pp',p.path),sn,ft);L.append(c);
+  });
+}
+async function refresh(){if(DEMO){renderList(DEMO_P);return}try{renderList(await api('/api/projects'))}catch{}}
+function pollThink(){
+  if(!$('#projects').classList.contains('on')&&!$('#home').classList.contains('on'))return;
+  if(DEMO){
+    const on=Math.floor(Date.now()/3000)%2===0;
+    document.querySelectorAll('.think').forEach(el=>el.classList.toggle('on',on&&el.dataset.name==='landing-studio'));
+    return;
+  }
+  api('/api/activity').then(m=>document.querySelectorAll('.think').forEach(el=>el.classList.toggle('on',!!m[el.dataset.name]))).catch(()=>{});
+}
+/* ---------- outros FORGE na mesma rede Tailscale ---------- */
+const DEV_ICON='<svg class="dicon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.5" y="4" width="19" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 20h8M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+const loadDevices=()=>{try{return JSON.parse(localStorage.forge_devices||'[]')}catch{return[]}};
+const saveDevices=arr=>localStorage.forge_devices=JSON.stringify(arr);
+const openDevice=d=>location.href='https://'+d.dnsName+'/#t='+encodeURIComponent(d.token);
+function renameDevice(d){
+  const i=h('input');i.value=d.nickname||d.hostname||d.dnsName;i.placeholder='nome deste dispositivo';
+  const go=mk('salvar',()=>{
+    const v=i.value.trim();if(!v)return;
+    saveDevices([...loadDevices().filter(x=>x.dnsName!==d.dnsName),{hostname:d.hostname,dnsName:d.dnsName,token:d.token,nickname:v}]);
+    closeSheet();refreshDevices();
+  },'go');
+  sheet(h('b',0,'renomear dispositivo'),i,go,mk('cancelar',closeSheet));
+}
+function mergeDevices(online){
+  const byDns={};
+  online.forEach(p=>{if(p.dnsName)byDns[p.dnsName]={hostname:p.hostname,dnsName:p.dnsName,online:true}});
+  loadDevices().forEach(d=>{byDns[d.dnsName]=Object.assign({hostname:d.hostname,dnsName:d.dnsName,online:false},byDns[d.dnsName],{token:d.token,nickname:d.nickname})});
+  return Object.values(byDns);
+}
+// grid compacto na tela Dispositivos -- só status + entrar (sem gerenciar token aqui)
+function renderDeviceGrid(all){
+  const L=$('#devgrid');L.replaceChildren();
+  if(!all.length){L.append(h('div','mu','nenhum outro PC com Sploit-Forge encontrado na rede ainda'));return}
+  all.forEach(d=>{
+    const c=h('div','dcard'),hd=h('div','ph'),nm=h('span','dname');
+    nm.innerHTML=DEV_ICON+'<b>'+(d.nickname||d.hostname||d.dnsName)+'</b>';
+    hd.append(nm,h('span','dot '+(d.online?'on':'off')));
+    c.append(hd);
+    if(d.token)c.append(mk('entrar →',()=>openDevice(d),'go'));
+    else c.append(h('div','mu','sem token salvo — veja Pareamento'));
+    L.append(c);
+  });
+}
+// lista detalhada na tela Pareamento -- aqui sim dá pra colar/salvar token e renomear
+function renderPairList(all){
+  const L=$('#devlist');L.replaceChildren();
+  if(!all.length)L.append(h('div','mu','nenhum outro dispositivo com Sploit-Forge encontrado na rede ainda'));
+  all.forEach(d=>{
+    const c=h('article','proj'),hd=h('div','ph'),nm=h('span','dname');
+    nm.innerHTML=DEV_ICON+'<b>'+(d.nickname||d.hostname||d.dnsName)+'</b>';
+    hd.append(nm,h('span','st '+(d.online?'on':'off'),d.online?'● online':'○ offline'));
+    c.append(hd);
+    c.append(mk('✎ renomear',()=>renameDevice(d)));
+    if(d.token){const bt=h('div','bt');bt.append(mk('entrar →',()=>openDevice(d),'go'));c.append(bt)}
+    else{
+      const i=h('input');i.placeholder='colar token deste dispositivo';
+      const go=mk('salvar',()=>{const t=i.value.trim();if(!t)return;saveDevices([...loadDevices().filter(x=>x.dnsName!==d.dnsName),{hostname:d.hostname,dnsName:d.dnsName,token:t,nickname:d.nickname}]);refreshDevices()},'go');
+      c.append(i,go);
+    }
+    L.append(c);
+  });
+}
+async function refreshDevices(){
+  let online=[];
+  if(!DEMO){try{online=await api('/api/peers')}catch{}}
+  const all=mergeDevices(online);
+  renderDeviceGrid(all);
+  renderPairList(all);
+}
+async function stats(){
+  try{
+    const s=DEMO?{cpu:15+Math.random()*30,mem:62,up:196000,host:'forge-node-01',screen:true}:await api('/api/stats');
+    $('#vc').textContent=Math.round(s.cpu)+'%';$('#bc').style.width=Math.min(100,s.cpu)+'%';
+    $('#vm').textContent=Math.round(s.mem)+'%';$('#bm').style.width=s.mem+'%';
+    const d=Math.floor(s.up/86400),hr=Math.floor(s.up%86400/3600);$('#vu').textContent=d+'d '+hr+'h';
+    $('#host').textContent=s.host;
+    $('#selficon').innerHTML=DEV_ICON;
+    // tela remota (Xvfb/xdotool) so existe no motor Linux -- esconde o botao
+    // em vez de deixar morto numa instalacao Windows nativa.
+    const scBtn=document.querySelector('[data-t="sc"]');if(scBtn)scBtn.style.display=s.screen===false?'none':'';
+  }catch{}
+}
+async function init(){
+  try{const ps=await api('/api/projects');start(ps)}
+  catch(e){if(e===401){show('login');return}DEMO=true;$('#mode').textContent='● demo';start(DEMO_P)}
+}
+function start(ps){show('home');boot();renderList(ps);stats();refreshDevices();clearInterval(timer);timer=setInterval(()=>{stats();refreshDevices()},5000);clearInterval(thinkTimer);pollThink();thinkTimer=setInterval(pollThink,2000);if(DEEP_LINK_VIEW==='explorer'){DEEP_LINK_VIEW='';openExplorer()}}
+$('#tkgo').onclick=async()=>{
+  let v=$('#tk').value.trim();
+  const m=v.match(/[#?&]t=([^&\s]+)/); // aceita colar o link inteiro, não só o token puro
+  if(m)v=decodeURIComponent(m[1]);
+  TOKEN=v;
+  try{await api('/api/projects');localStorage.forge_token=TOKEN;init()}catch{$('#tkerr').textContent='token recusado'}
+};
+
+/* ---------- gerenciar projetos ---------- */
+const mk=(t,fn,k)=>{const b=h('button',k||'',t);b.onclick=fn;return b};
+const closeSheet=()=>$('#sheet').classList.remove('on');
+function sheet(...nodes){$('#sheet>div').replaceChildren(...nodes);$('#sheet').classList.add('on')}
+async function call(m,p,b){
+  if(DEMO){const x=p.match(/projects\/([\w-]+)\?mode=(\w+)/);
+    if(x&&x[2]!=='session'){const i=DEMO_P.findIndex(q=>q.name===x[1]);if(i>-1)DEMO_P.splice(i,1)}
+    if(m==='POST')DEMO_P.push({name:b.name,path:'~/forge-projects/'+b.name,alive:false});
+    return{ok:true}}
+  const r=await fetch(p,{method:m,headers:{Authorization:'Bearer '+TOKEN,'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
+  const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
+async function act(fn){try{await fn();closeSheet();await refresh()}catch(e){alert(e.message)}}
+const del=(p,mode)=>call('DELETE','/api/projects/'+p.name+'?mode='+mode);
+function openMenu(p){
+  sheet(h('b',0,p.name),h('div','mu',p.path+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':'')),
+    mk('↻ nova conversa (zera a sessão)',async()=>{try{await del(p,'session');closeSheet();openTerm(p,'new')}catch(e){alert(e.message)}}),
+    mk('■ encerrar sessão (libera RAM)',()=>act(()=>del(p,'session'))),
+    mk('📤 enviar para outro dispositivo…',()=>sendToDevice(p)),
+    mk('⌫ remover da lista (mantém os arquivos)',()=>act(()=>del(p,'list'))),
+    mk('🗑 apagar do PC…',()=>confirmDel(p),'dg'),
+    mk('cancelar',closeSheet));
+}
+function sendToDevice(p){
+  const devs=loadDevices().filter(d=>d.token);
+  if(!devs.length){sheet(h('b',0,'nenhum dispositivo salvo'),h('div','mu','adicione o token de outro dispositivo na aba Pareamento primeiro'),mk('cancelar',closeSheet));return}
+  const nodes=[h('b',0,'enviar "'+p.name+'" para…')];
+  devs.forEach(d=>{
+    const label=d.hostname||d.dnsName;
+    const go=mk(label,async()=>{
+      go.textContent='enviando…';go.disabled=true;
+      try{
+        await call('POST','/api/relay-send',{path:p.path,targetUrl:'https://'+d.dnsName,targetToken:d.token,name:p.name});
+        go.textContent='✓ enviado';
+      }catch(e){go.textContent=label;go.disabled=false;alert(e.message)}
+    });
+    nodes.push(go);
+  });
+  nodes.push(mk('cancelar',closeSheet));
+  sheet(...nodes);
+}
+function confirmDel(p){
+  const i=h('input');i.placeholder='digite "'+p.name+'" para confirmar';
+  const hard=h('input');hard.type='checkbox';hard.style.cssText='width:auto;margin:0 8px 0 0';
+  const lb=h('label','mu');lb.append(hard,'apagar de vez (sem lixeira)');
+  const go=mk('apagar',()=>act(()=>del(p,hard.checked?'hard':'trash')),'dg');go.disabled=true;
+  i.oninput=()=>{go.disabled=i.value!==p.name};
+  sheet(h('b',0,'apagar '+p.name+'?'),
+    h('div','mu','Encerra as sessões e remove a pasta do PC. Por padrão ela vai para a lixeira (~/.forge-trash) e dá para recuperar.'+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':'')),
+    i,lb,go,mk('cancelar',closeSheet));
+}
+function openNewProjectSheet(){
+  const n=h('input'),g=h('input');n.placeholder='nome (letras, números, -)';g.placeholder='url git para clonar (opcional)';
+  const go=mk('criar',()=>{go.textContent='criando…';go.disabled=true;act(()=>call('POST','/api/projects',{name:n.value.trim(),git:g.value.trim()})).then(()=>{go.textContent='criar';go.disabled=false})},'go');
+  sheet(h('b',0,'novo projeto'),n,g,go,mk('cancelar',closeSheet));
+}
+const openNewProjectMenu=()=>sheet(h('b',0,'novo projeto'),mk('criar nova',openNewProjectSheet,'go'),mk('procurar existente',openBrowse),mk('cancelar',closeSheet));
+$('#newp').onclick=openNewProjectMenu;
+$('#newp2').onclick=openNewProjectMenu;
+$('#renameself').onclick=()=>{
+  const i=h('input');i.value=$('#host').textContent;i.placeholder='nome desta máquina';
+  const go=mk('salvar',async()=>{
+    const v=i.value.trim();if(!v)return;
+    if(DEMO){$('#host').textContent=v;closeSheet();return}
+    try{await call('PUT','/api/device-name',{name:v});$('#host').textContent=v;closeSheet()}catch(e){alert(e.message)}
+  },'go');
+  sheet(h('b',0,'renomear este PC'),i,go,mk('cancelar',closeSheet));
+};
+
+/* ---------- explorer: navegar, usar como projeto, baixar ---------- */
+let brCur='';
+const EX_ICONS={home:'🏠',desktop:'🖥️',documents:'📄',downloads:'⬇️',pictures:'🖼️',music:'🎵',videos:'🎬',drive:'💾'};
+const fmtSize=n=>n<1024?n+'B':n<1048576?(n/1024).toFixed(1)+'KB':(n/1048576).toFixed(1)+'MB';
+const fmtDate=ts=>{
+  if(!ts)return'—';
+  const d=new Date(ts),now=new Date(),t=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  return d.toDateString()===now.toDateString()?'Hoje, '+t:d.toLocaleDateString('pt-BR')+', '+t;
+};
+async function downloadFile(p,name){
+  try{
+    const r=await fetch('/api/download?path='+encodeURIComponent(p),{headers:{Authorization:'Bearer '+TOKEN}});
+    if(!r.ok)throw new Error('falha ao baixar');
+    const blob=await r.blob(),url=URL.createObjectURL(blob);
+    const a=h('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();
+    URL.revokeObjectURL(url);
+  }catch(e){alert(e.message)}
+}
+function renderCrumb(){
+  const C=$('#crumb');C.replaceChildren();
+  C.append(mk('início',()=>openExplorer()));
+  if(!brCur)return;
+  const isWin=/^[A-Za-z]:/.test(brCur);
+  const sep=isWin?'\\':'/';
+  const parts=brCur.split(/[\\/]/).filter(Boolean);
+  parts.forEach((part,i)=>{
+    const target=isWin?parts.slice(0,i+1).join(sep)+(i===0?sep:''):sep+parts.slice(0,i+1).join(sep);
+    C.append(h('span',0,'›'));
+    C.append(mk(part,()=>brGo(target)));
+  });
+}
+async function brGo(p){
+  let j; try{j=await api('/api/browse'+(p?'?path='+encodeURIComponent(p):''))}catch(e){alert('erro ao listar: '+(e.message||e));return}
+  if(j.error){alert(j.error);return}
+  brCur=j.path;
+  $('#bruse').disabled=!brCur;
+  renderCrumb();
+  const L=$('#brlist');L.replaceChildren();
+  (j.dirs||[]).forEach(d=>{
+    const tr=h('tr','rowbtn');tr.onclick=()=>brGo(d.path);
+    const tdName=h('td');tdName.append(h('span','exname',0));tdName.firstChild.textContent=(EX_ICONS[d.kind]||'📁')+' '+d.name;
+    const tdType=h('td','mu','Pasta');
+    const tdMod=h('td','mu',fmtDate(d.modified));
+    const tdDl=h('td');tdDl.append(mk('⬇',e=>{e.stopPropagation();downloadFile(d.path,d.name+'.tar.gz')}));
+    tr.append(tdName,tdType,tdMod,tdDl);L.append(tr);
+  });
+  (j.files||[]).forEach(f=>{
+    const tr=h('tr');
+    const ext=(f.name.split('.').pop()||'').toUpperCase();
+    const tdName=h('td');tdName.append(h('span','exname',0));tdName.firstChild.textContent='📄 '+f.name;
+    const tdType=h('td','mu',(ext||'arquivo')+' · '+fmtSize(f.size));
+    const tdMod=h('td','mu',fmtDate(f.modified));
+    const tdDl=h('td');tdDl.append(mk('⬇',()=>downloadFile(f.path,f.name)));
+    tr.append(tdName,tdType,tdMod,tdDl);L.append(tr);
+  });
+}
+async function renderShortcuts(){
+  let root;try{root=await api('/api/browse')}catch{return}
+  const S=$('#exside');S.replaceChildren();
+  (root.dirs||[]).forEach(d=>{
+    const b=mk((EX_ICONS[d.kind]||'📁')+' '+d.name,()=>{brGo(d.path);document.querySelectorAll('#exside button').forEach(x=>x.classList.toggle('on',x===b))});
+    S.append(b);
+  });
+  return root;
+}
+async function openExplorer(){
+  brCur='';show('browse');
+  const root=await renderShortcuts();
+  const home=root&&(root.dirs||[]).find(d=>d.kind==='home');
+  brGo(home?home.path:'');
+}
+function openBrowse(){closeSheet();openExplorer()}
+$('#bruse').onclick=async()=>{
+  if(!brCur)return;
+  try{await call('POST','/api/projects',{path:brCur});show('projects');refresh()}catch(e){alert(e.message)}
+};
+
+/* ---------- menu lateral / nav ---------- */
+$('#nav').addEventListener('click',e=>{
+  const go=e.target.closest('.navitem')?.dataset.go;if(!go)return;
+  if(go==='browse')openExplorer();else{show(go);if(go==='devices')openPairing();refresh();}
+});
+function openPairing(){
+  refreshDevices();
+  const url='https://'+location.hostname+'/#t='+TOKEN;
+  const qr=qrcode(0,'M');qr.addData(url);qr.make();
+  $('#qrbox').innerHTML=qr.createSvgTag(5);
+  $('#copylink').onclick=async()=>{
+    try{await navigator.clipboard.writeText(url);$('#copylink').textContent='✓ copiado'}
+    catch{$('#copylink').textContent='selecione e copie manualmente'}
+    setTimeout(()=>$('#copylink').textContent='copiar link',2000);
+  };
+}
+
+/* ---------- abas: terminal / preview / tela ---------- */
+let cur,tab='xt',scT,scBusy=false,scOn=true;
+const DMSG=t=>'<body style="background:#111827;color:#8b96a8;font:13px sans-serif;padding:16px">'+t+'</body>';
+function setTab(t){
+  tab=t;clearInterval(scT);
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  $('#xt').style.display=t==='xt'?'block':'none';$('#keys').style.display=t==='xt'?'flex':'none';
+  ['pv','sc'].forEach(i=>$('#'+i).classList.toggle('on',i===t));
+  if(t==='xt'){if(term&&fit){fit.fit();term.focus()}}
+  if(t==='pv'){$('#pvport').value=localStorage['pv_'+cur.name]||'';if(DEMO)$('#pvf').srcdoc=DMSG('modo demo — aqui aparece o site do projeto (proxy do servidor)')}
+  if(t==='sc'){if(DEMO)$('#scmsg').textContent='modo demo — aqui aparece a tela do PC (Xvfb) com o seu app Electron';else{shot();scT=setInterval(shot,1000)}}
+}
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)setTab(b.dataset.t)};
+async function pvGo(){
+  const port=+$('#pvport').value;if(!(port>=1024&&port<=65535))return alert('use uma porta entre 1024 e 65535');
+  localStorage['pv_'+cur.name]=port;
+  if(DEMO){$('#pvf').srcdoc=DMSG('preview da porta '+port+' (demo)');return}
+  try{await call('POST','/api/preview-login')}catch(e){return alert(e.message)}
+  $('#pvf').src='/p/'+port+($('#pvpath').value||'/').replace(/^(?!\/)/,'/');
+}
+$('#pvgo').onclick=pvGo;
+$('#pvrf').onclick=()=>{try{$('#pvf').contentWindow.location.reload()}catch{pvGo()}};
+async function shot(){
+  if(scBusy||!scOn)return;scBusy=true;
+  try{
+    const r=await fetch('/api/screen?'+Date.now(),{headers:{Authorization:'Bearer '+TOKEN}});if(!r.ok)throw 0;
+    const u=URL.createObjectURL(await r.blob()),i=$('#scimg');i.onload=()=>URL.revokeObjectURL(u);i.src=u;$('#scmsg').textContent='';
+  }catch{$('#scmsg').textContent='sem tela: inicie o Xvfb e o app com DISPLAY=:99 (veja o guia)'}
+  scBusy=false;
+}
+const scIn=b=>call('POST','/api/screen/input',b).then(()=>setTimeout(shot,250)).catch(e=>alert(e.message));
+$('#scimg').onclick=e=>{const i=e.target;scIn({type:'click',x:Math.round(e.offsetX/i.clientWidth*i.naturalWidth),y:Math.round(e.offsetY/i.clientHeight*i.naturalHeight)})};
+$('#scpause').onclick=()=>{scOn=!scOn;$('#scpause').textContent=scOn?'⏸':'▶'};
+$('#sctxgo').onclick=()=>{const v=$('#sctx').value;if(v){scIn({type:'text',text:v});$('#sctx').value=''}};
+$('#sc').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.sk)scIn({type:'key',key:b.dataset.sk});if(b.dataset.dy)scIn({type:'scroll',dy:+b.dataset.dy})});
+
+/* ---------- terminal ---------- */
+function input(d){if(DEMO)din(d);else if(ws&&ws.readyState===1)ws.send(JSON.stringify({t:'i',d}))}
+function din(d){if(d==='\r')term.write('\r\n\x1b[32m❯\x1b[0m ');else if(d==='\x7f')term.write('\b \b');else if(d>=' ')term.write(d)}
+let termSeq=0;
+function openTerm(p,mode){
+  show('term');cur=p;setTab('xt');$('#tname').textContent=p.name;$('#tmode').textContent=mode==='shell'?'SHELL':mode==='claude'||mode==='claude-new'?'CLAUDE':'OPENCODE';
+  $('#xt').replaceChildren();
+  term=new Terminal({fontFamily:'ui-monospace,Menlo,Consolas,monospace',fontSize:window.innerWidth<600?11:13,cursorBlink:true,scrollback:5000,
+    theme:{background:'#111827',foreground:'#e5e7eb',cursor:'#4f7cff',selectionBackground:'#4f7cff33'}});
+  fit=new FitAddon.FitAddon();term.loadAddon(fit);term.open($('#xt'));fit.fit();
+  term.onData(input);
+  term.onResize(({cols,rows})=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({t:'r',cols,rows}))});
+  if(DEMO){
+    term.write('\x1b[32mforge@node01\x1b[0m:\x1b[34m'+p.path+'\x1b[0m$ '+(mode==='shell'?'bash':'opencode --continue')+'\r\n\x1b[90m[modo demo — rode o server.js para sessões reais]\x1b[0m\r\n\r\n');
+    (p.snap||[]).forEach(l=>term.write(l+'\r\n'));term.write('\r\n\x1b[32m❯\x1b[0m ');
+  }else{
+    const mySeq=++termSeq;
+    connectTermWs(p,mode,mySeq,0);
+  }
+  term.focus();
+}
+function connectTermWs(p,mode,mySeq,attempt){
+  if(mySeq!==termSeq)return; // usuário já saiu dessa tela -- não reconecta à toa
+  ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
+  ws.onopen=()=>{if(attempt>0&&term)term.write('\r\n\x1b[32m[reconectado]\x1b[0m\r\n');ws.send(JSON.stringify({t:'a',token:TOKEN,project:p.name,mode,cols:term.cols,rows:term.rows}))};
+  ws.onmessage=e=>term&&term.write(e.data);
+  ws.onclose=()=>{
+    if(mySeq!==termSeq)return;
+    if(term)term.write('\r\n\x1b[33m[conexão caiu, reconectando…]\x1b[0m');
+    setTimeout(()=>connectTermWs(p,mode,mySeq,attempt+1),Math.min(1000*2**attempt,10000));
+  };
+}
+function closeTerm(){termSeq++;clearInterval(scT);$('#pvf').src='about:blank';if(ws){ws.onclose=null;ws.close();ws=null}if(term){term.dispose();term=null}show('projects');refresh()}
+$('#back').onclick=closeTerm;
+$('#keys').onclick=e=>{const k=e.target.closest('button');if(k&&term){input(k.dataset.k);term.focus()}};
+// iOS/Android only pop the on-screen keyboard on a focus() that happens inside a direct tap
+// on the focused element itself -- a focus() called from some other button's handler (or
+// right after term.open()) doesn't count, so the terminal area needs its own tap handler.
+$('#xt').addEventListener('click',()=>{if(term)term.focus()});
+new ResizeObserver(()=>tab==='xt'&&fit&&term&&fit.fit()).observe($('#xt'));
+if(window.visualViewport)visualViewport.addEventListener('resize',()=>{$('#term').style.height=visualViewport.height+'px'});
+
+/* ---------- notificação push ---------- */
+const b64ToArr=b=>{const p='='.repeat((4-b.length%4)%4),s=atob((b+p).replace(/-/g,'+').replace(/_/g,'/')),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a};
+async function refreshPushBtn(){
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription();
+    $('#pushbtn').textContent=sub?'🔔':'🔕';
+  }catch{}
+}
+async function togglePush(){
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const existing=await reg.pushManager.getSubscription();
+    if(existing){await existing.unsubscribe();await call('DELETE','/api/push-subscribe',{endpoint:existing.endpoint});return refreshPushBtn()}
+    if(Notification.permission==='denied')return alert('notificações bloqueadas no navegador -- ative nas configurações do site');
+    await Notification.requestPermission();
+    const {key}=await api('/api/push-vapid-key');
+    const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToArr(key)});
+    await call('POST','/api/push-subscribe',sub.toJSON());
+    refreshPushBtn();
+  }catch(e){alert('erro ao ativar notificações: '+e.message)}
+}
+$('#pushbtn').onclick=togglePush;
+if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('/sw.js').then(refreshPushBtn)}
+init();
+</script>
+</body>
+</html>
