@@ -59,6 +59,33 @@ async function dispatchToProject(entry, instruction, ctx) {
   return j.reply || '(sem resposta)';
 }
 
+// move os arquivos de um projeto já resolvido (local ou remoto) pra outra
+// máquina conhecida -- extraído pra ser reusado tanto pela ferramenta MCP
+// `transfer_project` quanto por POST /api/projects/:alias/transfer (soltar
+// um ícone arrastado em cima de outro dispositivo). Resolve a máquina de
+// destino e dispara o /api/relay-send dela a partir da ORIGEM de verdade
+// (que pode ser remota também -- diferente de sendToDevice() no cliente,
+// que só sabe mandar a partir desta própria máquina).
+async function transferProjectTo(entry, toMachine, ctx) {
+  const known = (await fetchJson(`http://127.0.0.1:${ctx.port}/api/known-devices`, ctx.token)) || [];
+  const dest = known.find(m => m.hostname === toMachine || m.dnsName === toMachine || m.dnsName.startsWith(toMachine + '.'));
+  if (!dest) {
+    const names = known.map(m => m.hostname).join(', ') || '(nenhuma)';
+    throw new Error(`Máquina "${toMachine}" não encontrada. Conhecidas: ${names}`);
+  }
+  const sourceBase = entry.machine === 'local' ? `http://127.0.0.1:${ctx.port}` : `https://${entry.machine}`;
+  const sourceToken = entry.machine === 'local' ? ctx.token : entry.token;
+  const res = await fetch(`${sourceBase}/api/relay-send`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${sourceToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: entry.directory, targetUrl: `https://${dest.dnsName}`, targetToken: dest.token, name: entry.alias }),
+    signal: AbortSignal.timeout(120000),
+  });
+  const j = await res.json();
+  if (j.error) throw new Error(j.error);
+  return dest.hostname;
+}
+
 function createMcpServer(ctx) {
   const server = new McpServer({ name: 'sploit-forge', version: '1.0.0' });
 
@@ -98,24 +125,9 @@ function createMcpServer(ctx) {
     const entries = await listAllProjects(ctx);
     const entry = entries.find(e => e.alias === alias);
     if (!entry) return { content: [{ type: 'text', text: `Projeto "${alias}" não encontrado.` }], isError: true };
-    const known = (await fetchJson(`http://127.0.0.1:${ctx.port}/api/known-devices`, ctx.token)) || [];
-    const dest = known.find(m => m.hostname === toMachine || m.dnsName === toMachine || m.dnsName.startsWith(toMachine + '.'));
-    if (!dest) {
-      const names = known.map(m => m.hostname).join(', ') || '(nenhuma)';
-      return { content: [{ type: 'text', text: `Máquina "${toMachine}" não encontrada. Conhecidas: ${names}` }], isError: true };
-    }
-    const sourceBase = entry.machine === 'local' ? `http://127.0.0.1:${ctx.port}` : `https://${entry.machine}`;
-    const sourceToken = entry.machine === 'local' ? ctx.token : entry.token;
     try {
-      const res = await fetch(`${sourceBase}/api/relay-send`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${sourceToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: entry.directory, targetUrl: `https://${dest.dnsName}`, targetToken: dest.token, name: entry.alias }),
-        signal: AbortSignal.timeout(120000),
-      });
-      const j = await res.json();
-      if (j.error) throw new Error(j.error);
-      return { content: [{ type: 'text', text: `"${alias}" transferido de ${entry.machine === 'local' ? 'esta máquina' : entry.machine} pra ${dest.hostname}.` }] };
+      const hostname = await transferProjectTo(entry, toMachine, ctx);
+      return { content: [{ type: 'text', text: `"${alias}" transferido de ${entry.machine === 'local' ? 'esta máquina' : entry.machine} pra ${hostname}.` }] };
     } catch (e) {
       return { content: [{ type: 'text', text: `Transferência de "${alias}" falhou: ${String(e.message || e)}` }], isError: true };
     }
@@ -135,4 +147,4 @@ async function handleMcpRequest(req, res, ctx) {
   await transport.handleRequest(req, res);
 }
 
-module.exports = { handleMcpRequest, listAllProjects, dispatchToProject };
+module.exports = { handleMcpRequest, listAllProjects, dispatchToProject, transferProjectTo };

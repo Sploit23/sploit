@@ -73,6 +73,14 @@ button.ic{padding:6px 9px;font-size:12px}
 .icon .ig .think{position:absolute;right:2px;bottom:10px;width:7px;height:7px;background:#fff}
 .icon b{font-size:11.5px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tx)}
 .icon small{font-size:10px;color:var(--mu)}
+/* ---------- arrastar ícone pra outro dispositivo (Fase 5) ---------- */
+#dropdock{display:none;position:fixed;left:0;right:0;bottom:0;z-index:50;gap:10px;padding:16px 14px calc(16px + env(safe-area-inset-bottom));background:linear-gradient(to top,#000000cc,transparent);justify-content:center;flex-wrap:wrap}
+#dropdock.on{display:flex}
+.dropzone{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 16px;border-radius:14px;background:var(--panel);border:2px solid var(--ln);transition:transform .15s,border-color .15s,background .15s}
+.dropzone .dicon{width:24px;height:24px}
+.dropzone b{font-size:11px}
+.dropzone.over{border-color:var(--blue);background:#4f7cff2e;transform:scale(1.12)}
+.dragghost{position:fixed;pointer-events:none;z-index:60;transform:scale(1.1);box-shadow:0 10px 24px -4px #000000a0}
 /* ---------- chat focado num projeto só ("iniciar conversa") ---------- */
 #chat.on{display:flex;flex-direction:column;height:100dvh;max-width:none;padding:env(safe-area-inset-top) 0 0}
 #chatlog{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
@@ -258,6 +266,7 @@ table.extbl tr.rowbtn:hover td{background:#0d1320}
 </div>
 
 <div id="sheet" onclick="if(event.target===this)this.classList.remove('on')"><div></div></div>
+<div id="dropdock"></div>
 <script src="/vendor/xterm.min.js"></script>
 <script src="/vendor/xterm-addon-fit.min.js"></script>
 <script src="/vendor/qrcode.min.js"></script>
@@ -299,18 +308,72 @@ function iconColor(name){
 // pasta desenhada (não o emoji achatado) -- corpo + risco da aba, com um
 // toque de sombra pra ter profundidade de verdade em cima do tile colorido.
 const FOLDER_SVG='<svg viewBox="0 0 24 24" width="30" height="30" fill="none"><path d="M3 6.8A1.8 1.8 0 0 1 4.8 5h3.9c.5 0 1 .25 1.3.66l1.1 1.5c.3.4.8.64 1.3.64h7A1.8 1.8 0 0 1 21 9.6v7.6A1.8 1.8 0 0 1 19.2 19H4.8A1.8 1.8 0 0 1 3 17.2V6.8Z" fill="#fff" fill-opacity=".97"/><path d="M3 9.6h18" stroke="#000" stroke-opacity=".08"/></svg>';
-// toque rápido = ação principal (iniciar conversa, igual tocar um app
-// abre ele); segurar (sem mover o dedo) = menu com o resto das opções --
-// mesma separação que qualquer tela de apps de celular já usa. preventDefault
-// no touchend depois de um "hold" já disparado evita o click sintético que
-// o navegador manda depois de qualquer toque (senão abriria os dois).
-function wireHold(el,onHold){
-  let timer=null,held=false;
-  el.addEventListener('touchstart',()=>{held=false;timer=setTimeout(()=>{held=true;onHold()},450)},{passive:true});
-  const cancel=()=>clearTimeout(timer);
-  el.addEventListener('touchmove',cancel,{passive:true});
-  el.addEventListener('touchend',e=>{clearTimeout(timer);if(held)e.preventDefault()});
-  el.addEventListener('touchcancel',cancel);
+// três gestos num ícone só, igual qualquer tela de apps de celular:
+// toque rápido = ação principal (iniciar conversa); segurar sem mover =
+// menu; segurar E arrastar = mover pra outro dispositivo (solta em cima
+// de uma "zona" do dropdock -> /api/projects/:alias/transfer). Toque
+// rápido não precisa de código nenhum aqui -- é só deixar o click normal
+// do botão acontecer (fase nunca passa de 'pending').
+function showDock(){
+  const dock=$('#dropdock');dock.replaceChildren();
+  KNOWN_DEVICES.forEach(d=>{
+    if(!d.token)return; // sem token salvo não dá pra mandar pra lá
+    const z=h('div','dropzone');z.dataset.hostname=d.dnsName;
+    const icon=h('span',0);icon.innerHTML=DEV_ICON;
+    z.append(icon,h('b',0,d.nickname||d.hostname||d.dnsName));
+    dock.append(z);
+  });
+  dock.classList.add('on');
+}
+function hideDock(){$('#dropdock').classList.remove('on')}
+function startDrag(btn,touch){
+  const rect=btn.getBoundingClientRect();
+  const ghost=btn.cloneNode(true);
+  ghost.className='icon dragghost';
+  ghost.style.left=rect.left+'px';ghost.style.top=rect.top+'px';ghost.style.width=rect.width+'px';
+  document.body.append(ghost);
+  btn.style.opacity='.3';
+  showDock();
+  return {ghost,offX:touch.clientX-rect.left,offY:touch.clientY-rect.top,btn};
+}
+function updateDockHover(x,y){
+  document.querySelectorAll('.dropzone.over').forEach(z=>z.classList.remove('over'));
+  const el=document.elementFromPoint(x,y),zone=el&&el.closest('.dropzone');
+  if(zone)zone.classList.add('over');
+}
+async function endDrag(drag,p){
+  const zone=$('#dropdock').querySelector('.dropzone.over');
+  hideDock();drag.ghost.remove();drag.btn.style.opacity='';
+  if(!zone)return; // soltou fora de qualquer zona -- cancela, nada muda
+  try{await call('POST','/api/projects/'+encodeURIComponent(p.alias)+'/transfer',{toMachine:zone.dataset.hostname});refresh()}
+  catch(e){alert('Falha ao mover "'+p.name+'": '+e.message)}
+}
+function cancelDrag(drag){hideDock();if(drag){drag.ghost.remove();drag.btn.style.opacity=''}}
+function wireIcon(el,p,onHold){
+  if(DEMO)return; // sem dispositivo real pra soltar em cima, melhor nem tentar
+  let timer=null,phase='idle',sx=0,sy=0,drag=null;
+  const THRESH=10;
+  el.addEventListener('touchstart',e=>{
+    const t=e.touches[0];sx=t.clientX;sy=t.clientY;phase='pending';
+    timer=setTimeout(()=>{if(phase==='pending')phase='armed'},450);
+  },{passive:true});
+  el.addEventListener('touchmove',e=>{
+    const t=e.touches[0],dx=t.clientX-sx,dy=t.clientY-sy,moved=Math.abs(dx)>THRESH||Math.abs(dy)>THRESH;
+    if(phase==='pending'&&moved){clearTimeout(timer);phase='scrolling';return}
+    if(phase==='armed'&&moved)phase='dragging',drag=startDrag(el,t);
+    if(phase==='dragging'){
+      e.preventDefault();
+      drag.ghost.style.left=(t.clientX-drag.offX)+'px';drag.ghost.style.top=(t.clientY-drag.offY)+'px';
+      updateDockHover(t.clientX,t.clientY);
+    }
+  },{passive:false});
+  el.addEventListener('touchend',e=>{
+    clearTimeout(timer);
+    if(phase==='dragging'){e.preventDefault();endDrag(drag,p)}
+    else if(phase==='armed'){e.preventDefault();onHold()}
+    phase='idle';drag=null;
+  });
+  el.addEventListener('touchcancel',()=>{clearTimeout(timer);cancelDrag(drag);phase='idle';drag=null});
 }
 function renderList(ps){
   const L=$('#list');L.replaceChildren();
@@ -326,7 +389,7 @@ function renderList(ps){
     btn.append(ig,h('b',0,p.name));
     if(remote)btn.append(h('small',0,p.machine));
     btn.onclick=()=>openChat(p);
-    wireHold(btn,()=>remote?openRemoteInfo(p):openMenu(p));
+    wireIcon(btn,p,()=>remote?openRemoteInfo(p):openMenu(p));
     grid.append(btn);
   });
   L.append(grid);
@@ -435,6 +498,7 @@ function renderPairList(all){
     L.append(c);
   });
 }
+let KNOWN_DEVICES=[]; // cache pro dock de arrastar-e-soltar (Fase 5) -- não refaz fetch a cada gesto
 async function refreshDevices(){
   let online=[],known=[];
   if(!DEMO){
@@ -442,6 +506,7 @@ async function refreshDevices(){
     try{known=await api('/api/known-devices')}catch{}
   }
   const all=mergeDevices(online,known);
+  KNOWN_DEVICES=all;
   renderDeviceGrid(all);
   renderPairList(all);
 }

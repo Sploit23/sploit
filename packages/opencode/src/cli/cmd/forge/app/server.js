@@ -543,6 +543,24 @@ const srv = http.createServer(async (req, res) => {
           return J({ reply });
         } catch (e) { return J({ error: String(e.message || e).slice(0, 300) }, 500) }
       }
+      const mTransfer = u.pathname.match(/^\/api\/projects\/([\w-]+)\/transfer$/);
+      if (mTransfer && req.method === 'POST') {
+        // arrastar um ícone de projeto até outro dispositivo -- diferente de
+        // /api/relay-send (que só sabe mandar a PARTIR desta própria
+        // máquina), isso funciona mesmo pra projeto que já vive em outra
+        // máquina (via transferProjectTo, mesma lógica da ferramenta MCP
+        // transfer_project).
+        const b = await readBody(req);
+        const toMachine = String(b.toMachine || '').trim();
+        if (!toMachine) return J({ error: 'toMachine é obrigatório' }, 400);
+        try {
+          const entries = await mcpCoordinator.listAllProjects({ token: TOKEN, port: PORT });
+          const entry = entries.find(e => e.alias === mTransfer[1]);
+          if (!entry) return J({ error: 'projeto não encontrado' }, 404);
+          const hostname = await mcpCoordinator.transferProjectTo(entry, toMachine, { token: TOKEN, port: PORT });
+          return J({ ok: true, hostname });
+        } catch (e) { return J({ error: String(e.message || e).slice(0, 300) }, 500) }
+      }
     } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500); }
     if (u.pathname === '/api/device-name' && req.method === 'PUT') {
       const b = await readBody(req);
