@@ -73,6 +73,16 @@ button.ic{padding:6px 9px;font-size:12px}
 .icon .ig .think{position:absolute;right:2px;bottom:10px;width:7px;height:7px;background:#fff}
 .icon b{font-size:11.5px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tx)}
 .icon small{font-size:10px;color:var(--mu)}
+/* ---------- chat focado num projeto só ("iniciar conversa") ---------- */
+#chat.on{display:flex;flex-direction:column;height:100dvh;max-width:none;padding:env(safe-area-inset-top) 0 0}
+#chatlog{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.bubble{max-width:82%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.bubble.me{align-self:flex-end;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border-bottom-right-radius:4px}
+.bubble.ai{align-self:flex-start;background:var(--panel);border:1px solid var(--ln);border-bottom-left-radius:4px}
+.bubble.err{border-color:var(--er);color:var(--er)}
+.chatbar{display:flex;gap:8px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--ln);background:var(--panel)}
+.chatbar input{margin:0;flex:1}
+.chatbar button{flex:none}
 @keyframes think{0%,100%{transform:scale(.8)}50%{transform:scale(1.5);box-shadow:0 0 8px 1px var(--blue)}}
 .pp{color:var(--mu);font-size:12px;margin:3px 0 10px}
 .snap{margin:0;padding:10px;background:#0d1320;border-left:2px solid var(--blue);border-radius:8px;color:#9fb0c9;font-size:11px;line-height:1.45;white-space:pre-wrap;overflow:hidden;max-height:72px}
@@ -193,6 +203,12 @@ table.extbl tr.rowbtn:hover td{background:#0d1320}
   <div id="list"></div>
 </div>
 
+<div class="screen" id="chat">
+  <div class="tbar"><button id="chatback">‹ sair</button><b id="chatname"></b></div>
+  <div id="chatlog"></div>
+  <div class="chatbar"><input id="chatinput" placeholder="digite uma instrução..."><button id="chatsend" class="go">➤</button></div>
+</div>
+
 <div class="screen" id="devices">
   <div class="top"><div class="brand"><b>Pareamento</b></div></div>
   <div class="pairgrid">
@@ -306,8 +322,33 @@ function renderList(ps){
   L.append(grid);
 }
 function openRemoteInfo(p){
-  sheet(h('b',0,'📁 '+p.name),h('div','mu',p.path+'\nmáquina: '+p.machine+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':'')+'\n\n"iniciar conversa" chega numa próxima atualização.'),mk('cancelar',closeSheet));
+  sheet(h('b',0,'📁 '+p.name),h('div','mu',p.path+'\nmáquina: '+p.machine+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':'')),
+    mk('💬 iniciar conversa',()=>openChat(p),'go'),
+    mk('cancelar',closeSheet));
 }
+/* ---------- "iniciar conversa" -- chat leve focado num projeto só ---------- */
+let chatProject=null;
+function openChat(p){
+  closeSheet();chatProject=p;show('chat');$('#chatname').textContent=p.name;$('#chatlog').replaceChildren();
+  $('#chatinput').value='';setTimeout(()=>$('#chatinput').focus(),50);
+}
+function closeChat(){chatProject=null;show('projects');refresh()}
+function addBubble(kind,text){
+  const b=h('div','bubble '+kind,text);$('#chatlog').append(b);$('#chatlog').scrollTop=$('#chatlog').scrollHeight;return b;
+}
+async function sendChat(){
+  const v=$('#chatinput').value.trim();if(!v||!chatProject)return;
+  $('#chatinput').value='';addBubble('me',v);
+  const thinking=addBubble('ai','digitando…');
+  try{
+    if(DEMO){thinking.textContent='(modo demo — sem sessão real pra despachar)';return}
+    const r=await call('POST','/api/projects/'+encodeURIComponent(chatProject.alias)+'/chat',{instruction:v});
+    thinking.textContent=r.reply||'(sem resposta)';
+  }catch(e){thinking.textContent='Erro: '+e.message;thinking.classList.add('err')}
+}
+$('#chatback').onclick=closeChat;
+$('#chatsend').onclick=sendChat;
+$('#chatinput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat()}});
 async function refresh(){
   if(DEMO){renderList(DEMO_P);return}
   try{renderList((await api('/api/all-projects')).map(e=>({...e,name:e.alias,path:e.directory})))}catch{}
@@ -411,7 +452,7 @@ async function stats(){
   }catch{}
 }
 async function init(){
-  try{const ps=await api('/api/projects');start(ps)}
+  try{const ps=(await api('/api/all-projects')).map(e=>({...e,name:e.alias,path:e.directory}));start(ps)}
   catch(e){if(e===401){show('login');return}DEMO=true;$('#mode').textContent='● demo';start(DEMO_P)}
 }
 function start(ps){show('home');boot();renderList(ps);stats();refreshDevices();clearInterval(timer);timer=setInterval(()=>{stats();refreshDevices()},5000);clearInterval(thinkTimer);pollThink();thinkTimer=setInterval(pollThink,2000);if(DEEP_LINK_VIEW==='explorer'){DEEP_LINK_VIEW='';openExplorer()}else if(DEEP_LINK_VIEW==='coordinator'){DEEP_LINK_VIEW='';openCoordinator()}else if(DEEP_LINK_VIEW.startsWith('term:')){const[,name,mode]=DEEP_LINK_VIEW.split(':');DEEP_LINK_VIEW='';const p=ps.find(x=>x.name===decodeURIComponent(name));if(p)openTerm(p,mode)}}
@@ -441,6 +482,7 @@ function openMenu(p){
     mk('▶ opencode',()=>{closeSheet();openTerm(p,'continue')},'go'),
     mk('▶ claude',()=>{closeSheet();openTerm(p,'claude')}),
     mk('▶ shell',()=>{closeSheet();openTerm(p,'shell')}),
+    mk('💬 iniciar conversa (foco só neste projeto)',()=>openChat(p)),
     mk('↻ nova conversa (zera a sessão)',async()=>{try{await del(p,'session');closeSheet();openTerm(p,'new')}catch(e){alert(e.message)}}),
     mk('■ encerrar sessão (libera RAM)',()=>act(()=>del(p,'session'))),
     mk('📤 enviar para outro dispositivo…',()=>sendToDevice(p)),

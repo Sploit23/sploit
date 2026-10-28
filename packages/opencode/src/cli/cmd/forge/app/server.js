@@ -526,6 +526,23 @@ const srv = http.createServer(async (req, res) => {
         if (mode !== 'session') { PROJECTS = PROJECTS.filter(x => x !== p); save(); }
         return J({ ok: true });
       }
+      const mChat = u.pathname.match(/^\/api\/projects\/([\w-]+)\/chat$/);
+      if (mChat && req.method === 'POST') {
+        // "iniciar conversa" focado num projeto só -- a pessoa já sabe qual
+        // (tocou no ícone dele), sem precisar que o Coordenador "adivinhe".
+        // Reusa a mesma resolução/despacho que a ferramenta MCP dispatch já
+        // usa (local via promptProject, remoto via /api/coordinator/prompt).
+        const b = await readBody(req);
+        const instruction = String(b.instruction || '');
+        if (!instruction) return J({ error: 'instruction é obrigatória' }, 400);
+        try {
+          const entries = await mcpCoordinator.listAllProjects({ token: TOKEN, port: PORT });
+          const entry = entries.find(e => e.alias === mChat[1]);
+          if (!entry) return J({ error: 'projeto não encontrado' }, 404);
+          const reply = await mcpCoordinator.dispatchToProject(entry, instruction, { token: TOKEN, port: PORT });
+          return J({ reply });
+        } catch (e) { return J({ error: String(e.message || e).slice(0, 300) }, 500) }
+      }
     } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500); }
     if (u.pathname === '/api/device-name' && req.method === 'PUT') {
       const b = await readBody(req);
