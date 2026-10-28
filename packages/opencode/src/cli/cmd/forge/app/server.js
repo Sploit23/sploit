@@ -526,6 +526,13 @@ const srv = http.createServer(async (req, res) => {
       const b = await readBody(req);
       const cli = b.cli === 'claude' ? 'claude' : 'opencode';
       fs.writeFileSync(CLI_FILE, cli);
+      // a sessão do coordenador, uma vez spawnada, continua viva em
+      // background mesmo depois que a pessoa "sai" da tela (ver comentário
+      // no topo de sessions-native.js) -- sem matar aqui, trocar o CLI não
+      // tinha efeito nenhum até o serviço reiniciar por outro motivo. Isso
+      // mata a sessão atual; o cliente já conectado reconecta sozinho
+      // (ws.onclose -> connectTermWs) e aí sim spawna com o CLI novo.
+      sessions.killAll('coordinator');
       return J({ ok: true, cli });
     }
     if (u.pathname === '/api/stats') {
