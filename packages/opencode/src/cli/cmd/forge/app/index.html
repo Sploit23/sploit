@@ -62,6 +62,15 @@ button.ic{padding:6px 9px;font-size:12px}
 .dot.off{background:#4a5568}
 .think{display:inline-block;width:6px;height:6px;margin-left:6px;border-radius:50%;background:var(--blue);opacity:0;transform:scale(.6);transition:opacity .25s}
 .think.on{opacity:1;animation:think 1.1s ease-in-out infinite}
+/* ---------- grade de ícones (tela Projetos) -- cross-PC, não só local ---------- */
+.icongrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:16px 8px;padding:4px 0}
+.icon{display:flex;flex-direction:column;align-items:center;gap:6px;background:transparent;border:1px solid transparent;padding:10px 4px;border-radius:14px;text-align:center;min-width:0}
+.icon:active{background:var(--panel);border-color:var(--ln)}
+.icon .ig{position:relative;font-size:32px;line-height:1;width:100%}
+.icon .ig .dot{position:absolute;right:calc(50% - 20px);bottom:-2px;border:2px solid var(--bg)}
+.icon .ig .think{position:absolute;right:calc(50% - 20px);bottom:7px;width:7px;height:7px}
+.icon b{font-size:11.5px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon small{font-size:10px;color:var(--mu)}
 @keyframes think{0%,100%{transform:scale(.8)}50%{transform:scale(1.5);box-shadow:0 0 8px 1px var(--blue)}}
 .pp{color:var(--mu);font-size:12px;margin:3px 0 10px}
 .snap{margin:0;padding:10px;background:#0d1320;border-left:2px solid var(--blue);border-radius:8px;color:#9fb0c9;font-size:11px;line-height:1.45;white-space:pre-wrap;overflow:hidden;max-height:72px}
@@ -263,23 +272,26 @@ async function boot(){
 }
 function renderList(ps){
   const L=$('#list');L.replaceChildren();
-  if(!ps.length)L.append(h('div','mu','nenhum projeto ainda — clique em "+ projeto" pra criar ou importar um'));
+  if(!ps.length){L.append(h('div','mu','nenhum projeto ainda — clique em "+ projeto" pra criar ou importar um'));return}
+  const grid=h('div','icongrid');
   ps.forEach(p=>{
     const remote=p.machine&&p.machine!=='local';
-    const c=h('article','proj'),hd=h('div','ph'),st=h('span','st '+(p.alive?'on':'off'),p.alive?'● viva':'○ parada'),tk=h('span','think');
-    tk.dataset.name=p.name;st.append(tk);
-    hd.append(h('b',0,'📁 '+p.name),st);
-    if(remote)hd.append(h('span','tag',p.machine));
-    const sn=h('pre','snap',p.snap&&p.snap.length?p.snap.join('\n'):'(sem sessão ainda)');
-    const ft=h('div','pf'),bt=h('div','bt');
-    ft.append(h('span','mu',p.last?'atualizado há '+ago(p.last):'nunca aberta'));
-    // projeto remoto ainda não tem ação por aqui -- abrir terminal é uma
-    // sessão WS desta própria máquina, não faz sentido pra pasta que vive
-    // em outra. "iniciar conversa" (despacha pra lá de verdade) chega numa
-    // fase seguinte; por ora só mostra que existe e onde mora.
-    if(!remote)[['opencode','continue','go'],['claude','claude',''],['shell','shell',''],['⋯','menu','']].forEach(([t,m,k])=>{const b=h('button',k,t);b.onclick=()=>m==='menu'?openMenu(p):openTerm(p,m);bt.append(b)});
-    ft.append(bt);c.append(hd,h('div','pp',p.path),sn,ft);L.append(c);
+    const btn=h('button','icon'),ig=h('span','ig','📁');
+    const dot=h('span','dot '+(p.alive?'on':'')),tk=h('span','think');
+    tk.dataset.name=p.name;ig.append(dot,tk);
+    btn.append(ig,h('b',0,p.name));
+    if(remote)btn.append(h('small',0,p.machine));
+    // projeto remoto ainda não tem ação de verdade por aqui -- abrir
+    // terminal é sessão WS desta própria máquina, não faz sentido pra
+    // pasta que mora em outra. "iniciar conversa" (despacha pra lá de
+    // verdade) chega numa fase seguinte; por ora só mostra onde mora.
+    btn.onclick=()=>remote?openRemoteInfo(p):openMenu(p);
+    grid.append(btn);
   });
+  L.append(grid);
+}
+function openRemoteInfo(p){
+  sheet(h('b',0,'📁 '+p.name),h('div','mu',p.path+'\nmáquina: '+p.machine+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':'')+'\n\n"iniciar conversa" chega numa próxima atualização.'),mk('cancelar',closeSheet));
 }
 async function refresh(){
   if(DEMO){renderList(DEMO_P);return}
@@ -411,6 +423,9 @@ async function act(fn){try{await fn();closeSheet();await refresh()}catch(e){aler
 const del=(p,mode)=>call('DELETE','/api/projects/'+p.name+'?mode='+mode);
 function openMenu(p){
   sheet(h('b',0,p.name),h('div','mu',p.path+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':'')),
+    mk('▶ opencode',()=>{closeSheet();openTerm(p,'continue')},'go'),
+    mk('▶ claude',()=>{closeSheet();openTerm(p,'claude')}),
+    mk('▶ shell',()=>{closeSheet();openTerm(p,'shell')}),
     mk('↻ nova conversa (zera a sessão)',async()=>{try{await del(p,'session');closeSheet();openTerm(p,'new')}catch(e){alert(e.message)}}),
     mk('■ encerrar sessão (libera RAM)',()=>act(()=>del(p,'session'))),
     mk('📤 enviar para outro dispositivo…',()=>sendToDevice(p)),
