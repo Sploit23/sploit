@@ -653,13 +653,19 @@ function ensureOpenCodeServe() {
   if (!WIN) return;
   if (openCodeServeProc && !openCodeServeProc.killed) return;
   const bin = process.env.OPENCODE_BIN || 'opencode';
-  const child = spawn(bin, ['serve', '--hostname', '127.0.0.1', '--port', String(OPENCODE_SERVE_PORT)], {
-    env: { ...CHILD_ENV, OPENCODE_SERVER_PASSWORD: OPENCODE_SERVE_PASSWORD },
-    stdio: 'ignore',
-    windowsHide: true,
-  });
-  child.on('exit', () => { if (openCodeServeProc === child) openCodeServeProc = null; });
-  openCodeServeProc = child;
+  // mesmo motivo do winCommand() em sessions-native.js: 'opencode' no PATH é
+  // um wrapper .cmd/.ps1, não um .exe puro -- spawn() direto (sem shell) dá
+  // EFTYPE no Windows. Vai via powershell -Command igual o resto do FORGE.
+  try {
+    const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', `& '${bin}' serve --hostname 127.0.0.1 --port ${OPENCODE_SERVE_PORT}`], {
+      env: { ...CHILD_ENV, OPENCODE_SERVER_PASSWORD: OPENCODE_SERVE_PASSWORD },
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    child.on('exit', () => { if (openCodeServeProc === child) openCodeServeProc = null; });
+    child.on('error', () => { if (openCodeServeProc === child) openCodeServeProc = null; });
+    openCodeServeProc = child;
+  } catch (e) { console.error('[coordinator] falha ao iniciar opencode serve:', e.message); }
 }
 function openCodeServeFetch(pathname, directory, opts) {
   const auth = 'Basic ' + Buffer.from('opencode:' + OPENCODE_SERVE_PASSWORD).toString('base64');
@@ -702,6 +708,8 @@ async function promptProject(directory, instruction) {
   const textPart = [...parts].reverse().find(p => p.type === 'text');
   return textPart ? textPart.text : '(sem resposta)';
 }
-if (WIN) ensureOpenCodeServe();
+// lazy -- só sobe o `opencode serve` no primeiro dispatch de verdade (ver
+// promptProject acima), não em todo boot de todo PC instalado. Evita um
+// processo ocioso em máquinas que nunca vão usar o Coordenador.
 
 srv.listen(PORT, HOST, () => console.log(`FORGE em http://${HOST}:${PORT}`));
