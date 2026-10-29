@@ -73,10 +73,12 @@ button.ic{padding:6px 9px;font-size:12px}
 .dot.off{background:#4a5568}
 .think{display:inline-block;width:6px;height:6px;margin-left:6px;border-radius:50%;background:var(--blue);opacity:0;transform:scale(.6);transition:opacity .25s}
 .think.on{opacity:1;animation:think 1.1s ease-in-out infinite}
-/* ---------- grade de ícones (tela Projetos) -- cross-PC, não só local ---------- */
-.icongrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:18px 8px;padding:4px 0}
-.icon{display:flex;flex-direction:column;align-items:center;gap:7px;background:transparent;border:0;padding:0;text-align:center;min-width:0;transition:transform .12s}
-.icon:active{transform:scale(.92)}
+/* ---------- rede orbital de ícones (tela Projetos) -- cross-PC, não só local ---------- */
+#list{position:relative;min-height:min(86vw,460px);overflow:hidden}
+#orbitcanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.icon{display:flex;flex-direction:column;align-items:center;gap:7px;background:transparent;border:0;padding:0;text-align:center;min-width:0}
+.icon.orbit{position:absolute;width:78px;transform:translate(-50%,-50%);z-index:2;transition:transform .12s}
+.icon.orbit:active{transform:translate(-50%,-50%) scale(.92)}
 .icon .ig{position:relative;width:58px;height:58px;border-radius:17px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px -2px #00000055,inset 0 1px 0 #ffffff26}
 .icon .ig svg{filter:drop-shadow(0 1px 1px #00000030)}
 .icon .ig .dot{position:absolute;right:-3px;bottom:-3px;width:14px;height:14px;border-radius:50%;background:#4a5568;border:3px solid var(--bg)}
@@ -312,9 +314,9 @@ async function boot(){
 // cor consistente por nome (mesmo projeto = sempre a mesma cor, sem
 // precisar guardar nada) -- hash simples da string vira o tom do
 // gradiente do "ícone do app".
+function hashStr(s){let hash=0;for(let i=0;i<s.length;i++)hash=(hash*31+s.charCodeAt(i))>>>0;return hash}
 function iconColor(name){
-  let hash=0;for(let i=0;i<name.length;i++)hash=(hash*31+name.charCodeAt(i))>>>0;
-  const hue=hash%360;
+  const hue=hashStr(name)%360;
   return 'linear-gradient(135deg,hsl('+hue+',70%,58%),hsl('+((hue+45)%360)+',70%,40%))';
 }
 // pasta desenhada (não o emoji achatado) -- corpo + risco da aba, com um
@@ -387,13 +389,19 @@ function wireIcon(el,p,onHold){
   });
   el.addEventListener('touchcancel',()=>{clearTimeout(timer);cancelDrag(drag);phase='idle';drag=null});
 }
+// rede orbital: cada PC é um "núcleo" (este = centro; os outros espalhados
+// em círculo por KNOWN_DEVICES) e cada projeto orbita o núcleo onde mora --
+// ORBIT_ITEMS guarda {p,btn} do último render pra layoutOrbit() reposicionar
+// a cada frame sem recriar DOM nem tocar em wireIcon/startDrag/endDrag.
+let ORBIT_ITEMS=[],ORBIT_NODES={},ORBIT_T0=Date.now(),ORBIT_RAF=null,ACTIVITY_MAP={};
 function renderList(ps){
+  ORBIT_ITEMS=[];
   const L=$('#list');L.replaceChildren();
-  if(!ps.length){L.append(h('div','mu','nenhum projeto ainda — clique em "+ projeto" pra criar ou importar um'));return}
-  const grid=h('div','icongrid');
+  if(!ps.length){stopOrbit();L.append(h('div','mu','nenhum projeto ainda — clique em "+ projeto" pra criar ou importar um'));return}
+  const canvas=h('canvas',0);canvas.id='orbitcanvas';L.append(canvas);
   ps.forEach(p=>{
     const remote=p.machine&&p.machine!=='local';
-    const btn=h('button','icon'),ig=h('span','ig');
+    const btn=h('button','icon orbit'),ig=h('span','ig');
     ig.innerHTML=FOLDER_SVG;
     ig.style.background=iconColor(p.name);
     const dot=h('span','dot '+(p.alive?'on':'')),tk=h('span','think');
@@ -402,10 +410,70 @@ function renderList(ps){
     if(remote)btn.append(h('small',0,p.machine));
     btn.onclick=()=>openChat(p);
     wireIcon(btn,p,()=>remote?openRemoteInfo(p):openMenu(p));
-    grid.append(btn);
+    L.append(btn);
+    ORBIT_ITEMS.push({p,btn});
   });
-  L.append(grid);
+  layoutOrbit();startOrbit();
 }
+// posição de cada núcleo (device) e cada ícone orbitando o núcleo onde o
+// projeto mora -- só muda left/top inline, wireIcon nem sabe que isso existe.
+function layoutOrbit(){
+  const L=$('#list');if(!L)return;
+  const w=L.clientWidth,hgt=L.clientHeight;
+  if(!w||!hgt||!ORBIT_ITEMS.length)return;
+  const cx=w/2,cy=hgt/2,nodes={local:{x:cx,y:cy}};
+  const devices=KNOWN_DEVICES.filter(d=>d.token);
+  const R1=Math.min(w,hgt)*0.38;
+  devices.forEach((d,i)=>{
+    const a=i*(2*Math.PI/devices.length)-Math.PI/2;
+    nodes[d.dnsName]={x:cx+R1*Math.cos(a),y:cy+R1*Math.sin(a),online:!!d.online};
+  });
+  const groups={};
+  ORBIT_ITEMS.forEach(it=>{(groups[it.p.machine]=groups[it.p.machine]||[]).push(it)});
+  const t=(Date.now()-ORBIT_T0)/1000,R2=Math.max(30,Math.min(w,hgt)*0.1);
+  Object.keys(groups).forEach(machine=>{
+    const home=nodes[machine]||nodes.local;
+    groups[machine].forEach((it,i)=>{
+      const hs=hashStr(it.p.name);
+      const angle=(hs%360)*Math.PI/180+i*0.5+Math.sin(t*0.6+(hs%7))*0.12;
+      it.btn.style.left=(home.x+R2*Math.cos(angle))+'px';
+      it.btn.style.top=(home.y+R2*Math.sin(angle))+'px';
+    });
+  });
+  ORBIT_NODES=nodes;
+}
+// linhas do centro até cada device + "pacote" de luz viajando quando algum
+// projeto daquele device está realmente pensando (/api/activity via pollThink).
+function drawOrbitCanvas(){
+  const L=$('#list'),canvas=L&&L.querySelector('#orbitcanvas');
+  if(!canvas)return;
+  const w=L.clientWidth,hgt=L.clientHeight;if(!w||!hgt)return;
+  const dpr=window.devicePixelRatio||1,pw=Math.round(w*dpr),ph=Math.round(hgt*dpr);
+  if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph;canvas.style.width=w+'px';canvas.style.height=hgt+'px'}
+  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,hgt);
+  const center=ORBIT_NODES.local;if(!center)return;
+  const t=Date.now();
+  Object.keys(ORBIT_NODES).forEach(key=>{
+    if(key==='local')return;
+    const n=ORBIT_NODES[key];
+    const grad=ctx.createLinearGradient(center.x,center.y,n.x,n.y);
+    grad.addColorStop(0,'#3ef0d84d');grad.addColorStop(1,'#a855f74d');
+    ctx.strokeStyle=grad;ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.moveTo(center.x,center.y);ctx.lineTo(n.x,n.y);ctx.stroke();
+    const activeHere=ORBIT_ITEMS.some(it=>it.p.machine===key&&ACTIVITY_MAP[it.p.name]);
+    if(activeHere){
+      const phase=(t%1600)/1600,px=center.x+(n.x-center.x)*phase,py=center.y+(n.y-center.y)*phase;
+      ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);ctx.fillStyle='#3ef0d8';ctx.shadowColor='#3ef0d8';ctx.shadowBlur=8;ctx.fill();ctx.shadowBlur=0;
+    }
+  });
+}
+function orbitTick(){
+  if($('#projects').classList.contains('on')){layoutOrbit();drawOrbitCanvas()}
+  ORBIT_RAF=requestAnimationFrame(orbitTick);
+}
+function startOrbit(){if(ORBIT_RAF||document.hidden)return;ORBIT_RAF=requestAnimationFrame(orbitTick)}
+function stopOrbit(){if(ORBIT_RAF){cancelAnimationFrame(ORBIT_RAF);ORBIT_RAF=null}}
+document.addEventListener('visibilitychange',()=>{document.hidden?stopOrbit():startOrbit()});
 function openRemoteInfo(p){
   sheet(h('b',0,'📁 '+p.name),h('div','mu',p.path+'\nmáquina: '+p.machine+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':'')),
     mk('💬 iniciar conversa',()=>openChat(p),'go'),
@@ -445,7 +513,7 @@ function pollThink(){
     document.querySelectorAll('.think').forEach(el=>el.classList.toggle('on',on&&el.dataset.name==='landing-studio'));
     return;
   }
-  api('/api/activity').then(m=>document.querySelectorAll('.think').forEach(el=>el.classList.toggle('on',!!m[el.dataset.name]))).catch(()=>{});
+  api('/api/activity').then(m=>{ACTIVITY_MAP=m;document.querySelectorAll('.think').forEach(el=>el.classList.toggle('on',!!m[el.dataset.name]))}).catch(()=>{});
 }
 /* ---------- outros FORGE na mesma rede Tailscale ---------- */
 const DEV_ICON='<svg class="dicon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.5" y="4" width="19" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 20h8M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
