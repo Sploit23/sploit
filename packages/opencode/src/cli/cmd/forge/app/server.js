@@ -516,7 +516,27 @@ const srv = http.createServer(async (req, res) => {
       const m = u.pathname.match(/^\/api\/projects\/([\w-]+)$/);
       if (m && req.method === 'DELETE') {
         const p = PROJECTS.find(x => x.name === m[1]);
-        if (!p) return J({ error: 'projeto não existe' }, 404);
+        if (!p) {
+          // não existe nesta máquina -- pode viver em outro device do mesh
+          // (a pessoa segurou o ícone dele no app sem trocar de PC pra
+          // apagar/remover/encerrar sessão). Mesma resolução por alias que
+          // /chat e /transfer já usam; o device remoto roda essa mesma
+          // rota com o token dele, então reaplica inRoot() e tudo o mais aí.
+          const mode = u.searchParams.get('mode') || '';
+          try {
+            const entries = await mcpCoordinator.listAllProjects({ token: TOKEN, port: PORT });
+            const entry = entries.find(e => e.alias === m[1] && e.machine !== 'local');
+            if (!entry) return J({ error: 'projeto não existe' }, 404);
+            const r = await fetch(`https://${entry.machine}/api/projects/${encodeURIComponent(m[1])}?mode=${encodeURIComponent(mode)}`, {
+              method: 'DELETE',
+              headers: { Authorization: 'Bearer ' + entry.token },
+              signal: AbortSignal.timeout(30000),
+            });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) return J({ error: j.error || ('destino respondeu ' + r.status) }, 502);
+            return J(j);
+          } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+        }
         const mode = u.searchParams.get('mode'); // session | list | trash | hard
         if ((mode === 'trash' || mode === 'hard') && !inRoot(p.path))
           return J({ error: 'pasta fora de FORGE_ROOT: só é possível remover da lista' }, 403);

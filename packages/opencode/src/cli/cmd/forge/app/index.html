@@ -401,15 +401,10 @@ function renderList(ps){
     btn.append(ig,h('b',0,p.name));
     if(remote)btn.append(h('small',0,p.machine));
     btn.onclick=()=>openChat(p);
-    wireIcon(btn,p,()=>remote?openRemoteInfo(p):openMenu(p));
+    wireIcon(btn,p,()=>openMenu(p));
     grid.append(btn);
   });
   L.append(grid);
-}
-function openRemoteInfo(p){
-  sheet(h('b',0,'📁 '+p.name),h('div','mu',p.path+'\nmáquina: '+p.machine+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':'')),
-    mk('💬 iniciar conversa',()=>openChat(p),'go'),
-    mk('cancelar',closeSheet));
 }
 /* ---------- "iniciar conversa" -- chat leve focado num projeto só ---------- */
 let chatProject=null;
@@ -565,30 +560,44 @@ async function call(m,p,b){
 async function act(fn){try{await fn();closeSheet();await refresh()}catch(e){alert(e.message)}}
 const del=(p,mode)=>call('DELETE','/api/projects/'+p.name+'?mode='+mode);
 function openMenu(p){
-  sheet(h('b',0,p.name),h('div','mu',p.path+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':'')),
+  const remote=p.machine&&p.machine!=='local';
+  const title=remote?p.name+'  ['+p.machine+']':p.name;
+  const nodes=[h('b',0,title),h('div','mu',p.path+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':''))];
+  // terminal de verdade (opencode/claude/shell) é uma sessão ao vivo via
+  // WebSocket desta própria máquina (ver openTerm) -- não dá pra abrir a
+  // sessão de OUTRO device por aqui, só o que já é proxied por HTTP
+  // (chat/sessão/mover/apagar, tudo via mcpCoordinator.listAllProjects no
+  // server.js) funciona sem precisar trocar de PC.
+  if(!remote)nodes.push(
     mk('▶ opencode',()=>{closeSheet();openTerm(p,'continue')},'go'),
     mk('▶ claude',()=>{closeSheet();openTerm(p,'claude')}),
     mk('▶ shell',()=>{closeSheet();openTerm(p,'shell')}),
-    mk('💬 iniciar conversa (foco só neste projeto)',()=>openChat(p)),
-    mk('↻ nova conversa (zera a sessão)',async()=>{try{await del(p,'session');closeSheet();openTerm(p,'new')}catch(e){alert(e.message)}}),
+  );
+  nodes.push(mk('💬 iniciar conversa (foco só neste projeto)',()=>openChat(p)));
+  if(remote)nodes.push(mk('↻ nova conversa (zera a sessão)',()=>act(()=>del(p,'session')).then(()=>openChat(p))));
+  else nodes.push(mk('↻ nova conversa (zera a sessão)',async()=>{try{await del(p,'session');closeSheet();openTerm(p,'new')}catch(e){alert(e.message)}}));
+  nodes.push(
     mk('■ encerrar sessão (libera RAM)',()=>act(()=>del(p,'session'))),
-    mk('📤 enviar para outro dispositivo…',()=>sendToDevice(p)),
+    mk('📤 mover para outro dispositivo…',()=>sendToDevice(p)),
     mk('⌫ remover da lista (mantém os arquivos)',()=>act(()=>del(p,'list'))),
     mk('🗑 apagar do PC…',()=>confirmDel(p),'dg'),
     mk('cancelar',closeSheet));
+  sheet(...nodes);
 }
+// move de verdade (não copia) -- mesma rota /transfer que o arrastar-e-
+// soltar entre ícones já usa, por isso funciona igual pra projeto local OU
+// que já vive em outro device (transferProjectTo em mcp-coordinator.js
+// resolve a origem certa pelo token daquele device, não pelo desta aqui).
 function sendToDevice(p){
-  const devs=loadDevices().filter(d=>d.token);
-  if(!devs.length){sheet(h('b',0,'nenhum dispositivo salvo'),h('div','mu','adicione o token de outro dispositivo na aba Pareamento primeiro'),mk('cancelar',closeSheet));return}
-  const nodes=[h('b',0,'enviar "'+p.name+'" para…')];
+  const devs=KNOWN_DEVICES.filter(d=>d.token&&d.dnsName!==p.machine);
+  if(!devs.length){sheet(h('b',0,'nenhum outro dispositivo disponível'),h('div','mu','veja a aba Pareamento'),mk('cancelar',closeSheet));return}
+  const nodes=[h('b',0,'mover "'+p.name+'" para…')];
   devs.forEach(d=>{
-    const label=d.hostname||d.dnsName;
+    const label=d.nickname||d.hostname||d.dnsName;
     const go=mk(label,async()=>{
-      go.textContent='enviando…';go.disabled=true;
-      try{
-        await call('POST','/api/relay-send',{path:p.path,targetUrl:'https://'+d.dnsName,targetToken:d.token,name:p.name});
-        go.textContent='✓ enviado';
-      }catch(e){go.textContent=label;go.disabled=false;alert(e.message)}
+      go.textContent='movendo…';go.disabled=true;
+      try{await call('POST','/api/projects/'+encodeURIComponent(p.alias||p.name)+'/transfer',{toMachine:d.dnsName});closeSheet();await refresh()}
+      catch(e){go.textContent=label;go.disabled=false;alert(e.message)}
     });
     nodes.push(go);
   });
