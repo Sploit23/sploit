@@ -59,7 +59,8 @@ h2{font-size:12px;letter-spacing:1px;color:var(--mu);margin:26px 0 12px;font-wei
 .dcard .ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .dcard b{font-size:14px}
 .dname{display:flex;align-items:center;gap:9px}
-.dicon{width:22px;height:22px;flex:none;color:var(--blue)}
+.dicon{width:22px;height:22px;flex:none;color:var(--blue);border:1.5px solid var(--ln);border-radius:50%;padding:5px;box-sizing:border-box;transition:border-color .2s,box-shadow .2s}
+.ph:has(.dot.on) .dicon,.ph:has(.st.on) .dicon{border-color:var(--blue);box-shadow:0 0 8px #3ef0d84d}
 .selfname{display:flex;align-items:center;gap:8px}
 .selfname .dicon{width:28px;height:28px}
 .selfname #host{font-size:19px;font-weight:700;letter-spacing:.3px;color:var(--tx)}
@@ -160,21 +161,22 @@ body.with-nav #nav{display:flex}
 .exside button{width:100%;text-align:left;background:transparent;border-color:transparent;padding:8px 10px;font-size:13px}
 .exside button.on{background:var(--panel);border-color:var(--ln);color:var(--blue)}
 .exmain{flex:1;min-width:0}
-.crumb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12px;color:var(--mu);margin-bottom:10px}
-.crumb button{background:none;border:none;padding:2px 4px;color:var(--mu);font-size:12px}
+.crumb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12px;color:var(--mu);margin-bottom:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.crumb button{background:none;border:none;padding:2px 4px;color:var(--mu);font-size:12px;font-family:inherit}
 .crumb button:last-child{color:var(--tx)}
+.crumb span{color:var(--blue)}
 table.extbl{width:100%;border-collapse:collapse;font-size:13px}
 table.extbl th{text-align:left;color:var(--mu);font-weight:500;font-size:11px;letter-spacing:.5px;padding:0 10px 8px;border-bottom:1px solid var(--ln)}
-table.extbl td{padding:9px 10px;border-bottom:1px solid #1f2937}
+table.extbl td{padding:9px 10px 9px 8px;border-bottom:1px solid #1f2937;border-left:2px solid transparent;transition:border-color .15s}
 table.extbl tr:last-child td{border-bottom:none}
 table.extbl tr.rowbtn{cursor:pointer}
-table.extbl tr.rowbtn:hover td{background:#0d1320}
+table.extbl tr.rowbtn:hover td{background:#0d1320;border-left-color:var(--blue)}
 .exname{display:flex;align-items:center;gap:8px}
 @media (max-width:899px){.exwrap{flex-direction:column}.exside{width:100%;flex-direction:row;overflow-x:auto;gap:6px}.exside button{width:auto;white-space:nowrap}}
 
 /* ---------- pareamento ---------- */
 .pairgrid{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start}
-#qrbox{display:flex;justify-content:center;margin:4px 0;background:#fff;border-radius:12px;padding:14px}
+#qrbox{display:flex;justify-content:center;margin:4px 0;background:#fff;border-radius:12px;padding:14px;border:1px solid var(--blue);box-shadow:0 0 0 1px #3ef0d833,0 0 24px #3ef0d84d}
 #qrbox svg{width:180px;height:180px}
 @media (max-width:899px){.pairgrid{grid-template-columns:1fr}}
 </style>
