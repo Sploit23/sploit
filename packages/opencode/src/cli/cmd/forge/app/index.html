@@ -584,14 +584,12 @@ function sendToDevice(p){
   sheet(...nodes);
 }
 function confirmDel(p){
-  const i=h('input');i.placeholder='digite "'+p.name+'" para confirmar';
   const hard=h('input');hard.type='checkbox';hard.style.cssText='width:auto;margin:0 8px 0 0';
   const lb=h('label','mu');lb.append(hard,'apagar de vez (sem lixeira)');
-  const go=mk('apagar',()=>act(()=>del(p,hard.checked?'hard':'trash')),'dg');go.disabled=true;
-  i.oninput=()=>{go.disabled=i.value!==p.name};
+  const go=mk('apagar',()=>act(()=>del(p,hard.checked?'hard':'trash')),'dg');
   sheet(h('b',0,'apagar '+p.name+'?'),
     h('div','mu','Encerra as sessões e remove a pasta do PC. Por padrão ela vai para a lixeira (~/.forge-trash) e dá para recuperar.'+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':'')),
-    i,lb,go,mk('cancelar',closeSheet));
+    lb,go,mk('cancelar',closeSheet));
 }
 function openNewProjectSheet(){
   const n=h('input'),g=h('input');n.placeholder='nome (letras, números, -)';g.placeholder='url git para clonar (opcional)';
