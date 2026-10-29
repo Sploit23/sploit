@@ -42,7 +42,7 @@ input:focus{outline:none;border-color:var(--blue)}
 .brand{font-weight:800;letter-spacing:.5px;font-size:16px}
 .brand b{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}
 .brand small{display:block;font-size:10px;letter-spacing:1px;color:var(--mu);font-weight:500}
-.tag{font-size:11px;border:1px solid var(--ln);color:var(--mu);border-radius:20px;padding:3px 10px}
+.tag{font-size:11px;border:1px solid var(--ln);color:var(--mu);border-radius:20px;padding:3px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.04em}
 #boot{margin:4px 0 16px;color:var(--mu);font-size:12px;white-space:pre-wrap;min-height:30px}
 .cur{color:var(--blue);animation:bl 1s steps(2) infinite}@keyframes bl{50%{opacity:0}}
 .noise{color:#44506a;font-size:10px;letter-spacing:1px;opacity:.7}
@@ -95,9 +95,9 @@ button.ic{padding:6px 9px;font-size:12px}
 #chat.on{display:flex;flex-direction:column;height:100dvh;max-width:none;padding:env(safe-area-inset-top) 0 0}
 #chatlog{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
 .bubble{max-width:82%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
-.bubble.me{align-self:flex-end;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border-bottom-right-radius:4px}
-.bubble.ai{align-self:flex-start;background:var(--panel);border:1px solid var(--ln);border-bottom-left-radius:4px}
-.bubble.err{border-color:var(--er);color:var(--er)}
+.bubble.me{align-self:flex-end;background:linear-gradient(135deg,var(--blue),var(--purple));color:#06111c;font-weight:500;border-bottom-right-radius:4px}
+.bubble.ai{align-self:flex-start;background:var(--panel);border:1px solid var(--ln);border-left:2px solid var(--blue);border-bottom-left-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.bubble.err{border-color:var(--er);border-left-color:var(--er);color:var(--er)}
 .chatbar{display:flex;gap:8px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--ln);background:var(--panel)}
 .chatbar input{margin:0;flex:1}
 .chatbar button{flex:none}
@@ -107,8 +107,8 @@ button.ic{padding:6px 9px;font-size:12px}
 .pf{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
 .mu{color:var(--mu);font-size:12px}.bt{display:flex;gap:7px;flex-wrap:wrap}
 #term.on{display:flex;flex-direction:column;height:100dvh;max-width:none;padding:env(safe-area-inset-top) 0 0}
-.tbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--ln);background:var(--panel)}
-.tbar b{color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--ln);border-left:2px solid var(--blue);background:var(--panel)}
+.tbar b{color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:600}
 #xt{flex:1;min-height:0;padding:6px 6px 0}
 .keys{display:flex;gap:6px;overflow-x:auto;padding:8px 8px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--ln);background:var(--panel);scrollbar-width:none}
 .keys button{flex:none;min-width:44px;padding:9px 10px}
@@ -811,7 +811,7 @@ function openTerm(p,mode){
   // letterSpacing -- xterm por padrão vem bem apertado, ótimo pra código
   // denso mas ruim pra ler parágrafo de resposta do opencode/claude.
   term=new Terminal({fontFamily:'ui-monospace,Menlo,Consolas,monospace',fontSize:13,lineHeight:1.35,letterSpacing:0.2,cursorBlink:true,scrollback:5000,
-    theme:{background:'#111827',foreground:'#e5e7eb',cursor:'#4f7cff',selectionBackground:'#4f7cff33'}});
+    theme:{background:'#0a0d17',foreground:'#eef1fb',cursor:'#3ef0d8',selectionBackground:'#3ef0d833'}});
   fit=new FitAddon.FitAddon();term.loadAddon(fit);term.open($('#xt'));fit.fit();
   term.onData(input);
   term.onResize(({cols,rows})=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({t:'r',cols,rows}))});
