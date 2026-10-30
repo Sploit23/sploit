@@ -119,7 +119,6 @@ async function discoverForgePeers() {
 // periodicamente (pega PCs instalados depois). Sem isso, um PC sem tela
 // nenhuma nunca aparece pra ninguém sem alguém copiar/colar token na mão.
 async function announceToPeers() {
-  if (!WIN) return;
   let selfDns = '';
   try { selfDns = (JSON.parse(await sh('tailscale', ['status', '--json'])).Self || {}).DNSName || '' } catch {}
   selfDns = selfDns.replace(/\.$/, '');
@@ -921,7 +920,12 @@ async function checkForUpdates() {
 if (WIN) { void checkForUpdates(); setInterval(() => void checkForUpdates(), 24 * 60 * 60 * 1000); }
 // de hora em hora -- pega PCs instalados depois sem precisar esperar o ciclo
 // de 24h do auto-update, e é barato (só sonda quem já responde no /health).
-if (WIN) { void announceToPeers(); setInterval(() => void announceToPeers(), 60 * 60 * 1000); }
+// Diferente do checkForUpdates (Windows-only de propósito, depende do
+// safe-restart via win-service.js) -- announceToPeers() não tem nada
+// específico de Windows, e é exatamente o que falta pra um PC "bot"
+// sem tela (ex: Raspberry Pi) aparecer pros outros sem ninguém colar
+// token na mão -- roda em qualquer plataforma.
+void announceToPeers(); setInterval(() => void announceToPeers(), 60 * 60 * 1000);
 
 // --- motor de execução do coordenador: um `opencode serve` supervisionado
 // nesta máquina. Toda instrução despachada (local ou vinda de outra máquina
