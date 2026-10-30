@@ -161,6 +161,9 @@ body.with-nav #nav{display:flex}
 .exside button{width:100%;text-align:left;background:transparent;border-color:transparent;padding:8px 10px;font-size:13px}
 .exside button.on{background:var(--panel);border-color:var(--ln);color:var(--blue)}
 .exmain{flex:1;min-width:0}
+.exdevs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.exdevs button{padding:5px 12px;font-size:12px;border-radius:20px}
+.exdevs button.on{background:var(--panel);border-color:var(--blue);color:var(--blue)}
 .crumb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12px;color:var(--mu);margin-bottom:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .crumb button{background:none;border:none;padding:2px 4px;color:var(--mu);font-size:12px;font-family:inherit}
 .crumb button:last-child{color:var(--tx)}
@@ -263,6 +266,7 @@ body.with-nav #nav{display:flex}
   <div class="exwrap">
     <div class="exside" id="exside"></div>
     <div class="exmain">
+      <div class="exdevs" id="exdevs"></div>
       <div class="crumb" id="crumb"></div>
       <div class="icongrid" id="brlist"></div>
       <div class="keys" style="justify-content:flex-end;border:0;background:none;padding:14px 0 0"><button id="bruse" class="go">usar esta pasta como projeto</button></div>
@@ -636,7 +640,7 @@ $('#renameself').onclick=()=>{
 };
 
 /* ---------- explorer: navegar, usar como projeto, baixar ---------- */
-let brCur='';
+let brCur='',brMachine='local';
 const EX_ICONS={home:'🏠',desktop:'🖥️',documents:'📄',downloads:'⬇️',pictures:'🖼️',music:'🎵',videos:'🎬',drive:'💾'};
 const fmtSize=n=>n<1024?n+'B':n<1048576?(n/1024).toFixed(1)+'KB':(n/1048576).toFixed(1)+'MB';
 const fmtDate=ts=>{
@@ -644,9 +648,12 @@ const fmtDate=ts=>{
   const d=new Date(ts),now=new Date(),t=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   return d.toDateString()===now.toDateString()?'Hoje, '+t:d.toLocaleDateString('pt-BR')+', '+t;
 };
+// path+machine juntos -- quando brMachine não é 'local', server.js repassa
+// pro device certo com o token dele (mesmo proxy do DELETE/mover remoto).
+const brQS=p=>{const q=new URLSearchParams();if(p)q.set('path',p);if(brMachine!=='local')q.set('machine',brMachine);return q.toString()};
 async function downloadFile(p,name){
   try{
-    const r=await fetch('/api/download?path='+encodeURIComponent(p),{headers:{Authorization:'Bearer '+TOKEN}});
+    const r=await fetch('/api/download?'+brQS(p),{headers:{Authorization:'Bearer '+TOKEN}});
     if(!r.ok)throw new Error('falha ao baixar');
     const blob=await r.blob(),url=URL.createObjectURL(blob);
     const a=h('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();
@@ -680,13 +687,13 @@ function openFileMenu(entry,isDir){
   const nodes=[h('b',0,(isDir?'📁 ':'📄 ')+entry.name),
     h('div','mu',entry.path+(isDir?'':'\n'+fmtSize(entry.size)+' · '+fmtDate(entry.modified)))];
   nodes.push(mk('⬇ baixar'+(isDir?' (.tar.gz)':''),()=>{closeSheet();downloadFile(entry.path,entry.name+(isDir?'.tar.gz':''))},'go'));
-  if(isDir)nodes.push(mk('usar esta pasta como projeto',()=>{closeSheet();useAsProject(entry.path)}));
+  if(isDir&&brMachine==='local')nodes.push(mk('usar esta pasta como projeto',()=>{closeSheet();useAsProject(entry.path)}));
   nodes.push(mk('cancelar',closeSheet));
   sheet(...nodes);
 }
 function renderCrumb(){
   const C=$('#crumb');C.replaceChildren();
-  C.append(mk('início',()=>openExplorer()));
+  C.append(mk('início',goHome));
   if(!brCur)return;
   const isWin=/^[A-Za-z]:/.test(brCur);
   const sep=isWin?'\\':'/';
@@ -698,9 +705,11 @@ function renderCrumb(){
   });
 }
 async function brGo(p){
-  let j; try{j=await api('/api/browse'+(p?'?path='+encodeURIComponent(p):''))}catch(e){alert('erro ao listar: '+(e.message||e));return}
+  const qs=brQS(p);
+  let j; try{j=await api('/api/browse'+(qs?'?'+qs:''))}catch(e){alert('erro ao listar: '+(e.message||e));return}
   if(j.error){alert(j.error);return}
   brCur=j.path;
+  $('#bruse').style.display=brMachine==='local'?'':'none';
   $('#bruse').disabled=!brCur;
   renderCrumb();
   const L=$('#brlist');L.replaceChildren();
@@ -722,7 +731,7 @@ async function brGo(p){
   });
 }
 async function renderShortcuts(){
-  let root;try{root=await api('/api/browse')}catch{return}
+  let root;try{root=await api('/api/browse'+(brMachine!=='local'?'?machine='+encodeURIComponent(brMachine):''))}catch{return}
   const S=$('#exside');S.replaceChildren();
   (root.dirs||[]).forEach(d=>{
     const b=mk((EX_ICONS[d.kind]||'📁')+' '+d.name,()=>{brGo(d.path);document.querySelectorAll('#exside button').forEach(x=>x.classList.toggle('on',x===b))});
@@ -730,14 +739,38 @@ async function renderShortcuts(){
   });
   return root;
 }
-async function openExplorer(){
-  brCur='';show('browse');
+// qual PC estamos navegando -- "este PC" sempre primeiro, depois cada
+// device conhecido com token (mesma lista que o dropdock de Projetos usa).
+function renderExDevices(){
+  const D=$('#exdevs');D.replaceChildren();
+  const local=mk('🖥️ este PC',()=>switchMachine('local'));
+  local.classList.toggle('on',brMachine==='local');
+  D.append(local);
+  KNOWN_DEVICES.filter(d=>d.token).forEach(d=>{
+    const b=mk(d.hostname||d.dnsName,()=>switchMachine(d.dnsName));
+    b.classList.toggle('on',brMachine===d.dnsName);
+    D.append(b);
+  });
+}
+async function goHome(){
+  brCur='';
   const root=await renderShortcuts();
   const home=root&&(root.dirs||[]).find(d=>d.kind==='home');
-  brGo(home?home.path:'');
+  await brGo(home?home.path:'');
+}
+async function switchMachine(m){
+  if(m===brMachine)return;
+  brMachine=m;
+  renderExDevices();
+  await goHome();
+}
+async function openExplorer(){
+  brMachine='local';show('browse');
+  renderExDevices();
+  await goHome();
 }
 function openBrowse(){closeSheet();openExplorer()}
-$('#bruse').onclick=()=>{if(brCur)useAsProject(brCur)};
+$('#bruse').onclick=()=>{if(brCur&&brMachine==='local')useAsProject(brCur)};
 
 /* ---------- menu lateral / nav ---------- */
 $('#nav').addEventListener('click',e=>{

@@ -380,6 +380,24 @@ const srv = http.createServer(async (req, res) => {
         return J({ ok: true });
       }
       if (u.pathname === '/api/browse' && req.method === 'GET') {
+        const machine = u.searchParams.get('machine');
+        if (machine) {
+          // ver o Explorer de OUTRO PC sem trocar de link -- repassa pro
+          // device certo usando o token dele (mesmo padrão de proxy já usado
+          // pro DELETE/mover remoto de projeto e pra renomear device).
+          const dev = KNOWN.find(k => k.dnsName === machine);
+          if (!dev) return J({ error: 'dispositivo não conhecido' }, 404);
+          const rp = u.searchParams.get('path');
+          try {
+            const r = await fetch(`https://${machine}/api/browse${rp ? '?path=' + encodeURIComponent(rp) : ''}`, {
+              headers: { Authorization: 'Bearer ' + dev.token },
+              signal: AbortSignal.timeout(15000),
+            });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) return J({ error: j.error || ('destino respondeu ' + r.status) }, 502);
+            return J(j);
+          } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+        }
         const p = u.searchParams.get('path');
         if (!p) {
           const roots = [{ name: 'pasta do usuário', path: os.homedir(), kind: 'home' }];
@@ -437,6 +455,24 @@ const srv = http.createServer(async (req, res) => {
       if (u.pathname === '/api/download' && req.method === 'GET') {
         const p = u.searchParams.get('path');
         if (!p) return J({ error: 'path obrigatório' }, 400);
+        const machine = u.searchParams.get('machine');
+        if (machine) {
+          const dev = KNOWN.find(k => k.dnsName === machine);
+          if (!dev) return J({ error: 'dispositivo não conhecido' }, 404);
+          try {
+            const r = await fetch(`https://${machine}/api/download?path=${encodeURIComponent(p)}`, {
+              headers: { Authorization: 'Bearer ' + dev.token },
+              signal: AbortSignal.timeout(120000),
+            });
+            if (!r.ok) { const j = await r.json().catch(() => ({})); return J({ error: j.error || ('destino respondeu ' + r.status) }, 502) }
+            res.writeHead(200, {
+              'Content-Type': r.headers.get('content-type') || 'application/octet-stream',
+              'Content-Disposition': r.headers.get('content-disposition') || 'attachment',
+            });
+            Readable.fromWeb(r.body).pipe(res);
+          } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+          return;
+        }
         const target = path.resolve(p);
         let st; try { st = fs.statSync(target) } catch { return J({ error: 'não encontrado' }, 404) }
         if (st.isFile()) {
