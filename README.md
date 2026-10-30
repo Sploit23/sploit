@@ -15,6 +15,40 @@
   de sessões de terminal (opencode/claude/shell) rodando num PC, via
   Tailscale. Código em `packages/opencode/src/cli/cmd/forge/`.
 
+### Arquitetura recomendada: 1 PC gráfico + N bots
+
+Não existe servidor central — cada PC roda seu próprio FORGE
+independente (mesh via Tailscale, cada um com seu token). Mas isso não
+significa que todo PC precisa de ícone, atalho ou app de bandeja
+aparecendo: o jeito recomendado de montar a rede é
+
+- **um PC "base"**, com a instalação gráfica completa (app de
+  bandeja, atalho na Área de Trabalho, opencode/Claude Code
+  instalados) — é o link que a pessoa de fato abre no celular/PWA
+  pra ver e gerenciar tudo;
+- **os demais PCs como "bots"**, instalados com `FORGE_HEADLESS=1`
+  (Windows ou Linux/ARM) — nenhum ícone, nenhum app visível, só o
+  serviço rodando em segundo plano, controlado inteiramente pela
+  malha (pelo app do PC base, pelo Coordenador, ou por qualquer CLI
+  conectado via MCP).
+
+Gerenciar projeto, apagar, mover, conversar, navegar/baixar/enviar
+arquivo e checar atualização já funcionam em qualquer PC bot sem
+precisar abrir o link dele — tudo isso é repassado pela malha usando
+o token de cada device (ver `/api/projects/:alias`, `/api/browse`,
+`/api/files/send`, `/api/check-updates` em
+`packages/opencode/src/cli/cmd/forge/app/server.js`). A única coisa
+que ainda exige trocar pro link de um PC bot é abrir uma sessão de
+terminal de verdade (▶ opencode/▶ claude/▶ shell) nele — isso depende
+de WebSocket preso à origem daquele PC especificamente.
+
+Se um PC já foi instalado "cheio" (com app de bandeja) e você decidir
+depois que ele deveria ser só um bot, dá pra remover a parte visual
+sem reinstalar nada: mata o processo do app de bandeja, apaga o
+atalho da Área de Trabalho e o de Startup, e apaga a pasta
+`%LOCALAPPDATA%\SploitForgeTray` daquele PC. O serviço do FORGE
+continua rodando normalmente durante e depois disso.
+
 ### Instalar o Sploit
 
 ```bash
