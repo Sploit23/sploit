@@ -204,6 +204,7 @@ body.with-nav #nav{display:flex}
     <span id="selficon"></span><small id="host">PRIVATE NODE</small>
     <button class="ic" id="renameself" title="renomear">✎</button>
     <button class="ic" id="checkupdates" title="verificar atualização agora">🔄</button>
+    <button class="ic" id="asklocal" title="perguntar ao motor de IA local deste PC">🧠</button>
   </div>
   <pre id="boot" class="mono"></pre>
   <div id="stats">
@@ -682,6 +683,22 @@ async function checkUpdates(btn,dnsName){
   catch(e){btn.textContent=original;btn.disabled=false;alert(e.message)}
 }
 $('#checkupdates').onclick=e=>checkUpdates(e.currentTarget);
+// pergunta rápida pro motor de IA local (/api/triagem) -- só responde de
+// verdade no PC que tiver FMM_ENGINE_DIR configurado; nos outros dá 501,
+// a mensagem já vem clara do servidor.
+function askLocal(){
+  const i=h('input');i.placeholder='ex: quanto é 12 vezes 8?';
+  const out=h('div','mu','');
+  const go=mk('perguntar',async()=>{
+    const q=i.value.trim();if(!q)return;
+    go.textContent='pensando…';go.disabled=true;out.textContent='';
+    try{const r=await call('POST','/api/triagem',{question:q});out.textContent=r.reply||'(sem resposta)'}
+    catch(e){out.textContent='Erro: '+e.message}
+    go.textContent='perguntar';go.disabled=false;
+  },'go');
+  sheet(h('b',0,'🧠 motor de IA local'),h('div','mu','Resolve perguntas rápidas sem gastar nuvem -- só funciona no PC que já tiver um motor configurado.'),i,go,out,mk('fechar',closeSheet));
+}
+$('#asklocal').onclick=askLocal;
 
 /* ---------- explorer: navegar, usar como projeto, baixar ---------- */
 let brCur='',brMachine='local';
