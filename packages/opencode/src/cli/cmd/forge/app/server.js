@@ -762,9 +762,9 @@ const srv = http.createServer(async (req, res) => {
     }
     if (u.pathname === '/api/check-updates' && req.method === 'POST') {
       // "atualizar agora" -- checkForUpdates() já roda sozinho no boot e a
-      // cada 24h, mas sem isso não tinha nenhum jeito de forçar fora desse
-      // ciclo (era exatamente a reclamação: toda atualização minha exigia
-      // alguém colar comando no PowerShell de cada PC na mão).
+      // cada poucos minutos, mas sem isso não tinha nenhum jeito de forçar
+      // fora desse ciclo (era exatamente a reclamação original: toda
+      // atualização minha exigia colar comando no PowerShell na mão).
       const b = await readBody(req).catch(() => ({}));
       const dnsName = String((b && b.dnsName) || '').trim();
       if (dnsName) {
@@ -783,6 +783,12 @@ const srv = http.createServer(async (req, res) => {
       }
       void checkForUpdates(); // fire-and-forget -- se reiniciar o serviço, a resposta já foi
       return J({ ok: true, checking: true });
+    }
+    if (u.pathname === '/api/update-log' && req.method === 'GET') {
+      // diagnóstico de uma atualização que falhou silenciosamente -- sem
+      // isso só dava pra saber o motivo entrando na máquina via /api/exec.
+      try { return send('text/plain', fs.readFileSync(UPDATE_LOG, 'utf8')) }
+      catch { return send('text/plain', '(nenhum log ainda)') }
     }
     if (u.pathname === '/api/coordinator-cli' && req.method === 'GET') {
       return J({ cli: getCoordinatorCli() });
@@ -891,13 +897,28 @@ const UPDATE_FILES = ['server.js', 'index.html', 'sessions-native.js', 'win-serv
 // sintaxe), reinicia, e o processo cai com MODULE_NOT_FOUND em toda
 // máquina que nunca rodou o instalador de novo na mão.
 const UPDATE_NPM_DEPS = ['@modelcontextprotocol/sdk', 'zod'];
+// log simples em arquivo (console.log/error não dá pra ler num Serviço do
+// Windows sem anexar debugger) -- só assim uma falha silenciosa (já
+// aconteceu uma vez, nunca totalmente diagnosticada) fica visível depois,
+// sem precisar reproduzir o problema de novo. Cap de ~80 linhas, sem log
+// rotation de verdade -- é só pra debug ocasional, não auditoria.
+const UPDATE_LOG = path.join(__dirname, 'update.log');
+function logUpdate(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}`;
+  console.log(line);
+  try {
+    const prev = fs.existsSync(UPDATE_LOG) ? fs.readFileSync(UPDATE_LOG, 'utf8').split('\n').filter(Boolean) : [];
+    prev.push(line);
+    fs.writeFileSync(UPDATE_LOG, prev.slice(-80).join('\n') + '\n');
+  } catch {}
+}
 async function checkForUpdates() {
   if (!WIN) return;
   try {
     const remote = await (await fetch(UPDATE_BASE + 'server.js')).text();
     const local = fs.readFileSync(__filename, 'utf8');
     if (remote === local) return; // já atualizado
-    console.log('[update] versão nova encontrada, validando antes de aplicar...');
+    logUpdate('versão nova encontrada, validando antes de aplicar...');
     // nunca sobrescreve o server.js rodando sem confirmar que o novo nem tem
     // erro de sintaxe -- dev é o mesmo branch onde qualquer commit experimental
     // meu cai; sem essa trava, um push quebrado derrubaria o serviço remoto
@@ -907,17 +928,22 @@ async function checkForUpdates() {
     try { execFileSync(process.execPath, ['--check', tmp]) }
     catch (e) { fs.unlinkSync(tmp); throw new Error('server.js novo tem erro de sintaxe, abortando: ' + e.message, { cause: e }) }
     fs.unlinkSync(tmp);
-    console.log('[update] sintaxe ok, garantindo dependências novas...');
+    logUpdate('sintaxe ok, garantindo dependências novas...');
     // idempotente -- se já estiver instalado, só confirma rápido, não reinstala.
     try { execFileSync('npm', ['install', ...UPDATE_NPM_DEPS, '--silent'], { cwd: __dirname, timeout: 120000 }) }
     catch (e) { throw new Error('npm install das dependências novas falhou, abortando: ' + e.message, { cause: e }) }
-    console.log('[update] válido, baixando o resto e aplicando...');
+    logUpdate('válido, baixando o resto e aplicando...');
     for (const f of UPDATE_FILES) fs.writeFileSync(path.join(__dirname, f), await (await fetch(UPDATE_BASE + f)).text());
-    console.log('[update] arquivos atualizados, reiniciando com segurança...');
+    logUpdate('arquivos atualizados, reiniciando com segurança...');
     spawn(process.execPath, [path.join(__dirname, 'win-service.js'), 'safe-restart'], { detached: true, stdio: 'ignore' }).unref();
-  } catch (e) { console.error('[update] checagem falhou:', e.message); }
+  } catch (e) { logUpdate('checagem falhou: ' + e.message); }
 }
-if (WIN) { void checkForUpdates(); setInterval(() => void checkForUpdates(), 24 * 60 * 60 * 1000); }
+// de 24h pra poucos minutos -- o pedido era "quando a gente subir uma
+// atualização os PCs já atualizam", sem precisar do botão manual (🔄 /
+// api/check-updates) nem esperar quase um dia. Custo é baixo: só um GET
+// pro raw.githubusercontent.com quando não muda nada, cai fora na
+// primeira comparação (remote === local).
+if (WIN) { void checkForUpdates(); setInterval(() => void checkForUpdates(), 5 * 60 * 1000); }
 // de hora em hora -- pega PCs instalados depois sem precisar esperar o ciclo
 // de 24h do auto-update, e é barato (só sonda quem já responde no /health).
 // Diferente do checkForUpdates (Windows-only de propósito, depende do
