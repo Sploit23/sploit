@@ -217,6 +217,7 @@ body.with-nav #nav{display:flex}
 
 <div class="screen" id="projects">
   <div class="top"><div class="brand"><b>Projetos</b></div><button id="newp2">+ projeto</button></div>
+  <div class="exdevs" id="prjdevs"></div>
   <div id="list"></div>
 </div>
 
@@ -390,9 +391,29 @@ function wireIcon(el,p,onHold,onDrop){
   });
   el.addEventListener('touchcancel',()=>{clearTimeout(timer);cancelDrag(drag);phase='idle';drag=null});
 }
+let PRJ_ALL=[],prjFilter='all';
+function applyPrjFilter(ps){
+  if(prjFilter==='all')return ps;
+  if(prjFilter==='local')return ps.filter(p=>!p.machine||p.machine==='local');
+  return ps.filter(p=>p.machine===prjFilter);
+}
+// chips "todos"/"este PC"/cada device -- igual ao seletor que o Explorer já
+// tem, só que aqui é filtro local (sem novo fetch: /api/all-projects já
+// trouxe tudo cross-device de uma vez, trocar de filtro é instantâneo).
+function renderPrjDevices(){
+  const D=$('#prjdevs');if(!D)return;D.replaceChildren();
+  const setFilter=f=>{prjFilter=f;renderPrjDevices();renderList(applyPrjFilter(PRJ_ALL))};
+  const all=mk('todos',()=>setFilter('all'));all.classList.toggle('on',prjFilter==='all');D.append(all);
+  const local=mk('🖥️ este PC',()=>setFilter('local'));local.classList.toggle('on',prjFilter==='local');D.append(local);
+  KNOWN_DEVICES.filter(d=>d.token).forEach(d=>{
+    const b=mk(d.hostname||d.dnsName,()=>setFilter(d.dnsName));
+    b.classList.toggle('on',prjFilter===d.dnsName);
+    D.append(b);
+  });
+}
 function renderList(ps){
   const L=$('#list');L.replaceChildren();
-  if(!ps.length){L.append(h('div','mu','nenhum projeto ainda — clique em "+ projeto" pra criar ou importar um'));return}
+  if(!ps.length){L.append(h('div','mu',PRJ_ALL.length?'nenhum projeto neste dispositivo':'nenhum projeto ainda — clique em "+ projeto" pra criar ou importar um'));return}
   const grid=h('div','icongrid');
   ps.forEach(p=>{
     const remote=p.machine&&p.machine!=='local';
@@ -402,7 +423,7 @@ function renderList(ps){
     const dot=h('span','dot '+(p.alive?'on':'')),tk=h('span','think');
     tk.dataset.name=p.name;ig.append(dot,tk);
     btn.append(ig,h('b',0,p.name));
-    if(remote)btn.append(h('small',0,p.machine));
+    if(remote&&prjFilter==='all')btn.append(h('small',0,p.machine));
     btn.onclick=()=>openChat(p);
     wireIcon(btn,p,()=>openMenu(p));
     grid.append(btn);
@@ -433,8 +454,11 @@ $('#chatback').onclick=closeChat;
 $('#chatsend').onclick=sendChat;
 $('#chatinput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat()}});
 async function refresh(){
-  if(DEMO){renderList(DEMO_P);return}
-  try{renderList((await api('/api/all-projects')).map(e=>({...e,name:e.alias,path:e.directory})))}catch{}
+  if(DEMO){PRJ_ALL=DEMO_P;renderList(applyPrjFilter(PRJ_ALL));return}
+  try{
+    PRJ_ALL=(await api('/api/all-projects')).map(e=>({...e,name:e.alias,path:e.directory}));
+    renderList(applyPrjFilter(PRJ_ALL));
+  }catch{}
 }
 function pollThink(){
   if(!$('#projects').classList.contains('on')&&!$('#home').classList.contains('on'))return;
@@ -533,6 +557,7 @@ async function refreshDevices(){
   KNOWN_DEVICES=all;
   renderDeviceGrid(all);
   renderPairList(all);
+  renderPrjDevices();
 }
 async function stats(){
   try{
@@ -554,7 +579,7 @@ async function init(){
   try{const ps=(await api('/api/all-projects')).map(e=>({...e,name:e.alias,path:e.directory}));start(ps)}
   catch(e){if(e===401){show('login');return}DEMO=true;$('#mode').textContent='● demo';start(DEMO_P)}
 }
-function start(ps){show('home');boot();renderList(ps);stats();refreshDevices();clearInterval(timer);timer=setInterval(()=>{stats();refreshDevices()},5000);clearInterval(thinkTimer);pollThink();thinkTimer=setInterval(pollThink,2000);if(DEEP_LINK_VIEW==='explorer'){DEEP_LINK_VIEW='';openExplorer()}else if(DEEP_LINK_VIEW==='coordinator'){DEEP_LINK_VIEW='';openCoordinator()}else if(DEEP_LINK_VIEW.startsWith('term:')){const[,name,mode]=DEEP_LINK_VIEW.split(':');DEEP_LINK_VIEW='';const p=ps.find(x=>x.name===decodeURIComponent(name));if(p)openTerm(p,mode)}}
+function start(ps){show('home');boot();PRJ_ALL=ps;renderPrjDevices();renderList(applyPrjFilter(ps));stats();refreshDevices();clearInterval(timer);timer=setInterval(()=>{stats();refreshDevices()},5000);clearInterval(thinkTimer);pollThink();thinkTimer=setInterval(pollThink,2000);if(DEEP_LINK_VIEW==='explorer'){DEEP_LINK_VIEW='';openExplorer()}else if(DEEP_LINK_VIEW==='coordinator'){DEEP_LINK_VIEW='';openCoordinator()}else if(DEEP_LINK_VIEW.startsWith('term:')){const[,name,mode]=DEEP_LINK_VIEW.split(':');DEEP_LINK_VIEW='';const p=ps.find(x=>x.name===decodeURIComponent(name));if(p)openTerm(p,mode)}}
 $('#tkgo').onclick=async()=>{
   let v=$('#tk').value.trim();
   const m=v.match(/[#?&]t=([^&\s]+)/); // aceita colar o link inteiro, não só o token puro
