@@ -4,6 +4,13 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/bootstrap.sh | sudo bash
 #
+# Pra um PC que só vai ser controlado remotamente (sem IA local, sem
+# opencode/Claude Code instalado -- só /api/exec, igual o FORGE_HEADLESS
+# do lado Windows): pula o CLI pesado, útil em ARM/Raspberry Pi onde nem
+# sempre tem build oficial e a máquina não precisa disso pra nada.
+#
+#   curl -fsSL <esta-url> | sudo FORGE_HEADLESS=1 bash
+#
 # Roda como root de propósito (mesmo usuário que o serviço systemd vai usar) —
 # senão o opencode/claude acabam instalados no $HOME de um usuário e o
 # serviço (que roda como root) nunca acha os binários nem a pasta certa.
@@ -40,15 +47,19 @@ if ! command -v tailscale >/dev/null 2>&1; then
   curl -fsSL https://tailscale.com/install.sh | sh
 fi
 
-if [ ! -x "$HOME/.opencode/bin/opencode" ]; then
-  echo "==> Instalando o opencode (CLI que roda dentro de cada sessão)..."
-  curl -fsSL https://opencode.ai/install | bash
-fi
-export PATH="$HOME/.opencode/bin:$PATH"
+if [ -n "${FORGE_HEADLESS:-}" ]; then
+  echo "==> FORGE_HEADLESS definido -- pulando opencode/Claude Code (só shell remoto nesta máquina)."
+else
+  if [ ! -x "$HOME/.opencode/bin/opencode" ]; then
+    echo "==> Instalando o opencode (CLI que roda dentro de cada sessão)..."
+    curl -fsSL https://opencode.ai/install | bash
+  fi
+  export PATH="$HOME/.opencode/bin:$PATH"
 
-if ! command -v claude >/dev/null 2>&1; then
-  echo "==> Instalando o Claude Code (segunda opção de CLI dentro de cada sessão)..."
-  npm install -g @anthropic-ai/claude-code
+  if ! command -v claude >/dev/null 2>&1; then
+    echo "==> Instalando o Claude Code (segunda opção de CLI dentro de cada sessão)..."
+    npm install -g @anthropic-ai/claude-code
+  fi
 fi
 
 # Busca os arquivos de uma cópia local (se este script foi baixado junto com

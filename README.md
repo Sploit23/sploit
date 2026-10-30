@@ -86,6 +86,16 @@ ou, já com WSL/Linux pronto, uma linha dentro do terminal Ubuntu:
 curl -fsSL https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/bootstrap.sh | sudo bash
 ```
 
+Mesmo caminho pra **Raspberry Pi** ou qualquer ARM Linux. Pra um PC que
+só vai ser controlado remotamente (sem IA local, só shell/`/api/exec`
+-- igual o `FORGE_HEADLESS` do lado Windows, útil em ARM onde nem
+sempre tem build oficial do opencode/Claude Code): pula os dois CLIs
+de propósito:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/bootstrap.sh | sudo FORGE_HEADLESS=1 bash
+```
+
 Se já tiver o Sploit instalado, dá pra usar o comando equivalente:
 
 ```bash
