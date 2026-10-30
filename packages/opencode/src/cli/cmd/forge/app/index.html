@@ -325,7 +325,7 @@ function showDock(){
     if(!d.token)return; // sem token salvo não dá pra mandar pra lá
     const z=h('div','dropzone');z.dataset.hostname=d.dnsName;
     const icon=h('span',0);icon.innerHTML=DEV_ICON;
-    z.append(icon,h('b',0,d.nickname||d.hostname||d.dnsName));
+    z.append(icon,h('b',0,d.hostname||d.dnsName));
     dock.append(z);
   });
   dock.classList.add('on');
@@ -441,28 +441,40 @@ const loadDevices=()=>{try{return JSON.parse(localStorage.forge_devices||'[]')}c
 const saveDevices=arr=>localStorage.forge_devices=JSON.stringify(arr);
 const openDevice=d=>location.href='https://'+d.dnsName+'/#t='+encodeURIComponent(d.token);
 function renameDevice(d){
-  const i=h('input');i.value=d.nickname||d.hostname||d.dnsName;i.placeholder='nome deste dispositivo';
-  const go=mk('salvar',()=>{
+  if(!d.token){sheet(h('b',0,'sem token salvo'),h('div','mu','pareie com o token deste dispositivo primeiro (abaixo) antes de renomear.'),mk('cancelar',closeSheet));return}
+  const i=h('input');i.value=d.hostname||d.dnsName;i.placeholder='nome deste dispositivo';
+  const go=mk('salvar',async()=>{
     const v=i.value.trim();if(!v)return;
-    saveDevices([...loadDevices().filter(x=>x.dnsName!==d.dnsName),{hostname:d.hostname,dnsName:d.dnsName,token:d.token,nickname:v}]);
-    closeSheet();refreshDevices();
+    go.textContent='salvando…';go.disabled=true;
+    // o nome é dono de quem é renomeado, não de quem está olhando -- repassa
+    // pro device certo (server.js proxya com o token dele) em vez de só
+    // guardar uma etiqueta local que não aparece quando troca de PC.
+    try{await call('PUT','/api/device-name',{name:v,dnsName:d.dnsName});closeSheet();await refreshDevices()}
+    catch(e){go.textContent='salvar';go.disabled=false;alert(e.message)}
   },'go');
   sheet(h('b',0,'renomear dispositivo'),i,go,mk('cancelar',closeSheet));
 }
 function mergeDevices(online,known){
   const byDns={};
   online.forEach(p=>{if(p.dnsName)byDns[p.dnsName]={hostname:p.hostname,dnsName:p.dnsName,online:true}});
-  // /api/known-devices -- registro automático (cada Sploit-Forge se anuncia
-  // sozinho pros outros, ver announceToPeers() no server.js): preenche o
-  // token sem precisar colar nada aqui, nenhum celular/navegador precisa
-  // "aprender" os outros PCs na mão, um de cada vez.
-  (known||[]).forEach(d=>{if(d.dnsName)byDns[d.dnsName]=Object.assign({hostname:d.hostname,dnsName:d.dnsName,online:false},byDns[d.dnsName],{token:d.token})});
-  // localStorage ainda por último -- se o usuário salvou um apelido ou colou
-  // um token manual aqui, isso tem prioridade sobre o que veio automático.
-  // d.token pode vir vazio (renomear um device que só tinha nickname, sem
-  // token salvo ainda) -- nesse caso não pode apagar um token bom que já
-  // veio do /api/known-devices.
-  loadDevices().forEach(d=>{byDns[d.dnsName]=Object.assign({hostname:d.hostname,dnsName:d.dnsName,online:false},byDns[d.dnsName],{token:d.token||byDns[d.dnsName]?.token,nickname:d.nickname})});
+  // /api/known-devices -- cada Sploit-Forge se anuncia sozinho pros outros
+  // (announceToPeers() em server.js) já com o nome que a própria máquina
+  // escolheu pra si (getDeviceName()/"renomear este PC") -- esse nome tem
+  // prioridade sobre o hostname cru do Tailscale, pra aparecer igual
+  // importa de qual PC você está olhando, não só em quem salvou um apelido
+  // local antes (era exatamente essa inconsistência que o usuário notou).
+  (known||[]).forEach(d=>{
+    if(!d.dnsName)return;
+    const prev=byDns[d.dnsName];
+    byDns[d.dnsName]={hostname:d.hostname||(prev&&prev.hostname),dnsName:d.dnsName,online:!!(prev&&prev.online),token:d.token};
+  });
+  // localStorage só cobre token colado manualmente antes do auto-anúncio
+  // alcançar este device -- nome de exibição nunca mais vem de cá.
+  loadDevices().forEach(d=>{
+    if(!d.dnsName)return;
+    const prev=byDns[d.dnsName];
+    byDns[d.dnsName]=Object.assign({hostname:d.hostname,dnsName:d.dnsName,online:false},prev,{token:(prev&&prev.token)||d.token});
+  });
   return Object.values(byDns);
 }
 // grid compacto na tela Dispositivos -- só status + entrar (sem gerenciar token aqui)
@@ -471,7 +483,7 @@ function renderDeviceGrid(all){
   if(!all.length){L.append(h('div','mu','nenhum outro PC com Sploit-Forge encontrado na rede ainda'));return}
   all.forEach(d=>{
     const c=h('div','dcard'),hd=h('div','ph'),nm=h('span','dname');
-    nm.innerHTML=DEV_ICON+'<b>'+(d.nickname||d.hostname||d.dnsName)+'</b>';
+    nm.innerHTML=DEV_ICON+'<b>'+(d.hostname||d.dnsName)+'</b>';
     hd.append(nm,h('span','dot '+(d.online?'on':'off')));
     c.append(hd);
     if(d.token)c.append(mk('entrar →',()=>openDevice(d),'go'));
@@ -485,14 +497,14 @@ function renderPairList(all){
   if(!all.length)L.append(h('div','mu','nenhum outro dispositivo com Sploit-Forge encontrado na rede ainda'));
   all.forEach(d=>{
     const c=h('article','proj'),hd=h('div','ph'),nm=h('span','dname');
-    nm.innerHTML=DEV_ICON+'<b>'+(d.nickname||d.hostname||d.dnsName)+'</b>';
+    nm.innerHTML=DEV_ICON+'<b>'+(d.hostname||d.dnsName)+'</b>';
     hd.append(nm,h('span','st '+(d.online?'on':'off'),d.online?'● online':'○ offline'));
     c.append(hd);
     c.append(mk('✎ renomear',()=>renameDevice(d)));
     if(d.token){const bt=h('div','bt');bt.append(mk('entrar →',()=>openDevice(d),'go'));c.append(bt)}
     else{
       const i=h('input');i.placeholder='colar token deste dispositivo';
-      const go=mk('salvar',()=>{const t=i.value.trim();if(!t)return;saveDevices([...loadDevices().filter(x=>x.dnsName!==d.dnsName),{hostname:d.hostname,dnsName:d.dnsName,token:t,nickname:d.nickname}]);refreshDevices()},'go');
+      const go=mk('salvar',()=>{const t=i.value.trim();if(!t)return;saveDevices([...loadDevices().filter(x=>x.dnsName!==d.dnsName),{hostname:d.hostname,dnsName:d.dnsName,token:t}]);refreshDevices()},'go');
       c.append(i,go);
     }
     L.append(c);
@@ -586,7 +598,7 @@ function sendToDevice(p){
   if(!devs.length){sheet(h('b',0,'nenhum outro dispositivo disponível'),h('div','mu','veja a aba Pareamento'),mk('cancelar',closeSheet));return}
   const nodes=[h('b',0,'mover "'+p.name+'" para…')];
   devs.forEach(d=>{
-    const label=d.nickname||d.hostname||d.dnsName;
+    const label=d.hostname||d.dnsName;
     const go=mk(label,async()=>{
       go.textContent='movendo…';go.disabled=true;
       try{await call('POST','/api/projects/'+encodeURIComponent(p.alias||p.name)+'/transfer',{toMachine:d.dnsName});closeSheet();await refresh()}

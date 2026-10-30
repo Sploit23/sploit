@@ -109,7 +109,7 @@ async function announceToPeers() {
     try {
       await fetch('http://' + p.ip + ':' + PORT + '/api/announce', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
-        body: JSON.stringify({ hostname: os.hostname(), dnsName: selfDns, token: TOKEN }),
+        body: JSON.stringify({ hostname: getDeviceName(), dnsName: selfDns, token: TOKEN }),
       });
     } catch {} finally { clearTimeout(t) }
   }));
@@ -243,7 +243,7 @@ const srv = http.createServer(async (req, res) => {
   // precisa de um <link rel="apple-touch-icon"> explícito apontando pra isso.
   if (u.pathname === '/icon.svg') return send('image/svg+xml', ICON_ANY_SVG);
   // sem token: só pra outro FORGE na mesma rede Tailscale se reconhecer (ver /api/peers)
-  if (u.pathname === '/health') return send('application/json', JSON.stringify({ forge: true, name: os.hostname() }));
+  if (u.pathname === '/health') return send('application/json', JSON.stringify({ forge: true, name: getDeviceName() }));
   // sem token de propósito -- ver comentário em KNOWN_FILE acima. Só grava
   // "existo, meu token é X"; nunca devolve nada, nunca lê o registro (isso é
   // /api/known-devices, autenticado).
@@ -586,7 +586,29 @@ const srv = http.createServer(async (req, res) => {
       const b = await readBody(req);
       const name = String(b.name || '').trim().slice(0, 40);
       if (!name) return J({ error: 'nome vazio' }, 400);
+      const dnsName = String(b.dnsName || '').trim();
+      if (dnsName) {
+        // renomear OUTRO device (botão "renomear" em Pareamento) -- o nome é
+        // dono de quem o usa, não de quem está olhando, então repassa pro
+        // device certo com o token dele em vez de só guardar uma etiqueta
+        // local que some ao trocar de PC (era exatamente isso que o usuário
+        // reportou como inconsistente entre máquinas).
+        const dev = KNOWN.find(k => k.dnsName === dnsName);
+        if (!dev) return J({ error: 'dispositivo não conhecido' }, 404);
+        try {
+          const r = await fetch(`https://${dnsName}/api/device-name`, {
+            method: 'PUT',
+            headers: { Authorization: 'Bearer ' + dev.token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+            signal: AbortSignal.timeout(15000),
+          });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok) return J({ error: j.error || ('destino respondeu ' + r.status) }, 502);
+          return J(j);
+        } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+      }
       fs.writeFileSync(NAME_FILE, name);
+      void announceToPeers(); // propaga o novo nome pros outros já, sem esperar o ciclo de 1h
       return J({ ok: true, name });
     }
     if (u.pathname === '/api/coordinator-cli' && req.method === 'GET') {
