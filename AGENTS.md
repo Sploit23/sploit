@@ -1,3 +1,4 @@
+- **Sploit-Forge work (multi-PC remote control product)**: read `PROJECT_STATUS.md` at the repo root first — it has the current architecture, which machines are real/online, what already works, known gotchas, and the deploy workflow. Don't rebuild that context from scratch or guess at it.
 - To regenerate the legacy JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
 - After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit `src/generated` or `src/generated-effect` directly.
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk-next` composes Client, Core, and Server.
