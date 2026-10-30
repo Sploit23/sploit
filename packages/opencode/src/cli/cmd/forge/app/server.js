@@ -26,6 +26,12 @@ const HOST = process.env.HOST || '0.0.0.0', PORT = +process.env.PORT || 7777;
 // projects.json é mantido pelo app. Projetos criados pelo celular ficam em ROOT.
 const ROOT = path.resolve(process.env.FORGE_ROOT || path.join(os.homedir(), 'forge-projects'));
 const TRASH = path.join(os.homedir(), '.forge-trash');
+// pasta de chegada pra arquivo/pasta arrastado de outro PC pelo Explorer
+// (diferente de ROOT: não é um projeto, não entra em PROJECTS) -- ao lado
+// de ROOT em vez de os.homedir() pelo mesmo motivo do comentário de
+// /api/browse: o Serviço roda como LocalSystem, cujo "home" é um perfil
+// vazio que não é o do usuário de verdade.
+const RECEIVED_ROOT = path.join(path.dirname(ROOT), 'forge-received');
 const DB = path.join(__dirname, 'projects.json');
 fs.mkdirSync(ROOT, { recursive: true });
 let PROJECTS = fs.existsSync(DB) ? JSON.parse(fs.readFileSync(DB, 'utf8')) : [];
@@ -516,6 +522,36 @@ const srv = http.createServer(async (req, res) => {
         tar.on('error', () => J({ error: 'tar indisponível' }, 500));
         return;
       }
+      if (u.pathname === '/api/files-receive' && req.method === 'POST') {
+        // recebe um arquivo OU pasta (vindo de outro FORGE, via /api/files/send
+        // -- arrastar um ícone do Explorer até outro PC) e guarda em
+        // RECEIVED_ROOT. Diferente de /api/import: nunca registra em
+        // PROJECTS -- é só uma cópia solta, não uma unidade gerenciada.
+        const rawName = (u.searchParams.get('name') || '').trim();
+        const kind = u.searchParams.get('kind') === 'dir' ? 'dir' : 'file';
+        const safeName = path.basename(rawName).slice(0, 200);
+        if (!safeName || safeName === '.' || safeName === '..') return J({ error: 'nome inválido' }, 400);
+        fs.mkdirSync(RECEIVED_ROOT, { recursive: true });
+        let finalName = safeName, i = 1;
+        while (fs.existsSync(path.join(RECEIVED_ROOT, finalName))) finalName = safeName + '-' + (i++);
+        const dest = path.join(RECEIVED_ROOT, finalName);
+        if (kind === 'dir') {
+          fs.mkdirSync(dest, { recursive: true });
+          const tar = spawn('tar', ['xzf', '-', '-C', dest, '--strip-components=1']);
+          req.pipe(tar.stdin);
+          tar.on('close', code => {
+            if (code !== 0) return J({ error: 'falha ao extrair o pacote' }, 500);
+            J({ ok: true, path: dest });
+          });
+          tar.on('error', () => J({ error: 'tar indisponível' }, 500));
+          return;
+        }
+        const ws = fs.createWriteStream(dest);
+        req.pipe(ws);
+        ws.on('finish', () => J({ ok: true, path: dest }));
+        ws.on('error', () => J({ error: 'falha ao salvar o arquivo' }, 500));
+        return;
+      }
       if (u.pathname === '/api/relay-send' && req.method === 'POST') {
         // o PC de origem empacota uma pasta local e entrega pro /api/import de outro FORGE --
         // chamada servidor-a-servidor (sem CORS), usando o token do destino que o celular já
@@ -547,6 +583,46 @@ const srv = http.createServer(async (req, res) => {
           const j = await r.json().catch(() => ({}));
           if (!r.ok) return J({ error: j.error || ('destino respondeu ' + r.status) }, 502);
           return J({ ok: true });
+        } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+      }
+      if (u.pathname === '/api/files/send' && req.method === 'POST') {
+        // arrastar um ícone de arquivo/pasta do Explorer até outro PC --
+        // diferente de /transfer de projeto, isso é uma CÓPIA (não apaga a
+        // origem): o Explorer navega o filesystem inteiro do usuário, não
+        // só uma pasta gerenciada, então apagar sem pedir seria arriscado
+        // demais. Pousa em RECEIVED_ROOT do destino via /api/files-receive.
+        const b = await readBody(req);
+        const srcPath = String(b.path || '');
+        const toMachine = String(b.toMachine || '').trim();
+        if (!srcPath || !toMachine) return J({ error: 'parâmetros inválidos' }, 400);
+        const dev = KNOWN.find(k => k.dnsName === toMachine);
+        if (!dev) return J({ error: 'dispositivo não conhecido' }, 404);
+        let st; try { st = fs.statSync(srcPath) } catch { return J({ error: 'não encontrado' }, 404) }
+        const name = path.basename(srcPath);
+        try {
+          if (st.isDirectory()) {
+            const tar = spawn('tar', ['czf', '-', '--exclude=node_modules', '-C', path.dirname(srcPath), path.basename(srcPath)]);
+            tar.on('error', (e) => { try { tar.stdout.destroy(e) } catch {} });
+            const r = await fetch(`https://${toMachine}/api/files-receive?name=${encodeURIComponent(name)}&kind=dir`, {
+              method: 'POST',
+              headers: { Authorization: 'Bearer ' + dev.token, 'Content-Type': 'application/gzip' },
+              body: Readable.toWeb(tar.stdout),
+              duplex: 'half',
+            });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) return J({ error: j.error || ('destino respondeu ' + r.status) }, 502);
+            return J(j);
+          }
+          const rs = fs.createReadStream(srcPath);
+          const r = await fetch(`https://${toMachine}/api/files-receive?name=${encodeURIComponent(name)}&kind=file`, {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + dev.token, 'Content-Type': 'application/octet-stream' },
+            body: Readable.toWeb(rs),
+            duplex: 'half',
+          });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok) return J({ error: j.error || ('destino respondeu ' + r.status) }, 502);
+          return J(j);
         } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
       }
       const m = u.pathname.match(/^\/api\/projects\/([\w-]+)$/);

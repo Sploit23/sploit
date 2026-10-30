@@ -351,15 +351,20 @@ function updateDockHover(x,y){
   const el=document.elementFromPoint(x,y),zone=el&&el.closest('.dropzone');
   if(zone)zone.classList.add('over');
 }
-async function endDrag(drag,p){
+// onDrop(hostname) é opcional -- sem ele, o drop faz o transfer de projeto
+// de sempre (p.alias). Com ele (usado pelo Explorer pra arquivo/pasta),
+// quem decide o que soltar em cima do device significa é quem chamou.
+async function endDrag(drag,p,onDrop){
   const zone=$('#dropdock').querySelector('.dropzone.over');
   hideDock();drag.ghost.remove();drag.btn.style.opacity='';
   if(!zone)return; // soltou fora de qualquer zona -- cancela, nada muda
-  try{await call('POST','/api/projects/'+encodeURIComponent(p.alias)+'/transfer',{toMachine:zone.dataset.hostname});refresh()}
-  catch(e){alert('Falha ao mover "'+p.name+'": '+e.message)}
+  try{
+    if(onDrop)await onDrop(zone.dataset.hostname);
+    else{await call('POST','/api/projects/'+encodeURIComponent(p.alias)+'/transfer',{toMachine:zone.dataset.hostname});refresh()}
+  }catch(e){alert('Falha ao mover "'+p.name+'": '+e.message)}
 }
 function cancelDrag(drag){hideDock();if(drag){drag.ghost.remove();drag.btn.style.opacity=''}}
-function wireIcon(el,p,onHold){
+function wireIcon(el,p,onHold,onDrop){
   if(DEMO)return; // sem dispositivo real pra soltar em cima, melhor nem tentar
   let timer=null,phase='idle',sx=0,sy=0,drag=null;
   const THRESH=10;
@@ -379,7 +384,7 @@ function wireIcon(el,p,onHold){
   },{passive:false});
   el.addEventListener('touchend',e=>{
     clearTimeout(timer);
-    if(phase==='dragging'){e.preventDefault();endDrag(drag,p)}
+    if(phase==='dragging'){e.preventDefault();endDrag(drag,p,onDrop)}
     else if(phase==='armed'){e.preventDefault();onHold()}
     phase='idle';drag=null;
   });
@@ -680,9 +685,17 @@ const FILE_SVG='<svg viewBox="0 0 24 24" width="26" height="26" fill="none"><pat
 async function useAsProject(p){
   try{await call('POST','/api/projects',{path:p});show('projects');refresh()}catch(e){alert(e.message)}
 }
-// segurar sem arrastar = menu (baixar / usar como projeto) -- sem o resto
-// do gesto de wireIcon (arrastar pra outro PC é Fase 3, ainda não existe
-// endpoint pra isso aqui).
+// arrastar um ícone de arquivo/pasta até o dropdock -- cópia, não move
+// (diferente do transfer de projeto): Explorer navega o filesystem inteiro
+// do usuário, não uma pasta gerenciada, então apagar a origem sem pedir
+// seria arriscado demais. Só disponível navegando "este PC" (brGo decide).
+async function sendFileDrop(entry,hostname){
+  await call('POST','/api/files/send',{path:entry.path,toMachine:hostname});
+  const dev=KNOWN_DEVICES.find(x=>x.dnsName===hostname);
+  alert('"'+entry.name+'" enviado para '+(dev?(dev.hostname||dev.dnsName):hostname));
+}
+// segurar sem arrastar = menu (baixar / usar como projeto) -- usado só
+// quando navegando um PC remoto (Fase 2), onde arrastar ainda não existe.
 function wireHold(el,onHold){
   let timer=null,fired=false,sx=0,sy=0;
   const THRESH=10;
@@ -732,7 +745,8 @@ async function brGo(p){
     ig.innerHTML=FOLDER_SVG;ig.style.background='linear-gradient(135deg,#64748b,#3f4a5c)';
     btn.append(ig,h('b',0,d.name));
     btn.onclick=()=>brGo(d.path);
-    wireHold(btn,()=>openFileMenu(d,true));
+    if(brMachine==='local')wireIcon(btn,d,()=>openFileMenu(d,true),hostname=>sendFileDrop(d,hostname));
+    else wireHold(btn,()=>openFileMenu(d,true));
     L.append(btn);
   });
   (j.files||[]).forEach(f=>{
@@ -740,7 +754,8 @@ async function brGo(p){
     ig.innerHTML=FILE_SVG;ig.style.background='linear-gradient(135deg,#475569,#2f3a47)';
     btn.append(ig,h('b',0,f.name));
     btn.onclick=()=>downloadFile(f.path,f.name);
-    wireHold(btn,()=>openFileMenu(f,false));
+    if(brMachine==='local')wireIcon(btn,f,()=>openFileMenu(f,false),hostname=>sendFileDrop(f,hostname));
+    else wireHold(btn,()=>openFileMenu(f,false));
     L.append(btn);
   });
 }
