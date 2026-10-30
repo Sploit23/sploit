@@ -113,12 +113,10 @@ button.ic{padding:6px 9px;font-size:12px}
 #xt{flex:1;min-height:0;padding:6px 6px 0}
 .keys{display:flex;gap:6px;overflow-x:auto;padding:8px 8px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--ln);background:var(--panel);scrollbar-width:none}
 .keys button{flex:none;min-width:44px;padding:9px 10px}
-/* Coordenador é conversa, não shell -- Tab/^D/"/"/"-"/"|"/"~" não têm uso
-   ali; esconder sobra espaço de verdade numa tela de celular. */
-.keys.coord [data-shell-only]{display:none}
-#mic.on{color:var(--er);border-color:var(--er);animation:mic-pulse 1.1s ease-in-out infinite}
+#mic.on,#chatmic.on{color:var(--er);border-color:var(--er);animation:mic-pulse 1.1s ease-in-out infinite}
 @keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 #ef444466}50%{box-shadow:0 0 0 5px #ef444400}}
-@media (prefers-reduced-motion: reduce){#mic.on{animation:none}}
+@media (prefers-reduced-motion: reduce){#mic.on,#chatmic.on{animation:none}}
+.chatbar a{flex:none;display:flex;align-items:center;justify-content:center;padding:9px 13px;border:1px solid var(--ln);border-radius:10px;color:var(--mu);text-decoration:none}
 .keys a{display:inline-flex;align-items:center;flex:none;padding:9px 10px;background:var(--panel);border:1px solid var(--ln);border-radius:10px;color:inherit;text-decoration:none;font-size:12px;white-space:nowrap}
 #sheet{display:none;position:fixed;inset:0;background:#000a;z-index:40;align-items:flex-end;justify-content:center}
 #sheet.on{display:flex}
@@ -223,7 +221,12 @@ body.with-nav #nav{display:flex}
 <div class="screen" id="chat">
   <div class="tbar"><button id="chatback">‹ sair</button><b id="chatname"></b></div>
   <div id="chatlog"></div>
-  <div class="chatbar"><input id="chatinput" placeholder="digite uma instrução..."><button id="chatsend" class="go">➤</button></div>
+  <div class="chatbar">
+    <input id="chatinput" placeholder="digite uma instrução...">
+    <button id="chatmic" style="display:none" title="ditar">🎤</button>
+    <a id="chatmicfb" href="#" target="_blank" style="display:none" title="o iOS bloqueia o microfone dentro do app instalado -- abre a mesma tela num navegador normal pra ditar">🌐</a>
+    <button id="chatsend" class="go">➤</button>
+  </div>
 </div>
 
 <div class="screen" id="devices">
@@ -237,7 +240,7 @@ body.with-nav #nav{display:flex}
 </div>
 
 <div class="screen" id="term">
-  <div class="tbar"><button id="back">‹ sair</button><b id="tname"></b><span class="tag" id="tmode"></span><select id="coordcli" style="display:none"><option value="opencode">opencode</option><option value="claude">Claude Code</option></select></div>
+  <div class="tbar"><button id="back">‹ sair</button><b id="tname"></b><span class="tag" id="tmode"></span></div>
   <div class="tabs" id="tabs"><button data-t="xt" class="on">terminal</button><button data-t="pv">preview</button><button data-t="sc">tela</button></div>
   <div id="xt"></div>
   <div class="pane" id="pv">
@@ -425,22 +428,37 @@ function renderList(ps){
   L.append(grid);
 }
 /* ---------- "iniciar conversa" -- chat leve focado num projeto só ---------- */
-let chatProject=null;
+let chatProject=null,chatIsCoordinator=false;
 function openChat(p){
-  closeSheet();chatProject=p;show('chat');$('#chatname').textContent=p.name;$('#chatlog').replaceChildren();
+  closeSheet();chatProject=p;chatIsCoordinator=false;show('chat');$('#chatname').textContent=p.name;$('#chatlog').replaceChildren();
+  $('#chatmic').style.display='none';$('#chatmicfb').style.display='none';
   $('#chatinput').value='';setTimeout(()=>$('#chatinput').focus(),50);
 }
-function closeChat(){chatProject=null;show('projects');refresh()}
+// Coordenador não é uma tela própria -- é uma conversa igual a de projeto,
+// só que sempre na mesma "pasta" sintética fixa (.coordinator, vive no
+// server.js, não aparece no Explorer nem em /api/projects) -- por isso
+// chama /api/coordinator/prompt direto (resolve por diretório, não por
+// alias) em vez de /api/projects/:alias/chat.
+function openCoordinatorChat(){
+  closeSheet();chatProject=null;chatIsCoordinator=true;show('chat');$('#chatname').textContent='🧭 Coordenador';$('#chatlog').replaceChildren();
+  $('#chatmic').style.display=micSupported?'':'none';
+  if(!micSupported){$('#chatmicfb').style.display='';$('#chatmicfb').href=location.origin+'/#t='+encodeURIComponent(TOKEN)+'&view=coordinator'}
+  else $('#chatmicfb').style.display='none';
+  $('#chatinput').value='';setTimeout(()=>$('#chatinput').focus(),50);
+}
+function closeChat(){chatProject=null;chatIsCoordinator=false;show('projects');refresh()}
 function addBubble(kind,text){
   const b=h('div','bubble '+kind,text);$('#chatlog').append(b);$('#chatlog').scrollTop=$('#chatlog').scrollHeight;return b;
 }
 async function sendChat(){
-  const v=$('#chatinput').value.trim();if(!v||!chatProject)return;
+  const v=$('#chatinput').value.trim();if(!v||!(chatIsCoordinator||chatProject))return;
   $('#chatinput').value='';addBubble('me',v);
   const thinking=addBubble('ai','digitando…');
   try{
     if(DEMO){thinking.textContent='(modo demo — sem sessão real pra despachar)';return}
-    const r=await call('POST','/api/projects/'+encodeURIComponent(chatProject.alias)+'/chat',{instruction:v});
+    const r=chatIsCoordinator
+      ? await call('POST','/api/coordinator/prompt',{directory:'.coordinator',instruction:v})
+      : await call('POST','/api/projects/'+encodeURIComponent(chatProject.alias)+'/chat',{instruction:v});
     thinking.textContent=r.reply||'(sem resposta)';
   }catch(e){thinking.textContent='Erro: '+e.message;thinking.classList.add('err')}
 }
@@ -597,7 +615,7 @@ async function init(){
   try{const ps=(await api('/api/all-projects')).map(e=>({...e,name:e.alias,path:e.directory}));start(ps)}
   catch(e){if(e===401){show('login');return}DEMO=true;$('#mode').textContent='● demo';start(DEMO_P)}
 }
-function start(ps){show('home');boot();PRJ_ALL=ps;renderPrjDevices();renderList(applyPrjFilter(ps));stats();refreshDevices();clearInterval(timer);timer=setInterval(()=>{stats();refreshDevices()},5000);clearInterval(thinkTimer);pollThink();thinkTimer=setInterval(pollThink,2000);if(DEEP_LINK_VIEW==='explorer'){DEEP_LINK_VIEW='';openExplorer()}else if(DEEP_LINK_VIEW==='coordinator'){DEEP_LINK_VIEW='';openCoordinator()}else if(DEEP_LINK_VIEW.startsWith('term:')){const[,name,mode]=DEEP_LINK_VIEW.split(':');DEEP_LINK_VIEW='';const p=ps.find(x=>x.name===decodeURIComponent(name));if(p)openTerm(p,mode)}}
+function start(ps){show('home');boot();PRJ_ALL=ps;renderPrjDevices();renderList(applyPrjFilter(ps));stats();refreshDevices();clearInterval(timer);timer=setInterval(()=>{stats();refreshDevices()},5000);clearInterval(thinkTimer);pollThink();thinkTimer=setInterval(pollThink,2000);if(DEEP_LINK_VIEW==='explorer'){DEEP_LINK_VIEW='';openExplorer()}else if(DEEP_LINK_VIEW==='coordinator'){DEEP_LINK_VIEW='';openCoordinatorChat()}else if(DEEP_LINK_VIEW.startsWith('term:')){const[,name,mode]=DEEP_LINK_VIEW.split(':');DEEP_LINK_VIEW='';const p=ps.find(x=>x.name===decodeURIComponent(name));if(p)openTerm(p,mode)}}
 $('#tkgo').onclick=async()=>{
   let v=$('#tk').value.trim();
   const m=v.match(/[#?&]t=([^&\s]+)/); // aceita colar o link inteiro, não só o token puro
@@ -864,18 +882,9 @@ $('#bruse').onclick=()=>{if(brCur&&brMachine==='local')useAsProject(brCur)};
 $('#nav').addEventListener('click',e=>{
   const go=e.target.closest('.navitem')?.dataset.go;if(!go)return;
   if(go==='browse')openExplorer();
-  else if(go==='coordinator')openCoordinator();
+  else if(go==='coordinator')openCoordinatorChat();
   else{show(go);if(go==='devices')openPairing();refresh();}
 });
-// Coordenador não é uma tela própria -- reaproveita 100% o terminal que já
-// existe pros projetos, só com uma "pasta" sintética fixa (.coordinator,
-// vive no server.js, não aparece no Explorer nem em /api/projects) e
-// mode:'coordinator' (server.js reconhece esse mode e ignora o nome do
-// projeto enviado, ver attach() em server.js).
-function openCoordinator(){openTerm({name:'Coordenador',path:'.coordinator'},'coordinator')}
-// só persiste a escolha -- vale a partir da próxima vez que o terminal do
-// coordenador abrir (não reinicia a sessão já em andamento).
-$('#coordcli').onchange=()=>{if(!DEMO)call('PUT','/api/coordinator-cli',{cli:$('#coordcli').value}).catch(()=>{})};
 function openPairing(){
   refreshDevices();
   const url='https://'+location.hostname+'/#t='+TOKEN;
@@ -927,48 +936,42 @@ $('#sc').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 /* ---------- terminal ---------- */
 function input(d){if(DEMO)din(d);else if(ws&&ws.readyState===1)ws.send(JSON.stringify({t:'i',d}))}
 function din(d){if(d==='\r')term.write('\r\n\x1b[32m❯\x1b[0m ');else if(d==='\x7f')term.write('\b \b');else if(d>=' ')term.write(d)}
-/* ---------- ditar no Coordenador (Web Speech API nativa, sem servidor) ---------- */
+/* ---------- ditar (Web Speech API nativa, sem servidor) -- qualquer tela
+   com um botão de microfone chama wireMic() uma vez. ---------- */
 const SpeechRec=window.SpeechRecognition||window.webkitSpeechRecognition;
 const micSupported=!!SpeechRec;
-if(micSupported){
+function wireMic(btn,onText){
+  if(!micSupported)return;
   const rec=new SpeechRec();
   rec.lang='pt-BR';rec.interimResults=false;rec.continuous=false;
-  const micBtn=$('#mic');
-  rec.onstart=()=>micBtn.classList.add('on');
-  rec.onend=()=>micBtn.classList.remove('on');
-  rec.onerror=()=>micBtn.classList.remove('on');
-  // joga o texto reconhecido no terminal SEM Enter -- a pessoa revisa (fala
-  // errada/ruído vira palavra errada às vezes) e confirma apertando ↵ ela
-  // mesma, igual quando digita.
-  rec.onresult=e=>{const text=e.results[0]&&e.results[0][0].transcript;if(text&&term)input(text)};
-  micBtn.onclick=()=>{try{rec.start()}catch{}};
+  rec.onstart=()=>btn.classList.add('on');
+  rec.onend=()=>btn.classList.remove('on');
+  rec.onerror=()=>btn.classList.remove('on');
+  // entrega o texto reconhecido SEM confirmar sozinho -- a pessoa revisa
+  // (fala errada/ruído vira palavra errada às vezes) e confirma apertando
+  // enviar/↵ ela mesma, igual quando digita.
+  rec.onresult=e=>{const text=e.results[0]&&e.results[0][0].transcript;if(text)onText(text)};
+  btn.onclick=()=>{try{rec.start()}catch{}};
 }
+wireMic($('#mic'),text=>{if(term)input(text)});
+wireMic($('#chatmic'),text=>{
+  const i=$('#chatinput'),v=i.value.trim();i.value=v?v+' '+text:text;i.focus();
+});
 let termSeq=0;
 function openTerm(p,mode){
-  show('term');cur=p;setTab('xt');$('#tname').textContent=p.name;$('#tmode').textContent=mode==='shell'?'SHELL':mode==='claude'||mode==='claude-new'?'CLAUDE':mode==='coordinator'?'COORDENADOR':'OPENCODE';
-  const coordSel=$('#coordcli'),isCoord=mode==='coordinator',isChat=mode!=='shell';
-  if(isCoord){
-    coordSel.style.display='';
-    if(!DEMO)api('/api/coordinator-cli').then(r=>coordSel.value=r.cli).catch(()=>{});
-  }else coordSel.style.display='none';
-  // Coordenador é conversa (sem site pra prever, sem shell cru) -- esconde
-  // as abas e as teclas que só servem pra projeto de código normal, pra
-  // sobrar mais espaço de tela pra ler a conversa em si.
-  $('#tabs').style.display=isCoord?'none':'';
-  $('#keys').classList.toggle('coord',isCoord);
-  // ditar faz sentido em qualquer conversa com IA (opencode/claude/novo/
-  // Coordenador) -- só não em shell puro, onde não tem o que "ditar".
+  show('term');cur=p;setTab('xt');$('#tname').textContent=p.name;$('#tmode').textContent=mode==='shell'?'SHELL':mode==='claude'||mode==='claude-new'?'CLAUDE':'OPENCODE';
+  const isChat=mode!=='shell';
+  // ditar faz sentido em qualquer conversa com IA (opencode/claude/novo) --
+  // só não em shell puro, onde não tem o que "ditar". Coordenador ditar é
+  // no chat agora (ver openCoordinatorChat/wireMic($('#chatmic'),...)).
   $('#mic').style.display=isChat&&micSupported?'':'none';
   // iOS bloqueia SpeechRecognition dentro do PWA instalado (funciona numa
-  // aba normal do mesmo Safari/Chrome) -- sem alternativa client-side,
-  // o fallback é escapar pro navegador de verdade com o mesmo token.
-  // Coordenador tem seu próprio atalho de deep-link; projeto normal usa
-  // o esquema genérico term:<nome>:<mode> (ver start()).
+  // aba normal do mesmo Safari/Chrome) -- sem alternativa client-side, o
+  // fallback é escapar pro navegador de verdade com o mesmo token.
   const micFb=$('#micfallback');
   if(isChat&&!micSupported){
     micFb.style.display='';
-    const view=isCoord?'coordinator':'term:'+encodeURIComponent(p.name)+':'+mode;
-    micFb.href=location.origin+'/#t='+encodeURIComponent(TOKEN)+'&view='+view;
+    micFb.href=location.origin+'/#t='+encodeURIComponent(TOKEN)+'&view=term:'+encodeURIComponent(p.name)+':'+mode;
   }else micFb.style.display='none';
   $('#xt').replaceChildren();
   // fonte igual em qualquer tela (não só 11px no celular) + lineHeight/
