@@ -203,6 +203,7 @@ body.with-nav #nav{display:flex}
   <div class="selfname" style="margin:10px 0 16px">
     <span id="selficon"></span><small id="host">PRIVATE NODE</small>
     <button class="ic" id="renameself" title="renomear">✎</button>
+    <button class="ic" id="checkupdates" title="verificar atualização agora">🔄</button>
   </div>
   <pre id="boot" class="mono"></pre>
   <div id="stats">
@@ -504,7 +505,9 @@ function renderPairList(all){
     nm.innerHTML=DEV_ICON+'<b>'+(d.hostname||d.dnsName)+'</b>';
     hd.append(nm,h('span','st '+(d.online?'on':'off'),d.online?'● online':'○ offline'));
     c.append(hd);
-    c.append(mk('✎ renomear',()=>renameDevice(d)));
+    const bt0=h('div','bt');bt0.append(mk('✎ renomear',()=>renameDevice(d)));
+    if(d.token)bt0.append(mk('🔄 atualizar',e=>checkUpdates(e.target,d.dnsName)));
+    c.append(bt0);
     if(d.token){const bt=h('div','bt');bt.append(mk('entrar →',()=>openDevice(d),'go'));c.append(bt)}
     else{
       const i=h('input');i.placeholder='colar token deste dispositivo';
@@ -638,6 +641,17 @@ $('#renameself').onclick=()=>{
   },'go');
   sheet(h('b',0,'renomear este PC'),i,go,mk('cancelar',closeSheet));
 };
+// dispara checkForUpdates() agora, em vez de esperar o ciclo de boot/24h --
+// dnsName presente = pede pro device certo fazer em si mesmo (proxied,
+// mesmo token dele); sem dnsName = nesta própria máquina. Não dá pra saber
+// se terminou por aqui (o processo pode reiniciar sozinho no meio), só que
+// a checagem começou.
+async function checkUpdates(btn,dnsName){
+  const original=btn.textContent;btn.textContent='verificando…';btn.disabled=true;
+  try{await call('POST','/api/check-updates',dnsName?{dnsName}:{});btn.textContent='✓ iniciado';setTimeout(()=>{btn.textContent=original;btn.disabled=false},4000)}
+  catch(e){btn.textContent=original;btn.disabled=false;alert(e.message)}
+}
+$('#checkupdates').onclick=e=>checkUpdates(e.currentTarget);
 
 /* ---------- explorer: navegar, usar como projeto, baixar ---------- */
 let brCur='',brMachine='local';

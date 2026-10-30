@@ -647,6 +647,30 @@ const srv = http.createServer(async (req, res) => {
       void announceToPeers(); // propaga o novo nome pros outros já, sem esperar o ciclo de 1h
       return J({ ok: true, name });
     }
+    if (u.pathname === '/api/check-updates' && req.method === 'POST') {
+      // "atualizar agora" -- checkForUpdates() já roda sozinho no boot e a
+      // cada 24h, mas sem isso não tinha nenhum jeito de forçar fora desse
+      // ciclo (era exatamente a reclamação: toda atualização minha exigia
+      // alguém colar comando no PowerShell de cada PC na mão).
+      const b = await readBody(req).catch(() => ({}));
+      const dnsName = String((b && b.dnsName) || '').trim();
+      if (dnsName) {
+        const dev = KNOWN.find(k => k.dnsName === dnsName);
+        if (!dev) return J({ error: 'dispositivo não conhecido' }, 404);
+        try {
+          const r = await fetch(`https://${dnsName}/api/check-updates`, {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + dev.token },
+            signal: AbortSignal.timeout(15000),
+          });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok) return J({ error: j.error || ('destino respondeu ' + r.status) }, 502);
+          return J(j);
+        } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+      }
+      void checkForUpdates(); // fire-and-forget -- se reiniciar o serviço, a resposta já foi
+      return J({ ok: true, checking: true });
+    }
     if (u.pathname === '/api/coordinator-cli' && req.method === 'GET') {
       return J({ cli: getCoordinatorCli() });
     }
