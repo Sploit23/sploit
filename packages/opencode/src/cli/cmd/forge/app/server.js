@@ -12,6 +12,21 @@ const mcpCoordinator = require('./mcp-coordinator');
 const WIN = process.platform === 'win32';
 const sessions = require(WIN ? './sessions-native' : './sessions-tmux');
 
+// o Serviço do Windows só registra na config dele um conjunto FIXO de
+// variáveis, decorado na hora do install (ver env: [...] em
+// win-service.js) -- uma variável nova no .env (ex: FMM_ENGINE_DIR)
+// nunca chegaria em process.env só reiniciando o serviço, precisaria
+// reinstalar. Lendo o .env direto aqui, um restart normal já basta pra
+// qualquer variável nova, sem precisar tocar em win-service.js de novo
+// a cada uma. Nunca sobrescreve o que já veio de fora (serviço/shell).
+(function loadDotEnv() {
+  try {
+    fs.readFileSync(path.join(__dirname, '.env'), 'utf8').split(/\r?\n/).forEach(line => {
+      const m = line.match(/^([\w.-]+)=(.*)$/);
+      if (m && !(m[1] in process.env)) process.env[m[1]] = m[2];
+    });
+  } catch {}
+})();
 const TOKEN = process.env.FORGE_TOKEN || '';
 if (TOKEN.length < 24) { console.error('Defina FORGE_TOKEN com 24+ caracteres'); process.exit(1); }
 // processos filhos (shell do /api/exec, sessões de terminal, xdotool) não precisam
