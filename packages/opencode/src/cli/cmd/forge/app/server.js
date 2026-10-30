@@ -356,12 +356,31 @@ const srv = http.createServer(async (req, res) => {
       if (u.pathname === '/api/triagem' && req.method === 'POST') {
         // pergunta rápida/trivial pro motor local (CUDA, ver FMM_ENGINE_DIR) --
         // só existe de verdade na(s) máquina(s) que configuraram isso no
-        // .env; nas outras, 501 (mesmo padrão do /api/screen no Windows:
-        // rota existe em todo PC, só funciona onde tem suporte real).
-        if (!FMM_ENGINE_DIR) return J({ error: 'motor local não configurado nesta máquina' }, 501);
+        // .env. Nas outras, em vez de só dizer "não configurado", procura
+        // na malha quem tem (pedido explícito: o botão 🧠 tem que funcionar
+        // de qualquer PC, sem precisar saber que é o Escritório que tem a
+        // GPU). `relayed` evita um PC sem motor perguntar pro outro sem
+        // motor que pergunte de volta pro primeiro -- só UM salto, nunca
+        // um ping-pong infinito entre dois nós sem o motor.
         const b = await readBody(req);
         const question = String(b.question || '').trim();
         if (!question) return J({ error: 'question é obrigatória' }, 400);
+        if (!FMM_ENGINE_DIR) {
+          if (!b.relayed) {
+            for (const dev of KNOWN) {
+              try {
+                const r = await fetch(`https://${dev.dnsName}/api/triagem`, {
+                  method: 'POST',
+                  headers: { Authorization: 'Bearer ' + dev.token, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ question, relayed: true }),
+                  signal: AbortSignal.timeout(60000),
+                });
+                if (r.ok) return J(await r.json());
+              } catch {}
+            }
+          }
+          return J({ error: 'motor local não configurado nesta máquina (nem achado na malha)' }, 501);
+        }
         ensureFmmApi();
         if (!(await waitFmmApi())) return J({ error: 'motor local não respondeu a tempo' }, 504);
         try {
