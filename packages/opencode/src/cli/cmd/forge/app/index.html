@@ -60,14 +60,13 @@ h2{font-size:12px;letter-spacing:1px;color:var(--mu);margin:26px 0 12px;font-wei
 .dcard b{font-size:14px}
 .dname{display:flex;align-items:center;gap:9px}
 .dicon{width:22px;height:22px;flex:none;color:var(--blue);border:1.5px solid var(--ln);border-radius:50%;padding:5px;box-sizing:border-box;transition:border-color .2s,box-shadow .2s}
-.ph:has(.dot.on) .dicon,.ph:has(.st.on) .dicon{border-color:var(--blue);box-shadow:0 0 8px #3ef0d84d}
+.ph:has(.dot.on) .dicon{border-color:var(--blue);box-shadow:0 0 8px #3ef0d84d}
 .selfname{display:flex;align-items:center;gap:8px}
 .selfname .dicon{width:28px;height:28px}
 .selfname #host{font-size:19px;font-weight:700;letter-spacing:.3px;color:var(--tx)}
 button.ic{padding:6px 9px;font-size:12px}
-.proj{border:1px solid var(--ln);background:var(--panel);border-radius:14px;padding:16px;margin-bottom:10px}
 .ph{display:flex;justify-content:space-between;align-items:center}
-.ph b{font-size:15px}.st{font-size:11px;display:inline-flex;align-items:center;gap:5px}.st.on{color:var(--ok)}.st.off{color:var(--mu)}
+.ph b{font-size:15px}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--mu);display:inline-block}
 .dot.on{background:var(--ok);box-shadow:0 0 6px #22c55e80}
 .dot.off{background:#4a5568}
@@ -106,7 +105,7 @@ button.ic{padding:6px 9px;font-size:12px}
 .pp{color:var(--mu);font-size:12px;margin:3px 0 10px}
 .snap{margin:0;padding:10px;background:#0d1320;border-left:2px solid var(--blue);border-radius:8px;color:#9fb0c9;font-size:11px;line-height:1.45;white-space:pre-wrap;overflow:hidden;max-height:72px}
 .pf{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
-.mu{color:var(--mu);font-size:12px}.bt{display:flex;gap:7px;flex-wrap:wrap}
+.mu{color:var(--mu);font-size:12px}
 #term.on{display:flex;flex-direction:column;height:100dvh;max-width:none;padding:env(safe-area-inset-top) 0 0}
 .tbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--ln);border-left:2px solid var(--blue);background:var(--panel)}
 .tbar b{color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:600}
@@ -171,10 +170,8 @@ body.with-nav #nav{display:flex}
 @media (max-width:899px){.exwrap{flex-direction:column}.exside{width:100%;flex-direction:row;overflow-x:auto;gap:6px}.exside button{width:auto;white-space:nowrap}}
 
 /* ---------- pareamento ---------- */
-.pairgrid{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start}
 #qrbox{display:flex;justify-content:center;margin:4px 0;background:#fff;border-radius:12px;padding:14px;border:1px solid var(--blue);box-shadow:0 0 0 1px #3ef0d833,0 0 24px #3ef0d84d}
 #qrbox svg{width:180px;height:180px}
-@media (max-width:899px){.pairgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -230,17 +227,12 @@ body.with-nav #nav{display:flex}
 
 <div class="screen" id="devices">
   <div class="top"><div class="brand"><b>Pareamento</b></div></div>
-  <div class="pairgrid">
-    <div class="card">
-      <div class="mu" style="margin-bottom:10px">escaneie com a câmera do outro aparelho</div>
-      <div id="qrbox"></div>
-      <button class="go" id="copylink" style="width:100%;margin-top:12px">copiar link</button>
-    </div>
-    <div>
-      <h2 style="margin-top:0">Dispositivos pareados</h2>
-      <div id="devlist"></div>
-    </div>
+  <div class="card" style="max-width:320px;margin:0 auto">
+    <div class="mu" style="margin-bottom:10px">escaneie com a câmera do outro aparelho</div>
+    <div id="qrbox"></div>
+    <button class="go" id="copylink" style="width:100%;margin-top:12px">copiar link</button>
   </div>
+  <div class="mu" style="text-align:center;margin-top:16px">gerenciar/renomear dispositivos já conhecidos é na aba Dispositivos -- segura o card dele.</div>
 </div>
 
 <div class="screen" id="term">
@@ -512,7 +504,15 @@ function mergeDevices(online,known){
   });
   return Object.values(byDns);
 }
-// grid compacto na tela Dispositivos -- só status + entrar (sem gerenciar token aqui)
+// grid na tela Dispositivos -- toque = ação principal (entrar/colar token),
+// segurar = menu (renomear/atualizar). Pareamento (QR) ficou só pra parear
+// um aparelho novo; gerenciar device já conhecido é tudo aqui agora.
+function openDeviceMenu(d){
+  const nodes=[h('b',0,d.hostname||d.dnsName),mk('✎ renomear',()=>{closeSheet();renameDevice(d)})];
+  if(d.token)nodes.push(mk('🔄 atualizar',e=>checkUpdates(e.target,d.dnsName)));
+  nodes.push(mk('cancelar',closeSheet));
+  sheet(...nodes);
+}
 function renderDeviceGrid(all){
   const L=$('#devgrid');L.replaceChildren();
   if(!all.length){L.append(h('div','mu','nenhum outro PC com Sploit-Forge encontrado na rede ainda'));return}
@@ -522,28 +522,12 @@ function renderDeviceGrid(all){
     hd.append(nm,h('span','dot '+(d.online?'on':'off')));
     c.append(hd);
     if(d.token)c.append(mk('entrar →',()=>openDevice(d),'go'));
-    else c.append(h('div','mu','sem token salvo — veja Pareamento'));
-    L.append(c);
-  });
-}
-// lista detalhada na tela Pareamento -- aqui sim dá pra colar/salvar token e renomear
-function renderPairList(all){
-  const L=$('#devlist');L.replaceChildren();
-  if(!all.length)L.append(h('div','mu','nenhum outro dispositivo com Sploit-Forge encontrado na rede ainda'));
-  all.forEach(d=>{
-    const c=h('article','proj'),hd=h('div','ph'),nm=h('span','dname');
-    nm.innerHTML=DEV_ICON+'<b>'+(d.hostname||d.dnsName)+'</b>';
-    hd.append(nm,h('span','st '+(d.online?'on':'off'),d.online?'● online':'○ offline'));
-    c.append(hd);
-    const bt0=h('div','bt');bt0.append(mk('✎ renomear',()=>renameDevice(d)));
-    if(d.token)bt0.append(mk('🔄 atualizar',e=>checkUpdates(e.target,d.dnsName)));
-    c.append(bt0);
-    if(d.token){const bt=h('div','bt');bt.append(mk('entrar →',()=>openDevice(d),'go'));c.append(bt)}
     else{
       const i=h('input');i.placeholder='colar token deste dispositivo';
       const go=mk('salvar',()=>{const t=i.value.trim();if(!t)return;saveDevices([...loadDevices().filter(x=>x.dnsName!==d.dnsName),{hostname:d.hostname,dnsName:d.dnsName,token:t}]);refreshDevices()},'go');
       c.append(i,go);
     }
+    wireHold(c,()=>openDeviceMenu(d));
     L.append(c);
   });
 }
@@ -557,7 +541,6 @@ async function refreshDevices(){
   const all=mergeDevices(online,known);
   KNOWN_DEVICES=all;
   renderDeviceGrid(all);
-  renderPairList(all);
   renderPrjDevices();
 }
 async function stats(){
