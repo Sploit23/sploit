@@ -165,13 +165,6 @@ body.with-nav #nav{display:flex}
 .crumb button{background:none;border:none;padding:2px 4px;color:var(--mu);font-size:12px;font-family:inherit}
 .crumb button:last-child{color:var(--tx)}
 .crumb span{color:var(--blue)}
-table.extbl{width:100%;border-collapse:collapse;font-size:13px}
-table.extbl th{text-align:left;color:var(--mu);font-weight:500;font-size:11px;letter-spacing:.5px;padding:0 10px 8px;border-bottom:1px solid var(--ln)}
-table.extbl td{padding:9px 10px 9px 8px;border-bottom:1px solid #1f2937;border-left:2px solid transparent;transition:border-color .15s}
-table.extbl tr:last-child td{border-bottom:none}
-table.extbl tr.rowbtn{cursor:pointer}
-table.extbl tr.rowbtn:hover td{background:#0d1320;border-left-color:var(--blue)}
-.exname{display:flex;align-items:center;gap:8px}
 @media (max-width:899px){.exwrap{flex-direction:column}.exside{width:100%;flex-direction:row;overflow-x:auto;gap:6px}.exside button{width:auto;white-space:nowrap}}
 
 /* ---------- pareamento ---------- */
@@ -271,7 +264,7 @@ table.extbl tr.rowbtn:hover td{background:#0d1320;border-left-color:var(--blue)}
     <div class="exside" id="exside"></div>
     <div class="exmain">
       <div class="crumb" id="crumb"></div>
-      <table class="extbl"><thead><tr><th>Nome</th><th>Tipo</th><th>Modificado</th><th></th></tr></thead><tbody id="brlist"></tbody></table>
+      <div class="icongrid" id="brlist"></div>
       <div class="keys" style="justify-content:flex-end;border:0;background:none;padding:14px 0 0"><button id="bruse" class="go">usar esta pasta como projeto</button></div>
     </div>
   </div>
@@ -648,6 +641,37 @@ async function downloadFile(p,name){
     URL.revokeObjectURL(url);
   }catch(e){alert(e.message)}
 }
+// folha com cantinho dobrado -- mesmo estilo (branco, sombra sutil) do
+// FOLDER_SVG, só pra arquivo em vez de pasta.
+const FILE_SVG='<svg viewBox="0 0 24 24" width="26" height="26" fill="none"><path d="M6 3.8A1 1 0 0 1 7 2.8h7.2l4 4v12.6a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3.8Z" fill="#fff" fill-opacity=".97"/><path d="M14.2 2.8v3.4a1 1 0 0 0 1 1h3.2" stroke="#000" stroke-opacity=".12" stroke-width="1"/></svg>';
+async function useAsProject(p){
+  try{await call('POST','/api/projects',{path:p});show('projects');refresh()}catch(e){alert(e.message)}
+}
+// segurar sem arrastar = menu (baixar / usar como projeto) -- sem o resto
+// do gesto de wireIcon (arrastar pra outro PC é Fase 3, ainda não existe
+// endpoint pra isso aqui).
+function wireHold(el,onHold){
+  let timer=null,fired=false,sx=0,sy=0;
+  const THRESH=10;
+  el.addEventListener('touchstart',e=>{
+    const t=e.touches[0];sx=t.clientX;sy=t.clientY;fired=false;
+    timer=setTimeout(()=>{fired=true;onHold()},450);
+  },{passive:true});
+  el.addEventListener('touchmove',e=>{
+    const t=e.touches[0];
+    if(Math.abs(t.clientX-sx)>THRESH||Math.abs(t.clientY-sy)>THRESH)clearTimeout(timer);
+  },{passive:true});
+  el.addEventListener('touchend',e=>{clearTimeout(timer);if(fired)e.preventDefault()});
+  el.addEventListener('touchcancel',()=>clearTimeout(timer));
+}
+function openFileMenu(entry,isDir){
+  const nodes=[h('b',0,(isDir?'📁 ':'📄 ')+entry.name),
+    h('div','mu',entry.path+(isDir?'':'\n'+fmtSize(entry.size)+' · '+fmtDate(entry.modified)))];
+  nodes.push(mk('⬇ baixar'+(isDir?' (.tar.gz)':''),()=>{closeSheet();downloadFile(entry.path,entry.name+(isDir?'.tar.gz':''))},'go'));
+  if(isDir)nodes.push(mk('usar esta pasta como projeto',()=>{closeSheet();useAsProject(entry.path)}));
+  nodes.push(mk('cancelar',closeSheet));
+  sheet(...nodes);
+}
 function renderCrumb(){
   const C=$('#crumb');C.replaceChildren();
   C.append(mk('início',()=>openExplorer()));
@@ -669,21 +693,20 @@ async function brGo(p){
   renderCrumb();
   const L=$('#brlist');L.replaceChildren();
   (j.dirs||[]).forEach(d=>{
-    const tr=h('tr','rowbtn');tr.onclick=()=>brGo(d.path);
-    const tdName=h('td');tdName.append(h('span','exname',0));tdName.firstChild.textContent=(EX_ICONS[d.kind]||'📁')+' '+d.name;
-    const tdType=h('td','mu','Pasta');
-    const tdMod=h('td','mu',fmtDate(d.modified));
-    const tdDl=h('td');tdDl.append(mk('⬇',e=>{e.stopPropagation();downloadFile(d.path,d.name+'.tar.gz')}));
-    tr.append(tdName,tdType,tdMod,tdDl);L.append(tr);
+    const btn=h('button','icon'),ig=h('span','ig');
+    ig.innerHTML=FOLDER_SVG;ig.style.background='linear-gradient(135deg,#64748b,#3f4a5c)';
+    btn.append(ig,h('b',0,d.name));
+    btn.onclick=()=>brGo(d.path);
+    wireHold(btn,()=>openFileMenu(d,true));
+    L.append(btn);
   });
   (j.files||[]).forEach(f=>{
-    const tr=h('tr');
-    const ext=(f.name.split('.').pop()||'').toUpperCase();
-    const tdName=h('td');tdName.append(h('span','exname',0));tdName.firstChild.textContent='📄 '+f.name;
-    const tdType=h('td','mu',(ext||'arquivo')+' · '+fmtSize(f.size));
-    const tdMod=h('td','mu',fmtDate(f.modified));
-    const tdDl=h('td');tdDl.append(mk('⬇',()=>downloadFile(f.path,f.name)));
-    tr.append(tdName,tdType,tdMod,tdDl);L.append(tr);
+    const btn=h('button','icon'),ig=h('span','ig');
+    ig.innerHTML=FILE_SVG;ig.style.background='linear-gradient(135deg,#475569,#2f3a47)';
+    btn.append(ig,h('b',0,f.name));
+    btn.onclick=()=>downloadFile(f.path,f.name);
+    wireHold(btn,()=>openFileMenu(f,false));
+    L.append(btn);
   });
 }
 async function renderShortcuts(){
@@ -702,10 +725,7 @@ async function openExplorer(){
   brGo(home?home.path:'');
 }
 function openBrowse(){closeSheet();openExplorer()}
-$('#bruse').onclick=async()=>{
-  if(!brCur)return;
-  try{await call('POST','/api/projects',{path:brCur});show('projects');refresh()}catch(e){alert(e.message)}
-};
+$('#bruse').onclick=()=>{if(brCur)useAsProject(brCur)};
 
 /* ---------- menu lateral / nav ---------- */
 $('#nav').addEventListener('click',e=>{
