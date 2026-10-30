@@ -55,7 +55,8 @@ input:focus{outline:none;border-color:var(--blue)}
 .m s{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .6s}
 h2{font-size:12px;letter-spacing:1px;color:var(--mu);margin:26px 0 12px;font-weight:600}
 .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-.dcard{border:1px solid var(--ln);background:var(--panel);border-radius:14px;padding:14px}
+.dcard{border:1px solid var(--ln);background:var(--panel);border-radius:14px;padding:14px;cursor:pointer}
+.dcard.on{border-color:var(--blue);box-shadow:0 0 0 1px #3ef0d833}
 .dcard .ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .dcard b{font-size:14px}
 .dname{display:flex;align-items:center;gap:9px}
@@ -209,7 +210,7 @@ body.with-nav #nav{display:flex}
     <div class="m"><i>RAM</i><b id="vm">–</b><u><s id="bm"></s></u></div>
     <div class="m"><i>UPTIME</i><b id="vu">–</b><u><s id="bu" style="width:100%;opacity:.25"></s></u></div>
   </div>
-  <h2>Outros dispositivos</h2>
+  <h2>Dispositivos</h2>
   <div id="devgrid" class="dgrid"></div>
 </div>
 
@@ -509,25 +510,39 @@ function mergeDevices(online,known){
 // um aparelho novo; gerenciar device já conhecido é tudo aqui agora.
 function openDeviceMenu(d){
   const nodes=[h('b',0,d.hostname||d.dnsName),mk('✎ renomear',()=>{closeSheet();renameDevice(d)})];
-  if(d.token)nodes.push(mk('🔄 atualizar',e=>checkUpdates(e.target,d.dnsName)));
+  if(d.token){
+    nodes.push(mk('🔄 atualizar',e=>checkUpdates(e.target,d.dnsName)));
+    nodes.push(mk('entrar → (abre o link dele, pra terminal de verdade)',()=>{closeSheet();openDevice(d)},'go'));
+  }
   nodes.push(mk('cancelar',closeSheet));
   sheet(...nodes);
 }
+// tocar troca qual PC está mostrado no topo (sem navegar); segurar abre o
+// menu (renomear/atualizar/entrar -- entrar só quando realmente precisar
+// abrir um terminal de verdade naquele PC).
 function renderDeviceGrid(all){
   const L=$('#devgrid');L.replaceChildren();
-  if(!all.length){L.append(h('div','mu','nenhum outro PC com Sploit-Forge encontrado na rede ainda'));return}
+  const self=h('div','dcard'),shd=h('div','ph'),snm=h('span','dname');
+  snm.innerHTML=DEV_ICON+'<b>'+(SELF_NAME||'este PC')+'</b>';
+  shd.append(snm,h('span','dot on'));
+  self.append(shd);
+  self.classList.toggle('on',devMachine==='local');
+  self.onclick=()=>switchDevice('local');
+  L.append(self);
   all.forEach(d=>{
     const c=h('div','dcard'),hd=h('div','ph'),nm=h('span','dname');
     nm.innerHTML=DEV_ICON+'<b>'+(d.hostname||d.dnsName)+'</b>';
     hd.append(nm,h('span','dot '+(d.online?'on':'off')));
     c.append(hd);
-    if(d.token)c.append(mk('entrar →',()=>openDevice(d),'go'));
-    else{
+    c.classList.toggle('on',devMachine===d.dnsName);
+    if(d.token){
+      c.onclick=()=>switchDevice(d.dnsName);
+      wireHold(c,()=>openDeviceMenu(d));
+    }else{
       const i=h('input');i.placeholder='colar token deste dispositivo';
       const go=mk('salvar',()=>{const t=i.value.trim();if(!t)return;saveDevices([...loadDevices().filter(x=>x.dnsName!==d.dnsName),{hostname:d.hostname,dnsName:d.dnsName,token:t}]);refreshDevices()},'go');
       c.append(i,go);
     }
-    wireHold(c,()=>openDeviceMenu(d));
     L.append(c);
   });
 }
@@ -543,21 +558,40 @@ async function refreshDevices(){
   renderDeviceGrid(all);
   renderPrjDevices();
 }
-async function stats(){
+// qual PC está sendo mostrado no topo (CPU/RAM/uptime) -- trocar não navega
+// pra lugar nenhum, só busca via proxy, igual Arquivos/Projetos já fazem.
+// SELF_NAME guarda o nome desta máquina separado do que está em #host
+// agora (que pode estar mostrando outro device) -- "renomear este PC"
+// precisa saber qual é "este PC" independente do que está na tela.
+let devMachine='local',SELF_NAME='';
+async function stats(m){
+  m=m===undefined?devMachine:m;
   try{
-    const s=DEMO?{cpu:15+Math.random()*30,mem:62,up:196000,host:'forge-node-01',screen:true,desktop:true}:await api('/api/stats');
+    const qs=m!=='local'?('?machine='+encodeURIComponent(m)):'';
+    const s=DEMO?{cpu:15+Math.random()*30,mem:62,up:196000,host:'forge-node-01',screen:true,desktop:true}:await api('/api/stats'+qs);
     $('#vc').textContent=Math.round(s.cpu)+'%';$('#bc').style.width=Math.min(100,s.cpu)+'%';
     $('#vm').textContent=Math.round(s.mem)+'%';$('#bm').style.width=s.mem+'%';
     const d=Math.floor(s.up/86400),hr=Math.floor(s.up%86400/3600);$('#vu').textContent=d+'d '+hr+'h';
     $('#host').textContent=s.host;
     $('#selficon').innerHTML=DEV_ICON;
-    // tela remota (Xvfb/xdotool) so existe no motor Linux -- esconde o botao
-    // em vez de deixar morto numa instalacao Windows nativa.
-    const scBtn=document.querySelector('[data-t="sc"]');if(scBtn)scBtn.style.display=s.screen===false?'none':'';
-    // Coordenador só em PCs com app desktop instalado -- em headless
-    // (FORGE_HEADLESS) não tem pra onde despachar nem sentido em existir.
-    const coordBtn=$('#navcoordinator');if(coordBtn)coordBtn.style.display=s.desktop?'':'none';
+    if(m==='local'){
+      SELF_NAME=s.host;
+      // tela remota (Xvfb/xdotool) so existe no motor Linux -- esconde o
+      // botao em vez de deixar morto numa instalacao Windows nativa. Só
+      // reflete ESTA máquina -- abrir essas telas sempre opera localmente,
+      // mesmo vendo as estatísticas de outro PC no momento.
+      const scBtn=document.querySelector('[data-t="sc"]');if(scBtn)scBtn.style.display=s.screen===false?'none':'';
+      // Coordenador só em PCs com app desktop instalado -- em headless
+      // (FORGE_HEADLESS) não tem pra onde despachar nem sentido em existir.
+      const coordBtn=$('#navcoordinator');if(coordBtn)coordBtn.style.display=s.desktop?'':'none';
+    }
   }catch{}
+}
+function switchDevice(m){
+  if(m===devMachine)return;
+  devMachine=m;
+  stats(m);
+  renderDeviceGrid(KNOWN_DEVICES);
 }
 async function init(){
   try{const ps=(await api('/api/all-projects')).map(e=>({...e,name:e.alias,path:e.directory}));start(ps)}
@@ -647,11 +681,11 @@ const openNewProjectMenu=()=>sheet(h('b',0,'novo projeto'),mk('criar nova',openN
 $('#newp').onclick=openNewProjectMenu;
 $('#newp2').onclick=openNewProjectMenu;
 $('#renameself').onclick=()=>{
-  const i=h('input');i.value=$('#host').textContent;i.placeholder='nome desta máquina';
+  const i=h('input');i.value=SELF_NAME||$('#host').textContent;i.placeholder='nome desta máquina';
   const go=mk('salvar',async()=>{
     const v=i.value.trim();if(!v)return;
-    if(DEMO){$('#host').textContent=v;closeSheet();return}
-    try{await call('PUT','/api/device-name',{name:v});$('#host').textContent=v;closeSheet()}catch(e){alert(e.message)}
+    if(DEMO){SELF_NAME=v;if(devMachine==='local')$('#host').textContent=v;closeSheet();return}
+    try{await call('PUT','/api/device-name',{name:v});SELF_NAME=v;if(devMachine==='local')$('#host').textContent=v;closeSheet()}catch(e){alert(e.message)}
   },'go');
   sheet(h('b',0,'renomear este PC'),i,go,mk('cancelar',closeSheet));
 };

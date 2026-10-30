@@ -273,8 +273,15 @@ const srv = http.createServer(async (req, res) => {
     const dnsName = String(b.dnsName || '').trim().slice(0, 253);
     const token = String(b.token || '').trim();
     if (!hostname || !dnsName || token.length < 16) return send('application/json', '{"error":"dados inválidos"}', 400);
+    const isNew = !KNOWN.some(d => d.dnsName === dnsName);
     KNOWN = [...KNOWN.filter(d => d.dnsName !== dnsName), { hostname, dnsName, token, announcedAt: Date.now() }];
     saveKnown();
+    // reciprocidade na hora -- sem isso, um PC novo só aparecia pros outros
+    // no próximo ciclo periódico deles (era de 1h), podendo levar até 1h
+    // pra malha convergir nos dois sentidos. Só dispara pra quem é
+    // GENUINAMENTE novo (senão todo anúncio repetido virava um ping-pong
+    // infinito entre dois nós se respondendo um ao outro sem parar).
+    if (isNew) void announceToPeers();
     return send('application/json', '{"ok":true}');
   }
   // servidor MCP do coordenador -- fora do /api/* de propósito (não é JSON
@@ -807,6 +814,22 @@ const srv = http.createServer(async (req, res) => {
       return J({ ok: true, cli });
     }
     if (u.pathname === '/api/stats') {
+      const machine = u.searchParams.get('machine');
+      if (machine) {
+        // ver estatística de outro PC sem navegar pro link dele -- mesmo
+        // proxy de sempre (resolve via KNOWN, repassa com o token do dono).
+        const dev = KNOWN.find(k => k.dnsName === machine);
+        if (!dev) return J({ error: 'dispositivo não conhecido' }, 404);
+        try {
+          const r = await fetch(`https://${machine}/api/stats`, {
+            headers: { Authorization: 'Bearer ' + dev.token },
+            signal: AbortSignal.timeout(8000),
+          });
+          const j = await r.json();
+          if (!r.ok) return J({ error: j.error || ('destino respondeu ' + r.status) }, 502);
+          return J(j);
+        } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+      }
       return send('application/json', JSON.stringify({
         cpu: cpuPercent(),
         mem: (1 - os.freemem() / os.totalmem()) * 100, up: os.uptime(), host: getDeviceName(),
@@ -951,7 +974,7 @@ if (WIN) { void checkForUpdates(); setInterval(() => void checkForUpdates(), 5 *
 // específico de Windows, e é exatamente o que falta pra um PC "bot"
 // sem tela (ex: Raspberry Pi) aparecer pros outros sem ninguém colar
 // token na mão -- roda em qualquer plataforma.
-void announceToPeers(); setInterval(() => void announceToPeers(), 60 * 60 * 1000);
+void announceToPeers(); setInterval(() => void announceToPeers(), 5 * 60 * 1000);
 
 // --- motor de execução do coordenador: um `opencode serve` supervisionado
 // nesta máquina. Toda instrução despachada (local ou vinda de outra máquina
