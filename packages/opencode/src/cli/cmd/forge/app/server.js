@@ -332,6 +332,29 @@ const srv = http.createServer(async (req, res) => {
         try { return J({ reply: await promptProject(directory, instruction) }); }
         catch (e) { return J({ error: String(e.message || e).slice(0, 300) }); }
       }
+      if (u.pathname === '/api/triagem' && req.method === 'POST') {
+        // pergunta rápida/trivial pro motor local (CUDA, ver FMM_ENGINE_DIR) --
+        // só existe de verdade na(s) máquina(s) que configuraram isso no
+        // .env; nas outras, 501 (mesmo padrão do /api/screen no Windows:
+        // rota existe em todo PC, só funciona onde tem suporte real).
+        if (!FMM_ENGINE_DIR) return J({ error: 'motor local não configurado nesta máquina' }, 501);
+        const b = await readBody(req);
+        const question = String(b.question || '').trim();
+        if (!question) return J({ error: 'question é obrigatória' }, 400);
+        ensureFmmApi();
+        if (!(await waitFmmApi())) return J({ error: 'motor local não respondeu a tempo' }, 504);
+        try {
+          const r = await fetch(`http://127.0.0.1:${FMM_API_PORT}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: question }),
+            signal: AbortSignal.timeout(60000),
+          });
+          const j = await r.json();
+          if (!r.ok) return J({ error: j.error || ('motor respondeu ' + r.status) }, 502);
+          return J({ reply: j.text });
+        } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+      }
       if (u.pathname === '/api/push-vapid-key' && req.method === 'GET') return J({ key: VAPID.publicKey });
       if (u.pathname === '/api/push-subscribe' && req.method === 'POST') {
         const sub = await readBody(req);
@@ -925,6 +948,40 @@ async function waitOpenCodeServe(tries = 20) {
   for (let i = 0; i < tries; i++) {
     try { const r = await openCodeServeFetch('/doc', null, { method: 'GET' }); if (r.ok || r.status < 500) return true } catch {}
     await new Promise(r => setTimeout(r, 300));
+  }
+  return false;
+}
+// motor FMM (CUDA próprio, roda via DLL -- projeto separado apontado por
+// FMM_ENGINE_DIR) exposto como API HTTP local (api/server.py, porta 8383)
+// -- usado pelo /api/triagem acima. Mesmo molde de ensureOpenCodeServe:
+// sobe uma vez, lazy, na primeira pergunta; só existe nesta máquina se o
+// .env tiver FMM_ENGINE_DIR setado (hoje só uma, no futuro qualquer PC
+// com GPU que configurar isso passa a valer, sem código novo).
+const FMM_ENGINE_DIR = process.env.FMM_ENGINE_DIR || '';
+const FMM_API_PORT = 8383;
+let fmmApiProc = null;
+function ensureFmmApi() {
+  if (!WIN || !FMM_ENGINE_DIR) return;
+  if (fmmApiProc && !fmmApiProc.killed) return;
+  try {
+    const py = path.join(FMM_ENGINE_DIR, 'venv_fmm', 'Scripts', 'python.exe');
+    const child = spawn(py, [path.join('api', 'server.py')], {
+      cwd: FMM_ENGINE_DIR,
+      env: CHILD_ENV,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    child.on('exit', () => { if (fmmApiProc === child) fmmApiProc = null; });
+    child.on('error', () => { if (fmmApiProc === child) fmmApiProc = null; });
+    fmmApiProc = child;
+  } catch (e) { console.error('[fmm] falha ao iniciar api/server.py:', e.message); }
+}
+// retry mais longo que waitOpenCodeServe -- esse processo carrega um
+// modelo de verdade na GPU no startup, não é só um servidor Node leve.
+async function waitFmmApi(tries = 40) {
+  for (let i = 0; i < tries; i++) {
+    try { const r = await fetch(`http://127.0.0.1:${FMM_API_PORT}/health`, { signal: AbortSignal.timeout(2000) }); if (r.ok) return true } catch {}
+    await new Promise(r => setTimeout(r, 500));
   }
   return false;
 }

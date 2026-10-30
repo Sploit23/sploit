@@ -100,6 +100,34 @@ async function transferProjectTo(entry, toMachine, ctx) {
   return dest.hostname;
 }
 
+// pergunta de triagem pro motor local (CUDA, roda via /api/triagem em
+// server.js) -- tenta esta máquina primeiro, senão percorre os devices
+// já conhecidos até achar um que tenha um motor configurado. Não fica
+// hardcoded em qual PC tem GPU: qualquer um que configurar
+// FMM_ENGINE_DIR no .env passa a responder, sem mudar este arquivo.
+async function askLocalModel(question, ctx) {
+  const tryHost = async (base, token) => {
+    try {
+      const res = await fetch(`${base}/api/triagem`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question }),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!res.ok) return undefined;
+      return (await res.json()).reply;
+    } catch { return undefined; }
+  };
+  const local = await tryHost(`http://127.0.0.1:${ctx.port}`, ctx.token);
+  if (local !== undefined) return local;
+  const known = (await fetchJson(`http://127.0.0.1:${ctx.port}/api/known-devices`, ctx.token)) || [];
+  for (const d of known) {
+    const reply = await tryHost(`https://${d.dnsName}`, d.token);
+    if (reply !== undefined) return reply;
+  }
+  throw new Error('nenhum motor local de triagem disponível na malha');
+}
+
 function createMcpServer(ctx) {
   const server = new McpServer({ name: 'sploit-forge', version: '1.0.0' });
 
@@ -144,6 +172,18 @@ function createMcpServer(ctx) {
       return { content: [{ type: 'text', text: `"${alias}" transferido de ${entry.machine === 'local' ? 'esta máquina' : entry.machine} pra ${hostname}.` }] };
     } catch (e) {
       return { content: [{ type: 'text', text: `Transferência de "${alias}" falhou: ${String(e.message || e)}` }], isError: true };
+    }
+  });
+
+  server.registerTool('ask_local_model', {
+    description: "Pergunta rápida/trivial pro motor de IA local (CUDA, sem custo de nuvem) -- resolve na hora coisas simples (conta, lembrete de sintaxe, resumo curto) sem gastar o modelo caro. Não serve pra tarefas que exigem ferramentas/arquivos -- é só pergunta e resposta em texto.",
+    inputSchema: { question: z.string() },
+  }, async ({ question }) => {
+    try {
+      const reply = await askLocalModel(question, ctx);
+      return { content: [{ type: 'text', text: reply || '(sem resposta)' }] };
+    } catch (e) {
+      return { content: [{ type: 'text', text: `Triagem falhou: ${String(e.message || e)}` }], isError: true };
     }
   });
 
