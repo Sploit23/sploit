@@ -92,6 +92,34 @@ button.ic{padding:6px 9px;font-size:12px}
 .dropzone b{font-size:11px}
 .dropzone.over{border-color:var(--blue);background:#4f7cff2e;transform:scale(1.12)}
 .dragghost{position:fixed;pointer-events:none;z-index:60;transform:scale(1.1);box-shadow:0 10px 24px -4px #000000a0}
+/* ---------- tela "Central" (home) -- faixa de dispositivos, atalho de
+   projetos recentes e a conversa com o motor local/Coordenador, tudo na
+   mesma tela rolável, com o composer sempre fixo embaixo ---------- */
+#home.on{display:flex;flex-direction:column;height:100dvh;padding:env(safe-area-inset-top) 0 0;overflow:hidden}
+.brand.tappable{cursor:pointer;display:inline-flex;align-items:center;gap:3px}
+.brand .chev{color:var(--mu);font-size:11px;font-weight:400}
+.devstrip{display:flex;gap:6px;padding:2px 18px 12px;overflow-x:auto;flex:none;scrollbar-width:none}
+.devstrip::-webkit-scrollbar{display:none}
+.chip{flex:none;display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1px solid var(--ln);background:var(--panel);font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--mu);white-space:nowrap;cursor:pointer}
+.chip .d{width:6px;height:6px;border-radius:50%;background:var(--mu)}
+.chip .d.on{background:var(--ok);box-shadow:0 0 5px #2dd4a580}
+.chip.active{border-color:var(--blue);color:var(--tx);box-shadow:0 0 0 1px #3ef0d833}
+.chip.active .d.on{background:var(--blue);box-shadow:0 0 5px #3ef0d880}
+.central-body{flex:1;overflow-y:auto;padding:0 18px 14px;display:flex;flex-direction:column;gap:6px}
+.lbl{font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;color:var(--mu);text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px}
+.lbl a{color:var(--blue);text-decoration:none;font-size:11px;cursor:pointer}
+.projrow{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}
+.projrow::-webkit-scrollbar{display:none}
+.projrow .icon{flex:none;width:64px}
+.feed{display:flex;flex-direction:column;gap:10px}
+.bubble .bubbletag{display:block;font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--mu);margin-bottom:4px;letter-spacing:.04em}
+.composer{flex:none;padding:10px 14px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--ln);background:var(--panel);display:flex;flex-direction:column;gap:8px}
+.route{display:flex;gap:6px}
+.routebtn{flex:1;padding:6px 0;border-radius:9px;border:1px solid var(--ln);background:var(--panel);color:var(--mu);font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-align:center;cursor:pointer}
+.routebtn.on{border-color:var(--blue);color:var(--blue);background:#3ef0d814}
+.inrow{display:flex;gap:8px;align-items:center}
+.inrow input{margin:0;flex:1}
+.inrow button,.inrow a{flex:none}
 /* ---------- chat focado num projeto só ("iniciar conversa") ---------- */
 #chat.on{display:flex;flex-direction:column;height:100dvh;max-width:none;padding:env(safe-area-inset-top) 0 0}
 #chatlog{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
@@ -113,10 +141,9 @@ button.ic{padding:6px 9px;font-size:12px}
 #xt{flex:1;min-height:0;padding:6px 6px 0}
 .keys{display:flex;gap:6px;overflow-x:auto;padding:8px 8px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--ln);background:var(--panel);scrollbar-width:none}
 .keys button{flex:none;min-width:44px;padding:9px 10px}
-#mic.on,#chatmic.on{color:var(--er);border-color:var(--er);animation:mic-pulse 1.1s ease-in-out infinite}
+#mic.on,#centralmic.on{color:var(--er);border-color:var(--er);animation:mic-pulse 1.1s ease-in-out infinite}
 @keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 #ef444466}50%{box-shadow:0 0 0 5px #ef444400}}
-@media (prefers-reduced-motion: reduce){#mic.on,#chatmic.on{animation:none}}
-.chatbar a{flex:none;display:flex;align-items:center;justify-content:center;padding:9px 13px;border:1px solid var(--ln);border-radius:10px;color:var(--mu);text-decoration:none}
+@media (prefers-reduced-motion: reduce){#mic.on,#centralmic.on{animation:none}}
 .keys a{display:inline-flex;align-items:center;flex:none;padding:9px 10px;background:var(--panel);border:1px solid var(--ln);border-radius:10px;color:inherit;text-decoration:none;font-size:12px;white-space:nowrap}
 #sheet{display:none;position:fixed;inset:0;background:#000a;z-index:40;align-items:flex-end;justify-content:center}
 #sheet.on{display:flex}
@@ -151,6 +178,10 @@ body.with-nav #nav{display:flex}
   .navbrand,.navspacer{display:none}
   .navitem{flex-direction:column;gap:2px;font-size:10px;padding:6px 10px;border-radius:8px}
   body.with-nav .screen.on{padding-bottom:84px}
+  /* Central já tem o próprio jeito de chegar em Projetos/Arquivos/
+     Pareamento (tocar no nome "Central ▾") -- a barra de abas fixa só
+     faz sentido nas outras 3 telas, pra voltar fácil sem gesto do SO. */
+  body.on-central #nav{display:none}
 }
 
 /* ---------- explorer em tabela ---------- */
@@ -186,30 +217,48 @@ body.with-nav #nav{display:flex}
 
 <nav id="nav">
   <div class="navbrand brand"><b>Sploit-Forge</b></div>
-  <button class="navitem" data-go="home">🖥️ Dispositivos</button>
+  <button class="navitem" data-go="home">🏠 Central</button>
   <button class="navitem" data-go="projects">📁 Projetos</button>
   <button class="navitem" data-go="browse" id="navexplorer">🗂️ Arquivos</button>
-  <button class="navitem" data-go="coordinator" id="navcoordinator" style="display:none">🧭 Coordenador</button>
   <button class="navitem" data-go="devices">📲 Pareamento</button>
   <div class="navspacer"></div>
 </nav>
 
 <div class="screen" id="home">
-  <div class="top"><div class="brand"><b>Sploit-Forge</b></div><div class="hd"><button id="pushbtn" title="notificações">🔕</button><button id="newp">+ projeto</button><span class="tag" id="mode">● link ok</span></div></div>
-  <div class="selfname" style="margin:10px 0 16px">
-    <span id="selficon"></span><small id="host">PRIVATE NODE</small>
-    <button class="ic" id="renameself" title="renomear">✎</button>
-    <button class="ic" id="checkupdates" title="verificar atualização agora">🔄</button>
-    <button class="ic" id="asklocal" title="perguntar ao motor de IA local deste PC">🧠</button>
+  <span id="selficon" style="display:none"></span><small id="host" style="display:none"></small>
+  <div class="top">
+    <div class="brand tappable" id="centralbrand"><b>Central</b><span class="chev">▾</span></div>
+    <div class="hd"><span class="tag" id="mode">● link ok</span><button id="pushbtn" title="notificações">🔕</button><button id="newp" title="novo projeto">+ projeto</button></div>
   </div>
-  <pre id="boot" class="mono"></pre>
-  <div id="stats">
-    <div class="m"><i>CPU</i><b id="vc">–</b><u><s id="bc"></s></u></div>
-    <div class="m"><i>RAM</i><b id="vm">–</b><u><s id="bm"></s></u></div>
-    <div class="m"><i>UPTIME</i><b id="vu">–</b><u><s id="bu" style="width:100%;opacity:.25"></s></u></div>
+  <div class="devstrip" id="devstrip"></div>
+  <div class="central-body" id="centralbody">
+    <pre id="boot" class="mono"></pre>
+    <div id="stats">
+      <div class="m"><i>CPU</i><b id="vc">–</b><u><s id="bc"></s></u></div>
+      <div class="m"><i>RAM</i><b id="vm">–</b><u><s id="bm"></s></u></div>
+      <div class="m"><i>UPTIME</i><b id="vu">–</b><u><s id="bu" style="width:100%;opacity:.25"></s></u></div>
+    </div>
+    <div>
+      <div class="lbl">Projetos <a id="centralallprojects">ver todos</a></div>
+      <div class="projrow" id="centralprojects"></div>
+    </div>
+    <div>
+      <div class="lbl">Conversa</div>
+      <div class="feed" id="centralfeed"></div>
+    </div>
   </div>
-  <h2>Dispositivos</h2>
-  <div id="devgrid" class="dgrid"></div>
+  <div class="composer">
+    <div class="route" id="centralroute">
+      <button class="routebtn" data-route="local">🧠 local</button>
+      <button class="routebtn on" data-route="coordenador">🧭 coordenador</button>
+    </div>
+    <div class="inrow">
+      <input id="centralinput" placeholder="pergunta ou dá uma instrução…">
+      <button id="centralmic" style="display:none" title="ditar">🎤</button>
+      <a id="centralmicfb" href="#" target="_blank" style="display:none" title="o iOS bloqueia o microfone dentro do app instalado -- abre a mesma tela num navegador normal pra ditar">🌐</a>
+      <button id="centralsend" class="go">➤</button>
+    </div>
+  </div>
 </div>
 
 <div class="screen" id="projects">
@@ -223,8 +272,6 @@ body.with-nav #nav{display:flex}
   <div id="chatlog"></div>
   <div class="chatbar">
     <input id="chatinput" placeholder="digite uma instrução...">
-    <button id="chatmic" style="display:none" title="ditar">🎤</button>
-    <a id="chatmicfb" href="#" target="_blank" style="display:none" title="o iOS bloqueia o microfone dentro do app instalado -- abre a mesma tela num navegador normal pra ditar">🌐</a>
     <button id="chatsend" class="go">➤</button>
   </div>
 </div>
@@ -236,7 +283,7 @@ body.with-nav #nav{display:flex}
     <div id="qrbox"></div>
     <button class="go" id="copylink" style="width:100%;margin-top:12px">copiar link</button>
   </div>
-  <div class="mu" style="text-align:center;margin-top:16px">gerenciar/renomear dispositivos já conhecidos é na aba Dispositivos -- segura o card dele.</div>
+  <div class="mu" style="text-align:center;margin-top:16px">gerenciar/renomear dispositivos já conhecidos é na Central -- segura o chip dele.</div>
 </div>
 
 <div class="screen" id="term">
@@ -288,6 +335,7 @@ const NAV_SCREENS=['home','projects','browse','devices'];
 const show=id=>{
   document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));
   document.body.classList.toggle('with-nav',NAV_SCREENS.includes(id));
+  document.body.classList.toggle('on-central',id==='home');
   document.querySelectorAll('.navitem').forEach(b=>b.classList.toggle('on',b.dataset.go===id));
 };
 const ago=t=>{const s=Math.max(0,Date.now()/1e3-t);return s<60?'agora':s<3600?Math.floor(s/60)+' min':s<86400?Math.floor(s/3600)+' h':Math.floor(s/86400)+' d'};
@@ -427,49 +475,98 @@ function renderList(ps){
   });
   L.append(grid);
 }
+// atalho na Central -- só os usados mais recentemente (campo `last`),
+// mesma construção de ícone que renderList (sem a etiqueta de device
+// remoto, aqui não tem filtro por PC).
+function renderCentralProjects(){
+  const L=$('#centralprojects');if(!L)return;L.replaceChildren();
+  const recent=[...PRJ_ALL].sort((a,b)=>(b.last||0)-(a.last||0)).slice(0,8);
+  if(!recent.length){L.append(h('div','mu','nenhum projeto ainda'));return}
+  recent.forEach(p=>{
+    const btn=h('button','icon'),ig=h('span','ig');
+    ig.innerHTML=FOLDER_SVG;ig.style.background=iconColor(p.name);
+    const dot=h('span','dot '+(p.alive?'on':'')),tk=h('span','think');
+    tk.dataset.name=p.name;ig.append(dot,tk);
+    btn.append(ig,h('b',0,p.name));
+    btn.onclick=()=>openChat(p);
+    wireIcon(btn,p,()=>openMenu(p));
+    L.append(btn);
+  });
+}
 /* ---------- "iniciar conversa" -- chat leve focado num projeto só ---------- */
-let chatProject=null,chatIsCoordinator=false;
+let chatProject=null;
 function openChat(p){
-  closeSheet();chatProject=p;chatIsCoordinator=false;show('chat');$('#chatname').textContent=p.name;$('#chatlog').replaceChildren();
-  $('#chatmic').style.display='none';$('#chatmicfb').style.display='none';
+  closeSheet();chatProject=p;show('chat');$('#chatname').textContent=p.name;$('#chatlog').replaceChildren();
   $('#chatinput').value='';setTimeout(()=>$('#chatinput').focus(),50);
 }
-// Coordenador não é uma tela própria -- é uma conversa igual a de projeto,
-// só que sempre na mesma "pasta" sintética fixa (.coordinator, vive no
-// server.js, não aparece no Explorer nem em /api/projects) -- por isso
-// chama /api/coordinator/prompt direto (resolve por diretório, não por
-// alias) em vez de /api/projects/:alias/chat.
-function openCoordinatorChat(){
-  closeSheet();chatProject=null;chatIsCoordinator=true;show('chat');$('#chatname').textContent='🧭 Coordenador';$('#chatlog').replaceChildren();
-  $('#chatmic').style.display=micSupported?'':'none';
-  if(!micSupported){$('#chatmicfb').style.display='';$('#chatmicfb').href=location.origin+'/#t='+encodeURIComponent(TOKEN)+'&view=coordinator'}
-  else $('#chatmicfb').style.display='none';
-  $('#chatinput').value='';setTimeout(()=>$('#chatinput').focus(),50);
-}
-function closeChat(){chatProject=null;chatIsCoordinator=false;show('projects');refresh()}
+function closeChat(){chatProject=null;show('projects');refresh()}
 function addBubble(kind,text){
   const b=h('div','bubble '+kind,text);$('#chatlog').append(b);$('#chatlog').scrollTop=$('#chatlog').scrollHeight;return b;
 }
 async function sendChat(){
-  const v=$('#chatinput').value.trim();if(!v||!(chatIsCoordinator||chatProject))return;
+  const v=$('#chatinput').value.trim();if(!v||!chatProject)return;
   $('#chatinput').value='';addBubble('me',v);
   const thinking=addBubble('ai','digitando…');
   try{
     if(DEMO){thinking.textContent='(modo demo — sem sessão real pra despachar)';return}
-    const r=chatIsCoordinator
-      ? await call('POST','/api/coordinator/prompt',{directory:'.coordinator',instruction:v})
-      : await call('POST','/api/projects/'+encodeURIComponent(chatProject.alias)+'/chat',{instruction:v});
+    const r=await call('POST','/api/projects/'+encodeURIComponent(chatProject.alias)+'/chat',{instruction:v});
     thinking.textContent=r.reply||'(sem resposta)';
   }catch(e){thinking.textContent='Erro: '+e.message;thinking.classList.add('err')}
 }
+/* ---------- feed/composer da Central -- conversa com o motor local (🧠,
+   /api/triagem) ou o Coordenador (🧭, /api/coordinator/prompt), igual ao
+   que o chat de projeto já faz, só que embutida na própria tela Central
+   em vez de abrir uma tela cheia. ---------- */
+let centralRoute='coordenador';
+function addCentralBubble(kind,text,tag){
+  const b=h('div','bubble '+kind);
+  if(tag)b.append(h('span','bubbletag',tag));
+  const t=document.createTextNode(text);b.append(t);
+  $('#centralfeed').append(b);
+  return {el:b,set:txt=>{t.textContent=txt}};
+}
+async function sendCentral(){
+  const v=$('#centralinput').value.trim();if(!v)return;
+  $('#centralinput').value='';
+  addCentralBubble('me',v);
+  const routeTag=centralRoute==='local'?'🧠 local':'🧭 coordenador';
+  const thinking=addCentralBubble('ai','digitando…',routeTag);
+  try{
+    if(DEMO){thinking.set('(modo demo — sem sessão real pra despachar)');return}
+    const r=centralRoute==='local'
+      ? await call('POST','/api/triagem',{question:v})
+      : await call('POST','/api/coordinator/prompt',{directory:'.coordinator',instruction:v});
+    thinking.set(r.reply||'(sem resposta)');
+  }catch(e){thinking.set('Erro: '+e.message);thinking.el.classList.add('err')}
+}
+$('#centralroute').addEventListener('click',e=>{
+  const b=e.target.closest('.routebtn');if(!b)return;
+  centralRoute=b.dataset.route;
+  $('#centralroute').querySelectorAll('.routebtn').forEach(x=>x.classList.toggle('on',x===b));
+});
+$('#centralsend').onclick=sendCentral;
+$('#centralinput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCentral()}});
+$('#centralallprojects').onclick=()=>{show('projects');refresh()};
+function openCentralMenu(){
+  sheet(
+    h('b',0,'Central'),
+    mk('🏠 Central — onde você está agora',closeSheet),
+    mk('📁 Projetos — grade completa, todos os PCs',()=>{closeSheet();show('projects');refresh()}),
+    mk('🗂️ Arquivos — navegar/mover arquivo entre PCs',()=>{closeSheet();openExplorer()}),
+    mk('📲 Pareamento — QR pra adicionar um aparelho novo',()=>{closeSheet();show('devices');openPairing()}),
+    mk('cancelar',closeSheet)
+  );
+}
+$('#centralbrand').onclick=openCentralMenu;
 $('#chatback').onclick=closeChat;
 $('#chatsend').onclick=sendChat;
 $('#chatinput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat()}});
 async function refresh(){
-  if(DEMO){PRJ_ALL=DEMO_P;renderList(applyPrjFilter(PRJ_ALL));return}
+  if(DEMO){PRJ_ALL=DEMO_P;renderList(applyPrjFilter(PRJ_ALL));renderCentralProjects();return}
   try{
     PRJ_ALL=(await api('/api/all-projects')).map(e=>({...e,name:e.alias,path:e.directory}));
     renderList(applyPrjFilter(PRJ_ALL));
+    renderCentralProjects();
   }catch{}
 }
 function pollThink(){
@@ -538,28 +635,27 @@ function openDeviceMenu(d){
 // tocar troca qual PC está mostrado no topo (sem navegar); segurar abre o
 // menu (renomear/atualizar/entrar -- entrar só quando realmente precisar
 // abrir um terminal de verdade naquele PC).
-function renderDeviceGrid(all){
-  const L=$('#devgrid');L.replaceChildren();
-  const self=h('div','dcard'),shd=h('div','ph'),snm=h('span','dname');
-  snm.innerHTML=DEV_ICON+'<b>'+(SELF_NAME||'este PC')+'</b>';
-  shd.append(snm,h('span','dot on'));
-  self.append(shd);
-  self.classList.toggle('on',devMachine==='local');
+function renderDeviceStrip(all){
+  const L=$('#devstrip');if(!L)return;L.replaceChildren();
+  const self=h('div','chip'),sd=h('span','d on');
+  self.append(sd,document.createTextNode(SELF_NAME||'este PC'));
+  self.classList.toggle('active',devMachine==='local');
   self.onclick=()=>switchDevice('local');
+  wireHold(self,()=>openSelfMenu());
   L.append(self);
   all.forEach(d=>{
-    const c=h('div','dcard'),hd=h('div','ph'),nm=h('span','dname');
-    nm.innerHTML=DEV_ICON+'<b>'+(d.hostname||d.dnsName)+'</b>';
-    hd.append(nm,h('span','dot '+(d.online?'on':'off')));
-    c.append(hd);
-    c.classList.toggle('on',devMachine===d.dnsName);
+    const c=h('div','chip'),dd=h('span','d '+(d.online?'on':''));
+    c.append(dd,document.createTextNode(d.hostname||d.dnsName));
+    c.classList.toggle('active',devMachine===d.dnsName);
     if(d.token){
       c.onclick=()=>switchDevice(d.dnsName);
       wireHold(c,()=>openDeviceMenu(d));
     }else{
-      const i=h('input');i.placeholder='colar token deste dispositivo';
-      const go=mk('salvar',()=>{const t=i.value.trim();if(!t)return;saveDevices([...loadDevices().filter(x=>x.dnsName!==d.dnsName),{hostname:d.hostname,dnsName:d.dnsName,token:t}]);refreshDevices()},'go');
-      c.append(i,go);
+      c.onclick=()=>{
+        const i=h('input');i.placeholder='colar token deste dispositivo';
+        const go=mk('salvar',()=>{const t=i.value.trim();if(!t)return;saveDevices([...loadDevices().filter(x=>x.dnsName!==d.dnsName),{hostname:d.hostname,dnsName:d.dnsName,token:t}]);closeSheet();refreshDevices()},'go');
+        sheet(h('b',0,d.hostname||d.dnsName),h('div','mu','sem token salvo ainda'),i,go,mk('cancelar',closeSheet));
+      };
     }
     L.append(c);
   });
@@ -573,7 +669,7 @@ async function refreshDevices(){
   }
   const all=mergeDevices(online,known);
   KNOWN_DEVICES=all;
-  renderDeviceGrid(all);
+  renderDeviceStrip(all);
   renderPrjDevices();
 }
 // qual PC está sendo mostrado no topo (CPU/RAM/uptime) -- trocar não navega
@@ -599,9 +695,6 @@ async function stats(m){
       // reflete ESTA máquina -- abrir essas telas sempre opera localmente,
       // mesmo vendo as estatísticas de outro PC no momento.
       const scBtn=document.querySelector('[data-t="sc"]');if(scBtn)scBtn.style.display=s.screen===false?'none':'';
-      // Coordenador só em PCs com app desktop instalado -- em headless
-      // (FORGE_HEADLESS) não tem pra onde despachar nem sentido em existir.
-      const coordBtn=$('#navcoordinator');if(coordBtn)coordBtn.style.display=s.desktop?'':'none';
     }
   }catch{}
 }
@@ -609,13 +702,22 @@ function switchDevice(m){
   if(m===devMachine)return;
   devMachine=m;
   stats(m);
-  renderDeviceGrid(KNOWN_DEVICES);
+  renderDeviceStrip(KNOWN_DEVICES);
 }
 async function init(){
   try{const ps=(await api('/api/all-projects')).map(e=>({...e,name:e.alias,path:e.directory}));start(ps)}
   catch(e){if(e===401){show('login');return}DEMO=true;$('#mode').textContent='● demo';start(DEMO_P)}
 }
-function start(ps){show('home');boot();PRJ_ALL=ps;renderPrjDevices();renderList(applyPrjFilter(ps));stats();refreshDevices();clearInterval(timer);timer=setInterval(()=>{stats();refreshDevices()},5000);clearInterval(thinkTimer);pollThink();thinkTimer=setInterval(pollThink,2000);if(DEEP_LINK_VIEW==='explorer'){DEEP_LINK_VIEW='';openExplorer()}else if(DEEP_LINK_VIEW==='coordinator'){DEEP_LINK_VIEW='';openCoordinatorChat()}else if(DEEP_LINK_VIEW.startsWith('term:')){const[,name,mode]=DEEP_LINK_VIEW.split(':');DEEP_LINK_VIEW='';const p=ps.find(x=>x.name===decodeURIComponent(name));if(p)openTerm(p,mode)}}
+function start(ps){
+  show('home');boot();PRJ_ALL=ps;renderPrjDevices();renderList(applyPrjFilter(ps));renderCentralProjects();stats();refreshDevices();
+  clearInterval(timer);timer=setInterval(()=>{stats();refreshDevices()},5000);
+  clearInterval(thinkTimer);pollThink();thinkTimer=setInterval(pollThink,2000);
+  $('#centralmic').style.display=micSupported?'':'none';
+  if(!micSupported){$('#centralmicfb').style.display='';$('#centralmicfb').href=location.origin+'/#t='+encodeURIComponent(TOKEN)+'&view=home'}
+  else $('#centralmicfb').style.display='none';
+  if(DEEP_LINK_VIEW==='explorer'){DEEP_LINK_VIEW='';openExplorer()}
+  else if(DEEP_LINK_VIEW.startsWith('term:')){const[,name,mode]=DEEP_LINK_VIEW.split(':');DEEP_LINK_VIEW='';const p=ps.find(x=>x.name===decodeURIComponent(name));if(p)openTerm(p,mode)}
+}
 $('#tkgo').onclick=async()=>{
   let v=$('#tk').value.trim();
   const m=v.match(/[#?&]t=([^&\s]+)/); // aceita colar o link inteiro, não só o token puro
@@ -698,15 +800,15 @@ function openNewProjectSheet(){
 const openNewProjectMenu=()=>sheet(h('b',0,'novo projeto'),mk('criar nova',openNewProjectSheet,'go'),mk('procurar existente',openBrowse),mk('cancelar',closeSheet));
 $('#newp').onclick=openNewProjectMenu;
 $('#newp2').onclick=openNewProjectMenu;
-$('#renameself').onclick=()=>{
-  const i=h('input');i.value=SELF_NAME||$('#host').textContent;i.placeholder='nome desta máquina';
+function renameSelf(){
+  const i=h('input');i.value=SELF_NAME||'';i.placeholder='nome desta máquina';
   const go=mk('salvar',async()=>{
     const v=i.value.trim();if(!v)return;
-    if(DEMO){SELF_NAME=v;if(devMachine==='local')$('#host').textContent=v;closeSheet();return}
-    try{await call('PUT','/api/device-name',{name:v});SELF_NAME=v;if(devMachine==='local')$('#host').textContent=v;closeSheet()}catch(e){alert(e.message)}
+    if(DEMO){SELF_NAME=v;closeSheet();return}
+    try{await call('PUT','/api/device-name',{name:v});SELF_NAME=v;closeSheet()}catch(e){alert(e.message)}
   },'go');
   sheet(h('b',0,'renomear este PC'),i,go,mk('cancelar',closeSheet));
-};
+}
 // dispara checkForUpdates() agora, em vez de esperar o ciclo de boot/24h --
 // dnsName presente = pede pro device certo fazer em si mesmo (proxied,
 // mesmo token dele); sem dnsName = nesta própria máquina. Não dá pra saber
@@ -717,23 +819,17 @@ async function checkUpdates(btn,dnsName){
   try{await call('POST','/api/check-updates',dnsName?{dnsName}:{});btn.textContent='✓ iniciado';setTimeout(()=>{btn.textContent=original;btn.disabled=false},4000)}
   catch(e){btn.textContent=original;btn.disabled=false;alert(e.message)}
 }
-$('#checkupdates').onclick=e=>checkUpdates(e.currentTarget);
-// pergunta rápida pro motor de IA local (/api/triagem) -- só responde de
-// verdade no PC que tiver FMM_ENGINE_DIR configurado; nos outros dá 501,
-// a mensagem já vem clara do servidor.
-function askLocal(){
-  const i=h('input');i.placeholder='ex: quanto é 12 vezes 8?';
-  const out=h('div','mu','');
-  const go=mk('perguntar',async()=>{
-    const q=i.value.trim();if(!q)return;
-    go.textContent='pensando…';go.disabled=true;out.textContent='';
-    try{const r=await call('POST','/api/triagem',{question:q});out.textContent=r.reply||'(sem resposta)'}
-    catch(e){out.textContent='Erro: '+e.message}
-    go.textContent='perguntar';go.disabled=false;
-  },'go');
-  sheet(h('b',0,'🧠 motor de IA local'),h('div','mu','Resolve perguntas rápidas sem gastar nuvem -- só funciona no PC que já tiver um motor configurado.'),i,go,out,mk('fechar',closeSheet));
+// segurar o chip de "este PC" na faixa da Central abre isto -- mesma ideia
+// do menu de qualquer outro device (openDeviceMenu), só com as ações que
+// só fazem sentido na própria máquina.
+function openSelfMenu(){
+  sheet(
+    h('b',0,SELF_NAME||'este PC'),
+    mk('✎ renomear',()=>{closeSheet();renameSelf()}),
+    mk('🔄 atualizar',e=>checkUpdates(e.target)),
+    mk('cancelar',closeSheet)
+  );
 }
-$('#asklocal').onclick=askLocal;
 
 /* ---------- explorer: navegar, usar como projeto, baixar ---------- */
 let brCur='',brMachine='local';
@@ -882,7 +978,6 @@ $('#bruse').onclick=()=>{if(brCur&&brMachine==='local')useAsProject(brCur)};
 $('#nav').addEventListener('click',e=>{
   const go=e.target.closest('.navitem')?.dataset.go;if(!go)return;
   if(go==='browse')openExplorer();
-  else if(go==='coordinator')openCoordinatorChat();
   else{show(go);if(go==='devices')openPairing();refresh();}
 });
 function openPairing(){
@@ -954,16 +1049,15 @@ function wireMic(btn,onText){
   btn.onclick=()=>{try{rec.start()}catch{}};
 }
 wireMic($('#mic'),text=>{if(term)input(text)});
-wireMic($('#chatmic'),text=>{
-  const i=$('#chatinput'),v=i.value.trim();i.value=v?v+' '+text:text;i.focus();
+wireMic($('#centralmic'),text=>{
+  const i=$('#centralinput'),v=i.value.trim();i.value=v?v+' '+text:text;i.focus();
 });
 let termSeq=0;
 function openTerm(p,mode){
   show('term');cur=p;setTab('xt');$('#tname').textContent=p.name;$('#tmode').textContent=mode==='shell'?'SHELL':mode==='claude'||mode==='claude-new'?'CLAUDE':'OPENCODE';
   const isChat=mode!=='shell';
   // ditar faz sentido em qualquer conversa com IA (opencode/claude/novo) --
-  // só não em shell puro, onde não tem o que "ditar". Coordenador ditar é
-  // no chat agora (ver openCoordinatorChat/wireMic($('#chatmic'),...)).
+  // só não em shell puro, onde não tem o que "ditar".
   $('#mic').style.display=isChat&&micSupported?'':'none';
   // iOS bloqueia SpeechRecognition dentro do PWA instalado (funciona numa
   // aba normal do mesmo Safari/Chrome) -- sem alternativa client-side, o
