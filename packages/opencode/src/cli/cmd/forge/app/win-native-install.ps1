@@ -309,11 +309,28 @@ function Start-TsUp($extraArgs) {
     try { Start-Process -FilePath $tailscaleExe -ArgumentList $argList -WindowStyle Hidden -ErrorAction Stop | Out-Null } catch { return $false }
     return $true
 }
-# Backend preso em NoState (tailscaled velho depois do update do winget) -- reinicia o servico
-if ($st -and $st.BackendState -eq 'NoState') {
-    Write-Host "  Backend preso em NoState -- reiniciando o servico do Tailscale..."
-    try { Restart-Service Tailscale -Force -ErrorAction Stop } catch { Write-Host "  (nao consegui reiniciar: $($_.Exception.Message))" }
+# Backend travado (NoState/Stopped/status mudo): tailscaled antigo depois do
+# update do winget. Reinicia o servico; se continuar travado, tira o estado do
+# caminho (com backup) e reinicia de novo -- e o que destrava em PC de loja.
+$tsBroken = (-not $st) -or ($st.BackendState -in @('NoState','Stopped',''))
+if ($tsBroken) {
+    Write-Host "  Backend do Tailscale travado -- reiniciando o servico..."
+    try { Restart-Service Tailscale -Force -ErrorAction Stop } catch { Write-Host "  (restart falhou: $($_.Exception.Message))" }
     Start-Sleep -Seconds 8
+    $st = Get-TsStatus
+    $tsBroken = (-not $st) -or ($st.BackendState -in @('NoState','Stopped',''))
+}
+if ($tsBroken) {
+    $stateFile = 'C:\ProgramData\Tailscale\server-state.conf'
+    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    Write-Host "  Estado do Tailscale corrompido -- backup em server-state.conf.bak-$stamp"
+    try {
+        Stop-Service Tailscale -Force -ErrorAction Stop
+        Start-Sleep -Seconds 3
+        if (Test-Path $stateFile) { Move-Item $stateFile "$stateFile.bak-$stamp" -Force }
+        Start-Service Tailscale -ErrorAction Stop
+    } catch { Write-Host "  (falha ao limpar o estado: $($_.Exception.Message))" }
+    Start-Sleep -Seconds 10
     $st = Get-TsStatus
 }
 if (-not $st -or $st.BackendState -ne 'Running') {
@@ -338,7 +355,7 @@ if (-not $st -or $st.BackendState -ne 'Running') {
     }
     if (-not $shown) {
         Write-Host "  'up' sem link -- tentando 'up --reset'..."
-        [void](Start-TsUp @('--reset'))
+        [void](Start-TsUp @('--reset','--force-reauth'))
         for ($i = 0; $i -lt 12; $i++) {
             Start-Sleep -Seconds 2
             $st = Get-TsStatus
@@ -368,6 +385,12 @@ if (-not $st -or $st.BackendState -ne 'Running') {
     Write-Host "O FORGE ja esta instalado e funciona na LAN; para acesso remoto rode:"
     Write-Host "  `"$tailscaleExe`" login"
     Write-Host "abra o link mostrado e depois rode este script de novo."
+    Write-Host ""
+    Write-Host "--- diagnostico (manda um print pro suporte) ---"
+    & $tailscaleExe version 2>&1 | Out-String | Write-Host
+    & $tailscaleExe status 2>&1 | Out-String | Write-Host
+    Get-Service Tailscale -ErrorAction SilentlyContinue | Select-Object Name,Status | Format-Table -AutoSize | Out-String | Write-Host
+    Read-Host 'Enter para fechar'
 } else {
     Write-Host "  Tailscale conectado: $((($st.Self.DNSName) -replace '\.$',''))"
 }
