@@ -282,16 +282,92 @@ if ($env:FORGE_HEADLESS) {
 
 Write-Host ""
 Write-Host "==> Tailscale..."
-$status = & $tailscaleExe status --json 2>&1 | Out-String
-if ($status -notmatch '"BackendState"\s*:\s*"Running"') {
+function Get-TsStatus {
+    try { (& $tailscaleExe status --json 2>$null | Out-String) | ConvertFrom-Json } catch { $null }
+}
+function Show-TsAuthUrl($st) {
+    if ($st -and $st.AuthURL) {
+        Write-Host ""
+        Write-Host "  ------------------------------------------------------------" -ForegroundColor Yellow
+        Write-Host "  ABRA ESTE LINK (ou escaneie o QR) com a conta do Tailscale:" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "    $($st.AuthURL)" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  ------------------------------------------------------------" -ForegroundColor Yellow
+        return $true
+    }
+    return $false
+}
+$st = $null
+for ($i = 0; $i -lt 10; $i++) {
+    $st = Get-TsStatus
+    if ($st -and $st.BackendState) { break }
+    Start-Sleep -Seconds 2
+}
+if (-not $st -or $st.BackendState -ne 'Running') {
+    Write-Host "  Maquina ainda fora do tailnet -- gerando link de login..."
+    $shown = $false
+    $loginStarted = $false
+    try {
+        Start-Process -FilePath $tailscaleExe -ArgumentList 'login' -WindowStyle Hidden -ErrorAction Stop | Out-Null
+        $loginStarted = $true
+    } catch {}
+    for ($i = 0; $i -lt 15; $i++) {
+        Start-Sleep -Seconds 2
+        $st = Get-TsStatus
+        if ($st -and $st.BackendState -eq 'Running') { break }
+        if (-not $shown) { $shown = Show-TsAuthUrl $st }
+        if ($st -and $st.AuthURL) { $loginStarted = $true }
+    }
+    if (-not $shown) {
+        Write-Host "  'tailscale login' nao devolveu link -- usando 'up --qr'..."
+        & $tailscaleExe up --qr --accept-routes=false 2>&1 | Out-String | Write-Host
+        Start-Sleep -Seconds 2
+        $st = Get-TsStatus
+        $shown = Show-TsAuthUrl $st
+    }
+    if (-not $shown) {
+        Write-Host "  Ainda sem link -- tentando 'up --qr --reset'..."
+        & $tailscaleExe up --qr --accept-routes=false --reset 2>&1 | Out-String | Write-Host
+        Start-Sleep -Seconds 2
+        $st = Get-TsStatus
+        $shown = Show-TsAuthUrl $st
+    }
+    if (-not $st -or $st.BackendState -ne 'Running') {
+        Write-Host ""
+        Write-Host "  Aguardando a autorizacao no navegador (ate 10 min)..."
+        for ($i = 0; $i -lt 200; $i++) {
+            Start-Sleep -Seconds 3
+            $st = Get-TsStatus
+            if ($st -and $st.BackendState -eq 'Running') { break }
+            if ($st -and $st.BackendState -eq 'NeedsMachineAuth') {
+                Write-Host "  Maquina aguardando aprovacao do admin no painel do Tailscale."
+            }
+        }
+    }
+}
+if (-not $st -or $st.BackendState -ne 'Running') {
     Write-Host ""
-    Write-Host "Escaneie o QR com o app do Tailscale no celular (mesma conta dos outros Sploit-Forge):"
-    Write-Host ""
-    & $tailscaleExe up --qr --accept-routes=false
+    Write-Host "ATENCAO: Tailscale nao conectou (estado: $($st.BackendState))." -ForegroundColor Red
+    Write-Host "O FORGE ja esta instalado e funciona na LAN; para acesso remoto rode:"
+    Write-Host "  `"$tailscaleExe`" login"
+    Write-Host "abra o link mostrado e depois rode este script de novo."
+} else {
+    Write-Host "  Tailscale conectado: $((($st.Self.DNSName) -replace '\.$',''))"
 }
 
 Write-Host "==> Habilitando Tailscale Serve na porta $PORT..."
-$serveOut = & $tailscaleExe serve --bg $PORT 2>&1 | Out-String
+$serveOut = ''
+if ($st -and $st.BackendState -eq 'Running') {
+    $serveOut = & $tailscaleExe serve --bg $PORT 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        Start-Sleep -Seconds 4
+        $serveOut = & $tailscaleExe serve --bg $PORT 2>&1 | Out-String
+    }
+} else {
+    $serveOut = 'Tailscale offline -- Serve nao habilitado.'
+    $global:LASTEXITCODE = 1
+}
 if ($LASTEXITCODE -ne 0) {
     Write-Host $serveOut
     Write-Host ""
