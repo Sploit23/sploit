@@ -355,6 +355,16 @@ expõe**, sem nenhuma modificação no CLI:
   apesar de não ter nada específico de Windows — um Raspberry Pi/Linux
   nunca se anunciava sozinho pra malha até isso ser corrigido em 30/10.
 
+## Setup do repo — 19/11
+
+- `bun install --frozen-lockfile` falhava em clone novo:
+  `patches/@silvia-odwyer%2Fphoton-node@0.3.4.patch` tinha o contexto do hunk
+  `@@ -4509,7 +4510,8 @@` deslocado em 1 espaço em relação ao `photon_rs.js`
+  publicado (`hunk #10 does not apply ... expected at line 4509`). Patch
+  corrigido (3 linhas de contexto) — o install volta a aplicar limpo.
+  Validado: `bun install --frozen-lockfile`, `bun run lint` (0 errors) e
+  `bun run --cwd packages/opencode typecheck`.
+
 ## Workflow de deploy (pros PCs reais)
 
 1. Commitar + `git push myfork dev`.
