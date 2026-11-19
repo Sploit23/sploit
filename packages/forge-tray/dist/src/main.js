@@ -1,4 +1,9 @@
-// src/pairing.ts
+// src/main.ts
+import { app, Tray, Menu, BrowserWindow, nativeImage } from "electron";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// src/pairing.js
 import { spawnSync } from "child_process";
 import fs from "fs";
 var TIMEOUT_MS = 15000;
@@ -82,9 +87,6 @@ function getPairingInfo() {
 }
 
 // src/main.ts
-import { app, Tray, Menu, BrowserWindow, nativeImage } from "electron";
-import path from "path";
-import { fileURLToPath } from "url";
 var __dirname2 = path.dirname(fileURLToPath(import.meta.url));
 var tray = null;
 var pcWindows = new Map;
@@ -129,24 +131,40 @@ function openNativeWindow(url, title) {
   pcWin.on("closed", () => pcWindows.delete(url));
   pcWin.once("ready-to-show", () => bringToFront(pcWin));
 }
+function openHub() {
+  const info = getPairingInfo();
+  if (!info.link) {
+    tray?.displayBalloon?.({ title: "Sploit-Force", content: info.error || "Sploit-Force ainda não está pronto nesta máquina" });
+    return;
+  }
+  openNativeWindow(hubLink(info.link), "Sploit Force");
+}
 function openThisPc() {
   const info = getPairingInfo();
   if (!info.link) {
-    tray?.displayBalloon?.({ title: "Sploit-Forge", content: info.error || "Sploit-Forge ainda não está pronto nesta máquina" });
+    tray?.displayBalloon?.({ title: "Sploit-Force", content: info.error || "Sploit-Force ainda não está pronto nesta máquina" });
     return;
   }
   openNativeWindow(info.link, "Sploit-Forge");
+}
+function hubLink(link) {
+  return link.replace("/#t=", "/hub#t=");
 }
 app.setName("forge-tray");
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on("second-instance", () => openThisPc());
+  app.on("second-instance", () => openHub());
 }
 app.whenReady().then(() => {
   app.setLoginItemSettings({ openAtLogin: true });
   tray = new Tray(createTrayIcon());
   tray.setToolTip("Sploit-Forge");
-  tray.on("click", openThisPc);
-  tray.setContextMenu(Menu.buildFromTemplate([{ label: "Sair", click: () => app.quit() }]));
+  tray.on("click", openHub);
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: "Painel de PCs", click: () => openHub() },
+    { label: "Abrir este PC (completo)", click: () => openThisPc() },
+    { type: "separator" },
+    { label: "Sair", click: () => app.quit() }
+  ]));
 });

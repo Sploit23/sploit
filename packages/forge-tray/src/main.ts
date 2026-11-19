@@ -72,15 +72,33 @@ function openNativeWindow(url: string, title: string): void {
   pcWin.once("ready-to-show", () => bringToFront(pcWin))
 }
 
-function openThisPc(): void {
+function openHub(): void {
   const info = getPairingInfo()
   if (!info.link) {
     // sem link ainda (serviço não instalado, Tailscale sem endereço etc) --
     // não tem pra onde abrir, mas pelo menos não falha em silêncio.
-    tray?.displayBalloon?.({ title: "Sploit-Forge", content: info.error || "Sploit-Forge ainda não está pronto nesta máquina" })
+    tray?.displayBalloon?.({ title: "Sploit-Force", content: info.error || "Sploit-Force ainda não está pronto nesta máquina" })
+    return
+  }
+  // clicar na bandeja abre o painel simples (/hub): só a lista de PCs com
+  // bolinha online/offline. A interface completa (Projetos/Arquivos/…)
+  // continua a um clique de distância, no menu do botão direito.
+  openNativeWindow(hubLink(info.link), "Sploit Force")
+}
+
+function openThisPc(): void {
+  const info = getPairingInfo()
+  if (!info.link) {
+    tray?.displayBalloon?.({ title: "Sploit-Force", content: info.error || "Sploit-Force ainda não está pronto nesta máquina" })
     return
   }
   openNativeWindow(info.link, "Sploit-Forge")
+}
+
+// link do painel a partir do link normal (`https://<dns>/#t=<token>`) --
+// o token viaja no fragmento do mesmo jeito, então o /hub já entra logado.
+function hubLink(link: string): string {
+  return link.replace("/#t=", "/hub#t=")
 }
 
 // sem isso, 'bunx electron .' em modo dev não lê o nome do package.json
@@ -95,13 +113,20 @@ app.setName("forge-tray")
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  app.on("second-instance", () => openThisPc())
+  app.on("second-instance", () => openHub())
 }
 
 void app.whenReady().then(() => {
   app.setLoginItemSettings({ openAtLogin: true })
   tray = new Tray(createTrayIcon())
   tray.setToolTip("Sploit-Forge")
-  tray.on("click", openThisPc)
-  tray.setContextMenu(Menu.buildFromTemplate([{ label: "Sair", click: () => app.quit() }]))
+  tray.on("click", openHub)
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: "Painel de PCs", click: () => openHub() },
+      { label: "Abrir este PC (completo)", click: () => openThisPc() },
+      { type: "separator" },
+      { label: "Sair", click: () => app.quit() },
+    ]),
+  )
 })

@@ -60,7 +60,11 @@ construído ainda.
     explorer/arquivos cross-device, `/api/exec`, auto-update (5 em 5 min),
     auto-anúncio entre PCs (reciproco e imediato pra device novo),
     servidor MCP do Coordenador, `opencode serve` supervisionado, motor
-    FMM de triagem via `/api/triagem`).
+    FMM de triagem via `/api/triagem`). Também serve o app mínimo `/hub`
+    (`HUB_HTML`, embutido no próprio server.js pra viajar no auto-update
+    sem regenerar `assets.ts`) e as rotas de acesso remoto genérico
+    `/api/mesh`, `/api/run` e `/api/file` (ver seção "App simples + acesso
+    remoto total").
   - `mcp-coordinator.js` — servidor MCP (`list_projects`/`dispatch`/
     `transfer_project`/`ask_local_model`) que `server.js` expõe em
     `POST /mcp`. Ver seção "Coordenador" abaixo.
@@ -214,6 +218,49 @@ Sploit-Forge em 30/10 (ver seção "Motor de IA local").
   bloqueia dentro do PWA instalado (funciona numa aba normal do
   Safari/Chrome), resolvido com um link "🌐 ditar no navegador" que
   aparece no lugar do microfone quando a API não existe.
+
+## App simples (/hub) + acesso remoto total via MCP — 19/11
+
+Pedido: um app **só** mostrando quais PCs estão na rede (online/offline) e,
+do lado do agente, acesso total como se estivesse instalado no outro PC —
+"continue o projeto X lá no Servidor", "vê por que o programa Y parou lá".
+
+- **`GET /hub`** (`HUB_HTML` em `server.js`) — painel mínimo: um card por PC
+  com bolinha online/offline, latência em ms, "esta máquina" marcada. Clique
+  num PC abre o link dele (`https://<dns>/#t=<token>`). Auto-refresh de 8s.
+  Token vem no fragmento (`/hub#t=...`), igual ao app completo.
+- **`GET /api/mesh`** — o "quem está online agora" em uma chamada: esta
+  máquina + todo `KNOWN`, sondando `/health` de cada uma com timeout de 3s
+  (esta máquina é sempre online; não depende do Tailscale HTTPS local).
+  `getSelfDns()` tem cache de 60s porque o painel consulta a cada 8s.
+- **`POST /api/run`** `{cmd, cwd?, timeout?, machine?}` — shell (PowerShell/
+  bash) em **qualquer pasta**, sem precisar de projeto registrado (o
+  `/api/exec` antigo exigia projeto; `cwd` default é o `FORGE_ROOT`).
+  Com `machine` (hostname OU dnsName), repassa pro device certo.
+- **`POST /api/file`** `{op: read|write|edit|list|stat, path, ...}` — edição
+  de arquivo sem passar por shell (evita escaping de caminho Windows).
+  `read` recusa binário e arquivo >4MB (aí é `run_command`); `write` cria as
+  pastas; `edit` falha se `old` não existir. Também repassa com `machine`.
+  `readBody(req, max)` agora aceita limite maior (12MB no `/api/file`).
+- **MCP (é aqui que o agente usa)**: `mcp-coordinator.js` ganhou
+  `list_devices`, `run_command`, `read_file`, `write_file`, `edit_file`,
+  `list_dir` — todas batem no server local com o token desta máquina e o
+  próprio server relaya quando vem `machine`, então a config MCP continua
+  sendo UMA só (a do `.coordinator`), igual em qualquer PC. Continuam
+  existindo as 4 antigas (`list_projects`/`dispatch`/`transfer_project`/
+  `ask_local_model`).
+- **App de bandeja**: clicar no ícone agora abre `/hub` (menu do botão
+  direito tem "Abrir este PC (completo)" pra interface antiga). Mudança no
+  `packages/forge-tray` **não** chega sozinha nos PCs já instalados —
+  o instalador baixa do `dist/` no GitHub (recompilar com `bun run
+  build:main` e copiar pra `dist/src/`, depois rodar o
+  `win-native-install.ps1` de novo na máquina). `server.js` e
+  `mcp-coordinator.js` viajam no auto-update normal.
+
+Validado localmente com um harness (stubs de `ws`/`web-push`/sessões):
+`/hub` 200 com `<script>` válido, `/api/mesh` correto, `run_command`/
+`read_file`/`write_file`/`edit_file`/`list_dir` de ponta a ponta via MCP
+(`initialize` + `tools/list` com as 10 tools + `tools/call`).
 
 ## Motor de IA local (triagem) — ligado na malha em 30/10
 

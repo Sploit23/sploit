@@ -128,6 +128,26 @@ async function askLocalModel(question, ctx) {
   throw new Error('nenhum motor local de triagem disponível na malha');
 }
 
+// --- acesso "como se estivesse no PC" ---
+// Todas essas tools batem no server local com o token desta máquina; quando
+// vem {machine}, o próprio server relaya pro device certo (mesmo padrão de
+// proxy das rotas existentes) -- aqui não precisa saber quem é remoto.
+async function postJson(url, token, body, timeout = 180000) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeout),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || ('respondeu ' + res.status));
+  return j;
+}
+
+async function meshDevices(ctx) {
+  return (await fetchJson(`http://127.0.0.1:${ctx.port}/api/mesh`, ctx.token)) || [];
+}
+
 function createMcpServer(ctx) {
   const server = new McpServer({ name: 'sploit-forge', version: '1.0.0' });
 
@@ -184,6 +204,89 @@ function createMcpServer(ctx) {
       return { content: [{ type: 'text', text: reply || '(sem resposta)' }] };
     } catch (e) {
       return { content: [{ type: 'text', text: `Triagem falhou: ${String(e.message || e)}` }], isError: true };
+    }
+  });
+
+  server.registerTool('list_devices', {
+    description: 'Lista as máquinas Sploit-Forge da rede (esta e as outras) com o status online/offline AGORA, nome e endereço Tailscale. Use antes de run_command/read_file/list_dir quando não souber em qual PC está a coisa.',
+    inputSchema: {},
+  }, async () => {
+    const devices = await meshDevices(ctx);
+    if (!devices.length) return { content: [{ type: 'text', text: '(nenhuma máquina encontrada)' }] };
+    const text = devices.map(d => `${d.online ? '●' : '○'} ${d.hostname}${d.self ? ' (esta máquina)' : ''} — ${d.dnsName || 'sem endereço Tailscale'}${d.online && d.ms != null ? ' · ' + d.ms + 'ms' : d.online ? '' : ' · offline'}`).join('\n');
+    return { content: [{ type: 'text', text }] };
+  });
+
+  server.registerTool('run_command', {
+    description: 'Roda um comando de shell numa máquina da rede e devolve stdout/stderr/código -- é o equivalente a abrir um terminal naquele PC (Windows: PowerShell; Linux: bash). Use "machine" com o nome ou endereço de list_devices (omita pra rodar nesta máquina) e "cwd" pra rodar dentro de uma pasta. Pra investigar ("por que o programa X parou"), prefira comandos de leitura (logs, processos, serviços, git status); só use comandos destrutivos quando o usuário pedir explicitamente.',
+    inputSchema: { cmd: z.string(), machine: z.string().optional(), cwd: z.string().optional(), timeout: z.number().optional() },
+  }, async ({ cmd, machine, cwd, timeout }) => {
+    try {
+      const j = await postJson(`http://127.0.0.1:${ctx.port}/api/run`, ctx.token, { cmd, machine, cwd, timeout }, Math.min(timeout || 120000, 600000) + 30000);
+      const parts = [`[${j.machine || 'esta máquina'}] code ${j.code}${j.cwd ? ' · ' + j.cwd : ''}`];
+      if (j.stdout) parts.push(j.stdout.trimEnd());
+      if (j.stderr) parts.push('[stderr]\n' + j.stderr.trimEnd());
+      return { content: [{ type: 'text', text: parts.join('\n') }], isError: j.code !== 0 };
+    } catch (e) {
+      return { content: [{ type: 'text', text: `run_command falhou: ${String(e.message || e)}` }], isError: true };
+    }
+  });
+
+  server.registerTool('read_file', {
+    description: 'Lê um arquivo de texto de qualquer máquina da rede (caminho absoluto). Recusa arquivo binário -- pra binário use run_command (rz-bin/strings).',
+    inputSchema: { path: z.string(), machine: z.string().optional() },
+  }, async ({ path, machine }) => {
+    try {
+      const j = await postJson(`http://127.0.0.1:${ctx.port}/api/file`, ctx.token, { op: 'read', path, machine });
+      return { content: [{ type: 'text', text: j.content === '' ? `(arquivo vazio: ${j.path})` : j.content }] };
+    } catch (e) {
+      return { content: [{ type: 'text', text: `read_file falhou: ${String(e.message || e)}` }], isError: true };
+    }
+  });
+
+  server.registerTool('write_file', {
+    description: 'Cria ou sobrescreve um arquivo de texto em qualquer máquina da rede (caminho absoluto; cria as pastas que faltarem). Pra mudança pequena em arquivo existente, prefira edit_file.',
+    inputSchema: { path: z.string(), content: z.string(), machine: z.string().optional() },
+  }, async ({ path, content, machine }) => {
+    try {
+      const j = await postJson(`http://127.0.0.1:${ctx.port}/api/file`, ctx.token, { op: 'write', path, content, machine });
+      return { content: [{ type: 'text', text: `ok: ${j.path} (${j.size} bytes)` }] };
+    } catch (e) {
+      return { content: [{ type: 'text', text: `write_file falhou: ${String(e.message || e)}` }], isError: true };
+    }
+  });
+
+  server.registerTool('edit_file', {
+    description: 'Troca um trecho de texto por outro num arquivo de qualquer máquina da rede. Use "all": true pra trocar todas as ocorrências. Falha se o trecho "old" não existir (assim você não grava nada por engano).',
+    inputSchema: { path: z.string(), old: z.string(), new: z.string(), all: z.boolean().optional(), machine: z.string().optional() },
+  }, async ({ path, old, new: neu, all, machine }) => {
+    try {
+      const j = await postJson(`http://127.0.0.1:${ctx.port}/api/file`, ctx.token, { op: 'edit', path, old, new: neu, all, machine });
+      return { content: [{ type: 'text', text: `ok: ${j.replacements} substituição(ões) em ${j.path}` }] };
+    } catch (e) {
+      return { content: [{ type: 'text', text: `edit_file falhou: ${String(e.message || e)}` }], isError: true };
+    }
+  });
+
+  server.registerTool('list_dir', {
+    description: 'Lista o conteúdo de uma pasta em qualquer máquina da rede (caminho absoluto), com tamanho e se é pasta. Sem "path", mostra os pontos de partida daquele PC (drives/atalhos).',
+    inputSchema: { path: z.string().optional(), machine: z.string().optional() },
+  }, async ({ path, machine }) => {
+    try {
+      const qs = [machine ? 'machine=' + encodeURIComponent(machine) : '', path ? 'path=' + encodeURIComponent(path) : ''].filter(Boolean).join('&');
+      const j = qs
+        ? await fetchJson(`http://127.0.0.1:${ctx.port}/api/browse?${qs}`, ctx.token)
+        : await fetchJson(`http://127.0.0.1:${ctx.port}/api/browse`, ctx.token);
+      if (!j) throw new Error('sem resposta');
+      if (j.error) throw new Error(j.error);
+      if (j.dirs && !j.files) return { content: [{ type: 'text', text: j.dirs.map(d => d.path).join('\n') || '(vazio)' }] };
+      const lines = [
+        ...(j.dirs || []).map(d => d.name + '/'),
+        ...(j.files || []).map(f => `${f.name} (${f.size} bytes)`),
+      ];
+      return { content: [{ type: 'text', text: `${j.path}\n` + (lines.join('\n') || '(vazio)') }] };
+    } catch (e) {
+      return { content: [{ type: 'text', text: `list_dir falhou: ${String(e.message || e)}` }], isError: true };
     }
   });
 

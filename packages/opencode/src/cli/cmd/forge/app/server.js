@@ -1,7 +1,7 @@
 // FORGE server — Linux + tmux + opencode no PATH
 // npm i ws node-pty   |   FORGE_TOKEN=<24+ chars> node server.js
 const http = require('http'), fs = require('fs'), os = require('os'), path = require('path'), net = require('net');
-const crypto = require('crypto'), { execFileSync, execFile, spawn } = require('child_process');
+const crypto = require('crypto'), { execFileSync, execFile, execSync, spawn } = require('child_process');
 const { Readable } = require('stream');
 const { WebSocketServer } = require('ws'), webpush = require('web-push');
 const mcpCoordinator = require('./mcp-coordinator');
@@ -115,6 +115,16 @@ async function discoverForgePeers() {
   }));
   return found.filter(Boolean);
 }
+// endereço Tailscale desta máquina, com cache curto -- /api/mesh (o app
+// /hub consulta a cada 8s) não precisa spawnar `tailscale status` toda vez.
+let selfDnsCache = { at: 0, value: '' };
+async function getSelfDns() {
+  if (Date.now() - selfDnsCache.at < 60000) return selfDnsCache.value;
+  try {
+    selfDnsCache = { at: Date.now(), value: ((JSON.parse(await sh('tailscale', ['status', '--json'])).Self || {}).DNSName || '').replace(/\.$/, '') };
+  } catch { selfDnsCache = { at: Date.now(), value: '' } }
+  return selfDnsCache.value;
+}
 // anuncia pra cada FORGE já descoberto na rede quem eu sou -- roda no boot e
 // periodicamente (pega PCs instalados depois). Sem isso, um PC sem tela
 // nenhuma nunca aparece pra ninguém sem alguém copiar/colar token na mão.
@@ -155,8 +165,8 @@ async function notify(projectName, body) {
   if (dead.length) { SUBS = SUBS.filter(s => !dead.includes(s)); saveSubs(); }
 }
 const inRoot = p => path.resolve(p).startsWith(ROOT + path.sep);
-const readBody = req => new Promise(r => {
-  let b = ''; req.on('data', c => { b += c; if (b.length > 1e5) req.destroy(); });
+const readBody = (req, max = 1e5) => new Promise(r => {
+  let b = ''; req.on('data', c => { b += c; if (b.length > max) req.destroy(); });
   req.on('end', () => { try { r(JSON.parse(b || '{}')); } catch { r({}); } });
 });
 // Claude Code nomeia a pasta de sessao a partir do cwd absoluto, incluindo barras -> hifens.
@@ -243,6 +253,85 @@ const MANIFEST = JSON.stringify({
     { src: ICON_MASKABLE, sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
   ]
 });
+// --- app mínimo "Sploit Force" (/hub) ---
+// Só a lista de PCs da rede com bolinha de online/offline ao vivo. Todo o
+// resto (mexer de verdade no PC) é o MCP do Coordenador (ver
+// mcp-coordinator.js): o app fica simples de propósito, quem trabalha é o
+// agente (opencode/Claude Code) chamando as tools. Fica em server.js (e não
+// em index.html) pra viajar no auto-update sem regenerar assets.ts.
+const HUB_HTML = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05070d"><title>Sploit Force</title><link rel="icon" href="/icon.svg">
+<style>
+:root{--bg:#05070d;--card:#0b0f1a;--line:#1b2436;--txt:#e6edf7;--dim:#7b8aa3;--blue:#3ef0d8;--purple:#a855f7;--ok:#2dd4a5;--bad:#4b5568}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 20% -10%,#101a33 0%,var(--bg) 55%);color:var(--txt);font:15px/1.45 "Segoe UI",Inter,system-ui,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:22px 22px 8px}
+h1{margin:0;font-size:19px;letter-spacing:.4px;font-family:ui-monospace,Consolas,monospace;font-weight:700}
+h1 b{background:linear-gradient(90deg,var(--blue),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}
+#sum{margin-left:auto;color:var(--dim);font-size:12.5px;font-family:ui-monospace,Consolas,monospace;white-space:nowrap}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:10px 22px 22px}
+.pc{position:relative;display:flex;gap:12px;align-items:center;padding:14px 16px;background:linear-gradient(180deg,#0c1220,#0a0e19);border:1px solid var(--line);border-radius:14px;cursor:pointer;transition:border-color .15s,transform .15s}
+.pc:hover{border-color:#2b3b5c;transform:translateY(-1px)}
+.pc.off{opacity:.55;cursor:default}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad);flex:0 0 auto}
+.pc.on .dot{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.name{font-weight:600;font-size:15px}
+.sub{color:var(--dim);font:11.5px/1.3 ui-monospace,Consolas,monospace;word-break:break-all}
+.here{margin-left:auto;color:var(--blue);font:11px/1 ui-monospace,monospace;border:1px solid #17324a;border-radius:6px;padding:3px 6px;white-space:nowrap}
+.off .here{color:var(--dim);border-color:var(--line)}
+#hint{padding:0 22px 26px;color:var(--dim);font-size:12.5px}
+#hint code{color:#b9c6da}
+#tk{display:none;margin:30px 22px;padding:18px;background:var(--card);border:1px solid var(--line);border-radius:12px;max-width:520px}
+#tk input{width:100%;margin-top:10px;padding:10px 12px;background:#070b13;border:1px solid var(--line);border-radius:8px;color:var(--txt);font:13px ui-monospace,monospace}
+#tk button{margin-top:10px;padding:9px 14px;border:0;border-radius:8px;background:linear-gradient(90deg,var(--blue),var(--purple));color:#04121a;font-weight:700;cursor:pointer}
+</style></head><body>
+<header><h1>Sploit <b>Force</b></h1><span id="sum">…</span></header>
+<div id="tk"><div>Cole o token deste PC pra ver a rede:</div><input id="tkin" placeholder="FORGE_TOKEN" autocomplete="off"><button id="tkok">Entrar</button></div>
+<div id="grid"></div>
+<div id="hint">Clique num PC pra abrir. O resto é pelo agente: <code>list_devices</code>, <code>run_command</code>, <code>read_file</code>… (MCP do Coordenador).</div>
+<script>
+var $=function(s){return document.querySelector(s)};
+(function(){var m=location.hash.match(/t=([^&]+)/);if(m){localStorage.forge_token=decodeURIComponent(m[1]);history.replaceState(null,'',location.pathname+location.search)}})();
+function tok(){return localStorage.forge_token||''}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function api(p){return fetch(p,{headers:{Authorization:'Bearer '+tok()}}).then(function(r){if(r.status===401)throw new Error('token');return r.json()})}
+function showToken(){document.getElementById('tk').style.display='block';document.getElementById('grid').innerHTML='';document.getElementById('sum').textContent='sem token'}
+function openPc(d){location.href='https://'+d.dnsName+'/#t='+encodeURIComponent(d.token)}
+function render(list){
+  var on=0;
+  var html=list.map(function(d){
+    if(d.online)on++;
+    var cls='pc '+(d.online?'on':'off');
+    if(d.self)cls+=' me';
+    return '<div class="'+cls+'" data-i="'+list.indexOf(d)+'">'+
+      '<span class="dot"></span>'+
+      '<div><div class="name">'+esc(d.hostname||d.dnsName||'?')+'</div>'+
+      '<div class="sub">'+esc(d.dnsName||'sem endereço Tailscale')+(d.online&&d.ms!=null?' · '+d.ms+'ms':'')+'</div></div>'+
+      '<span class="here">'+(d.self?'esta máquina':(d.online?'abrir':'offline'))+'</span></div>';
+  }).join('');
+  document.getElementById('grid').innerHTML=html||'<div class="sub">nenhum PC conhecido ainda</div>';
+  document.getElementById('sum').textContent=on+' online / '+list.length;
+  Array.prototype.forEach.call(document.querySelectorAll('.pc'),function(el){
+    el.onclick=function(){var d=list[+el.dataset.i];if(d&&d.dnsName&&!d.self)openPc(d)};
+  });
+}
+var loaded=false;
+function load(){
+  if(!tok())return showToken();
+  api('/api/mesh').then(function(list){loaded=true;render(list)}).catch(function(e){
+    if(e.message==='token')return showToken();
+    document.getElementById('sum').textContent='erro de rede';
+  });
+}
+document.getElementById('tkok').onclick=function(){
+  var v=document.getElementById('tkin').value.trim();
+  if(v.length<24){alert('token inválido');return}
+  localStorage.forge_token=v;document.getElementById('tk').style.display='none';load();
+};
+load();setInterval(load,8000);
+</script></body></html>`;
+
 const SW = `const C='forge-v1';self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.add('/'))));
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.pathname.startsWith('/api'))return;
 e.respondWith(fetch(e.request).then(r=>{const k=r.clone();caches.open(C).then(c=>c.put(e.request,k));return r}).catch(()=>caches.match(e.request)))});
@@ -257,6 +346,8 @@ const srv = http.createServer(async (req, res) => {
   const pt = previewTarget(req);
   if (pt) return cookieOk(req) ? proxy(req, res, pt) : send('text/plain', 'não autorizado', 401);
   if (u.pathname === '/') return send('text/html; charset=utf-8', fs.readFileSync(path.join(__dirname, 'index.html')));
+  // app simples "Sploit Force": lista de PCs online (ver HUB_HTML acima)
+  if (u.pathname === '/hub' || u.pathname === '/hub/') return send('text/html; charset=utf-8', HUB_HTML);
   if (u.pathname === '/manifest.webmanifest') return send('application/manifest+json', MANIFEST);
   if (u.pathname === '/sw.js') return send('text/javascript', SW);
   // iOS não lê o ícone do manifest.json pra "Adicionar à Tela de Início" --
@@ -334,6 +425,127 @@ const srv = http.createServer(async (req, res) => {
         // Autenticado -- só quem já tem token de ALGUM FORGE da rede lê esta lista.
         return J(KNOWN);
       }
+      if (u.pathname === '/api/mesh' && req.method === 'GET') {
+        // lista simples de PCs (esta + todas já anunciadas) com status
+        // online/offline AO VIVO -- sonda o /health de cada uma direto, com
+        // timeout curto. Base do app /hub e da tool MCP list_devices: é o
+        // "quem está na rede agora" em uma chamada só, sem o app precisar
+        // saber nada de Tailscale.
+        const selfDns = await getSelfDns();
+        const devices = [
+          { hostname: getDeviceName(), dnsName: selfDns, token: TOKEN, self: true },
+          ...KNOWN.filter(d => d.dnsName !== selfDns).map(d => ({ ...d, self: false })),
+        ];
+        return J(await Promise.all(devices.map(async d => {
+          // esta máquina é sempre "online" (é ela que está respondendo o
+          // /api/mesh) -- sondar o próprio https://<dns> só diria se o
+          // Tailscale HTTPS está de pé, o que não é a pergunta do painel.
+          if (d.self) return { ...d, online: true, ms: 0 };
+          if (!d.dnsName) return { ...d, online: false, ms: null };
+          const t0 = Date.now();
+          try {
+            const r = await fetch(`https://${d.dnsName}/health`, { signal: AbortSignal.timeout(3000) });
+            return { ...d, online: r.ok, ms: Date.now() - t0 };
+          } catch { return { ...d, online: false, ms: null } }
+        })));
+      }
+      if (u.pathname === '/api/run' && req.method === 'POST') {
+        // roda um comando nesta máquina (ou repassa pra outra com {machine})
+        // SEM precisar de um projeto registrado -- é o que deixa o agente,
+        // via MCP, agir como se estivesse instalado no PC: `cwd` default é o
+        // FORGE_ROOT, mas aceita qualquer pasta (mesmo nível de acesso que o
+        // terminal interativo já dá a quem tem o token).
+        const b = await readBody(req);
+        if (b.machine) {
+          const dev = KNOWN.find(k => k.dnsName === b.machine || k.hostname === b.machine);
+          if (!dev) return J({ error: 'dispositivo não conhecido: ' + b.machine }, 404);
+          try {
+            const r = await fetch(`https://${dev.dnsName}/api/run`, {
+              method: 'POST',
+              headers: { Authorization: 'Bearer ' + dev.token, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cmd: b.cmd, cwd: b.cwd, timeout: b.timeout }),
+              signal: AbortSignal.timeout(Math.min(+b.timeout || 120000, 600000) + 30000),
+            });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) return J({ error: j.error || ('destino respondeu ' + r.status) }, 502);
+            return J({ ...j, machine: dev.hostname });
+          } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+        }
+        const cwd = b.cwd ? path.resolve(String(b.cwd)) : ROOT;
+        try { if (!fs.statSync(cwd).isDirectory()) return J({ error: 'cwd não é uma pasta: ' + cwd }, 400); }
+        catch { return J({ error: 'cwd não encontrado: ' + cwd }, 400) }
+        const shellBin = WIN ? 'powershell.exe' : 'bash';
+        const shellArgs = WIN ? ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', String(b.cmd || '')] : ['-c', String(b.cmd || '')];
+        const r = await new Promise(done => {
+          execFile(shellBin, shellArgs, { cwd, timeout: Math.min(+b.timeout || 120000, 600000), maxBuffer: 20 * 1024 * 1024, env: CHILD_ENV },
+            (err, stdout, stderr) => done({ code: err ? (err.code ?? 1) : 0, stdout, stderr, cwd }));
+        });
+        return J(r);
+      }
+      if (u.pathname === '/api/file' && req.method === 'POST') {
+        // ler/gravar/editar/listar um caminho absoluto, sem passar por shell
+        // (evita escaping de aspas/caminho Windows dentro do PowerShell) --
+        // par do /api/run pras tools MCP read_file/write_file/edit_file/list_dir.
+        const b = await readBody(req, 12 * 1024 * 1024);
+        if (!b.path) return J({ error: 'path obrigatório' }, 400);
+        if (b.machine) {
+          const dev = KNOWN.find(k => k.dnsName === b.machine || k.hostname === b.machine);
+          if (!dev) return J({ error: 'dispositivo não conhecido: ' + b.machine }, 404);
+          try {
+            const r = await fetch(`https://${dev.dnsName}/api/file`, {
+              method: 'POST',
+              headers: { Authorization: 'Bearer ' + dev.token, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ op: b.op, path: b.path, content: b.content, old: b.old, new: b.new, all: b.all }),
+              signal: AbortSignal.timeout(60000),
+            });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) return J({ error: j.error || ('destino respondeu ' + r.status) }, 502);
+            return J(j);
+          } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+        }
+        const target = path.resolve(String(b.path));
+        const op = String(b.op || 'read');
+        try {
+          if (op === 'read') {
+            const st = fs.statSync(target);
+            if (!st.isFile()) return J({ error: 'não é um arquivo: ' + target }, 400);
+            if (st.size > 4 * 1024 * 1024) return J({ error: `arquivo grande demais (${st.size} bytes) -- use run_command (ex: Get-Content -Tail / head -c)` }, 413);
+            const buf = fs.readFileSync(target);
+            if (buf.subarray(0, 4096).includes(0)) return J({ error: 'arquivo binário -- use run_command (ex: rz-bin.exe -I/-z, strings)' }, 415);
+            return J({ path: target, size: st.size, content: buf.toString('utf8') });
+          }
+          if (op === 'write') {
+            fs.mkdirSync(path.dirname(target), { recursive: true });
+            fs.writeFileSync(target, String(b.content ?? ''));
+            return J({ ok: true, path: target, size: Buffer.byteLength(String(b.content ?? '')) });
+          }
+          if (op === 'edit') {
+            const txt = fs.readFileSync(target, 'utf8');
+            const old = String(b.old ?? ''), neu = String(b.new ?? '');
+            if (!old) return J({ error: 'old obrigatório' }, 400);
+            const count = txt.split(old).length - 1;
+            if (!count) return J({ error: "trecho 'old' não encontrado em " + target }, 404);
+            fs.writeFileSync(target, b.all ? txt.split(old).join(neu) : txt.replace(old, neu));
+            return J({ ok: true, path: target, replacements: b.all ? count : 1 });
+          }
+          if (op === 'list') {
+            const entries = fs.readdirSync(target, { withFileTypes: true })
+              .filter(e => e.name !== '.git' && e.name !== 'node_modules')
+              .map(e => {
+                let size = 0, modified = null;
+                try { const st = fs.statSync(path.join(target, e.name)); size = st.size; modified = st.mtimeMs } catch {}
+                return { name: e.name, path: path.join(target, e.name), dir: e.isDirectory(), size, modified };
+              })
+              .sort((x, y) => (Number(y.dir) - Number(x.dir)) || x.name.localeCompare(y.name));
+            return J({ path: target, entries });
+          }
+          if (op === 'stat') {
+            const st = fs.statSync(target);
+            return J({ exists: true, path: target, dir: st.isDirectory(), size: st.size, modified: st.mtimeMs });
+          }
+          return J({ error: 'op inválida (read|write|edit|list|stat)' }, 400);
+        } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 400) }
+      }
       if (u.pathname === '/api/all-projects' && req.method === 'GET') {
         // lista unificada cross-PC pra tela "Projetos" -- mesma descoberta
         // ao vivo que list_projects do MCP já faz (local + /api/known-devices
@@ -354,26 +566,37 @@ const srv = http.createServer(async (req, res) => {
         catch (e) { return J({ error: String(e.message || e).slice(0, 300) }); }
       }
       if (u.pathname === '/api/triagem' && req.method === 'POST') {
-        // pergunta rápida/trivial pro motor local (CUDA, ver FMM_ENGINE_DIR) --
-        // só existe de verdade na(s) máquina(s) que configuraram isso no
-        // .env. Nas outras, em vez de só dizer "não configurado", procura
-        // na malha quem tem (pedido explícito: o botão 🧠 tem que funcionar
-        // de qualquer PC, sem precisar saber que é o Escritório que tem a
-        // GPU). `relayed` evita um PC sem motor perguntar pro outro sem
-        // motor que pergunte de volta pro primeiro -- só UM salto, nunca
-        // um ping-pong infinito entre dois nós sem o motor.
+        // pergunta pro motor local, COM ferramentas (arquivo/bash/RE) -- a
+        // execução das ferramentas é SEMPRE nesta máquina (onde o pedido do
+        // PWA chegou); só a inferência em si pode ser repassada pra outra
+        // máquina com GPU, por dentro de /api/llm/v1/chat/completions (que
+        // já sabe achar na malha quem tem motor configurado).
         const b = await readBody(req);
         const question = String(b.question || '').trim();
         if (!question) return J({ error: 'question é obrigatória' }, 400);
+        try {
+          return J({ reply: await runTriagemLoop(question) });
+        } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+      }
+      if (u.pathname === '/api/llm/v1/chat/completions' && req.method === 'POST') {
+        // fachada OpenAI-compatible pro motor local, pro opencode poder
+        // escolher ele como provider (@ai-sdk/openai-compatible) igual
+        // escolheria um modelo de nuvem -- mesmo relay de 1 salto que o
+        // /api/triagem já faz pro botão 🧠 funcionar de qualquer PC.
+        const b = await readBody(req);
+        if (Array.isArray(b.tools)) b.tools = filterRelevantTools(b.messages, b.tools);
         if (!FMM_ENGINE_DIR) {
           if (!b.relayed) {
             for (const dev of KNOWN) {
               try {
-                const r = await fetch(`https://${dev.dnsName}/api/triagem`, {
+                const r = await fetch(`https://${dev.dnsName}/api/llm/v1/chat/completions`, {
                   method: 'POST',
                   headers: { Authorization: 'Bearer ' + dev.token, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ question, relayed: true }),
-                  signal: AbortSignal.timeout(60000),
+                  body: JSON.stringify({ ...b, relayed: true }),
+                  // prompt de agente (opencode manda system prompt + tools,
+                  // bem maior que uma pergunta simples) pode levar minutos
+                  // pra processar em CPU sem GPU -- 120s era curto demais.
+                  signal: AbortSignal.timeout(600000),
                 });
                 if (r.ok) return J(await r.json());
               } catch {}
@@ -384,16 +607,20 @@ const srv = http.createServer(async (req, res) => {
         ensureFmmApi();
         if (!(await waitFmmApi())) return J({ error: 'motor local não respondeu a tempo' }, 504);
         try {
-          const r = await fetch(`http://127.0.0.1:${FMM_API_PORT}/chat`, {
+          const { relayed, ...body } = b;
+          const r = await fetch(`http://127.0.0.1:${FMM_API_PORT}/v1/chat/completions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: question }),
-            signal: AbortSignal.timeout(60000),
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(600000),
           });
           const j = await r.json();
           if (!r.ok) return J({ error: j.error || ('motor respondeu ' + r.status) }, 502);
-          return J({ reply: j.text });
+          return J(j);
         } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+      }
+      if (u.pathname === '/api/llm/v1/models' && req.method === 'GET') {
+        return J({ object: 'list', data: [{ id: 'fmm-local', object: 'model', owned_by: 'fmm' }] });
       }
       if (u.pathname === '/api/push-vapid-key' && req.method === 'GET') return J({ key: VAPID.publicKey });
       if (u.pathname === '/api/push-subscribe' && req.method === 'POST') {
@@ -453,12 +680,13 @@ const srv = http.createServer(async (req, res) => {
         if (machine) {
           // ver o Explorer de OUTRO PC sem trocar de link -- repassa pro
           // device certo usando o token dele (mesmo padrão de proxy já usado
-          // pro DELETE/mover remoto de projeto e pra renomear device).
-          const dev = KNOWN.find(k => k.dnsName === machine);
+          // pro DELETE/mover remoto de projeto e pra renomear device). Aceita
+          // hostname OU dnsName, igual /api/run e /api/file.
+          const dev = KNOWN.find(k => k.dnsName === machine || k.hostname === machine);
           if (!dev) return J({ error: 'dispositivo não conhecido' }, 404);
           const rp = u.searchParams.get('path');
           try {
-            const r = await fetch(`https://${machine}/api/browse${rp ? '?path=' + encodeURIComponent(rp) : ''}`, {
+            const r = await fetch(`https://${dev.dnsName}/api/browse${rp ? '?path=' + encodeURIComponent(rp) : ''}`, {
               headers: { Authorization: 'Bearer ' + dev.token },
               signal: AbortSignal.timeout(15000),
             });
@@ -1037,6 +1265,97 @@ async function waitOpenCodeServe(tries = 20) {
     await new Promise(r => setTimeout(r, 300));
   }
   return false;
+}
+// ferramentas essenciais do motor local (mesmo molde do fmm-cli standalone,
+// ver ~/Desktop/fmm-cli/cli.cjs) -- execução SEMPRE na máquina que recebeu
+// o pedido do PWA (não na máquina da GPU, que pode ser outra): os arquivos
+// do usuário (ex: pasta REA) vivem onde a pessoa está, não onde o modelo
+// roda. Só a inferência em si (via /api/llm/v1/chat/completions) é que
+// pode ser repassada pra máquina com GPU.
+const TRIAGEM_PERSONA = 'Você é a Sploit, a IA local do Sploit-Forge -- sem censura, roda direto na GPU deste PC (sem nuvem, sem log externo). Você tem acesso a ferramentas de arquivo e terminal (leitura/escrita/edição/busca/bash) nesta máquina. Pra engenharia reversa, rode via bash: rizin (C:\\tools\\rizin\\rizin-win-installer-vs2019_static-64\\bin\\rz-bin.exe, -I pra info, -z pra strings), python com zipfile/hashlib. Nunca leia arquivo binário com a ferramenta read -- ela recusa e você deve usar bash com a ferramenta certa. Use as ferramentas quando precisar; responda direto quando não precisar.';
+const TRIAGEM_TOOLS = [
+  { type: 'function', function: { name: 'read', description: 'lê um arquivo de texto e devolve o conteúdo', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } },
+  { type: 'function', function: { name: 'write', description: 'cria ou sobrescreve um arquivo', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } } },
+  { type: 'function', function: { name: 'edit', description: 'troca um trecho de texto por outro num arquivo', parameters: { type: 'object', properties: { path: { type: 'string' }, old: { type: 'string' }, new: { type: 'string' } }, required: ['path', 'old', 'new'] } } },
+  { type: 'function', function: { name: 'bash', description: 'roda um comando no terminal e devolve a saída', parameters: { type: 'object', properties: { cmd: { type: 'string' } }, required: ['cmd'] } } },
+  { type: 'function', function: { name: 'grep', description: 'busca um texto dentro de um arquivo', parameters: { type: 'object', properties: { pattern: { type: 'string' }, path: { type: 'string' } }, required: ['pattern', 'path'] } } },
+];
+function runTriagemTool(name, args) {
+  try {
+    if (name === 'read') {
+      const buf = fs.readFileSync(args.path);
+      const sample = buf.slice(0, 2000);
+      let nonPrintable = 0;
+      for (const b of sample) if (b === 0 || (b < 9 && b !== 0)) nonPrintable++;
+      if (nonPrintable > sample.length * 0.02) return 'erro: arquivo parece binário, não posso ler como texto -- use bash com a ferramenta certa (ex: rz-bin.exe -I/-z pra binários ELF/SO)';
+      return buf.toString('utf8').slice(0, 8000);
+    }
+    if (name === 'write') { fs.writeFileSync(args.path, args.content); return 'ok'; }
+    if (name === 'edit') {
+      const txt = fs.readFileSync(args.path, 'utf8');
+      if (!txt.includes(args.old)) return "erro: trecho 'old' não encontrado no arquivo";
+      fs.writeFileSync(args.path, txt.replace(args.old, args.new));
+      return 'ok';
+    }
+    if (name === 'bash') return execSync(args.cmd, { encoding: 'utf8', timeout: 30000 }).slice(0, 8000);
+    if (name === 'grep') {
+      const txt = fs.readFileSync(args.path, 'utf8');
+      const matches = txt.split('\n').filter(l => l.includes(args.pattern));
+      return matches.slice(0, 50).join('\n') || '(nenhuma ocorrência)';
+    }
+    return 'erro: ferramenta desconhecida';
+  } catch (e) { return 'erro: ' + String(e.message || e).slice(0, 300); }
+}
+async function runTriagemLoop(question) {
+  const messages = [
+    { role: 'system', content: TRIAGEM_PERSONA },
+    { role: 'user', content: question },
+  ];
+  for (let turn = 0; turn < 8; turn++) {
+    const r = await fetch(`http://127.0.0.1:${PORT}/api/llm/v1/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'fmm-local', messages, tools: TRIAGEM_TOOLS, max_tokens: 800 }),
+      signal: AbortSignal.timeout(600000),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('motor respondeu ' + r.status));
+    const msg = j.choices[0].message;
+    messages.push({ role: 'assistant', content: msg.content, tool_calls: msg.tool_calls });
+    if (!msg.tool_calls || !msg.tool_calls.length) return msg.content || '(sem resposta)';
+    for (const call of msg.tool_calls) {
+      let args = {};
+      try { args = JSON.parse(call.function.arguments || '{}'); } catch {}
+      const result = runTriagemTool(call.function.name, args);
+      messages.push({ role: 'tool', tool_call_id: call.id, content: String(result) });
+    }
+  }
+  return '(limite de passos atingido)';
+}
+// modelo local é pequeno e lento -- um prompt de agente manda TODAS as
+// definições de ferramenta de uma vez (opencode: ~17k tokens só nisso),
+// o que domina o tempo de resposta sem precisar na maioria das vezes.
+// Pra tarefa simples (o caso de uso do motor local), filtra pra só as
+// ferramentas que a última mensagem do usuário parece realmente pedir
+// (por palavra-chave) -- barato, sem precisar de outra chamada de IA.
+// Se nada bater, devolve a lista inteira (melhor arriscar lento do que
+// cortar uma ferramenta que era mesmo necessária).
+function filterRelevantTools(messages, tools) {
+  if (!Array.isArray(tools) || tools.length <= 3) return tools;
+  const lastUser = [...(messages || [])].reverse().find(m => m.role === 'user');
+  const text = String(lastUser?.content || '').toLowerCase();
+  const words = new Set(text.split(/[^a-z0-9áéíóúâêîôûãõç]+/i).filter(w => w.length > 2));
+  if (words.size === 0) return tools;
+  const scored = tools.map(t => {
+    const name = String(t.function?.name || t.name || '').toLowerCase();
+    const desc = String(t.function?.description || t.description || '').toLowerCase();
+    const haystack = (name + ' ' + desc).split(/[^a-z0-9áéíóúâêîôûãõç]+/i);
+    let score = 0;
+    for (const w of haystack) if (words.has(w)) score++;
+    return { t, score };
+  });
+  const matched = scored.filter(x => x.score > 0).sort((a, b) => b.score - a.score).map(x => x.t);
+  return matched.length ? matched.slice(0, 5) : tools;
 }
 // motor FMM (CUDA próprio, roda via DLL -- projeto separado apontado por
 // FMM_ENGINE_DIR) exposto como API HTTP local (api/server.py, porta 8383)
