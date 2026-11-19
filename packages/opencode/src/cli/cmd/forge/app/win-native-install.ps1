@@ -304,34 +304,52 @@ for ($i = 0; $i -lt 10; $i++) {
     if ($st -and $st.BackendState) { break }
     Start-Sleep -Seconds 2
 }
+function Start-TsUp($extraArgs) {
+    $argList = @('up','--qr=false','--accept-routes=false') + $extraArgs
+    try { Start-Process -FilePath $tailscaleExe -ArgumentList $argList -WindowStyle Hidden -ErrorAction Stop | Out-Null } catch { return $false }
+    return $true
+}
+# Backend preso em NoState (tailscaled velho depois do update do winget) -- reinicia o servico
+if ($st -and $st.BackendState -eq 'NoState') {
+    Write-Host "  Backend preso em NoState -- reiniciando o servico do Tailscale..."
+    try { Restart-Service Tailscale -Force -ErrorAction Stop } catch { Write-Host "  (nao consegui reiniciar: $($_.Exception.Message))" }
+    Start-Sleep -Seconds 8
+    $st = Get-TsStatus
+}
 if (-not $st -or $st.BackendState -ne 'Running') {
-    Write-Host "  Maquina ainda fora do tailnet -- gerando link de login..."
+    Write-Host "  Maquina fora do tailnet -- gerando link de login..."
     $shown = $false
-    $loginStarted = $false
-    try {
-        Start-Process -FilePath $tailscaleExe -ArgumentList 'login' -WindowStyle Hidden -ErrorAction Stop | Out-Null
-        $loginStarted = $true
-    } catch {}
-    for ($i = 0; $i -lt 15; $i++) {
+    try { Start-Process -FilePath $tailscaleExe -ArgumentList 'login' -WindowStyle Hidden -ErrorAction Stop | Out-Null } catch {}
+    for ($i = 0; $i -lt 12; $i++) {
         Start-Sleep -Seconds 2
         $st = Get-TsStatus
         if ($st -and $st.BackendState -eq 'Running') { break }
         if (-not $shown) { $shown = Show-TsAuthUrl $st }
-        if ($st -and $st.AuthURL) { $loginStarted = $true }
     }
     if (-not $shown) {
-        Write-Host "  'tailscale login' nao devolveu link -- usando 'up --qr'..."
-        & $tailscaleExe up --qr --accept-routes=false 2>&1 | Out-String | Write-Host
-        Start-Sleep -Seconds 2
-        $st = Get-TsStatus
-        $shown = Show-TsAuthUrl $st
+        Write-Host "  'tailscale login' sem link -- tentando 'up'..."
+        [void](Start-TsUp @())
+        for ($i = 0; $i -lt 12; $i++) {
+            Start-Sleep -Seconds 2
+            $st = Get-TsStatus
+            if ($st -and $st.BackendState -eq 'Running') { break }
+            if (-not $shown) { $shown = Show-TsAuthUrl $st }
+        }
     }
     if (-not $shown) {
-        Write-Host "  Ainda sem link -- tentando 'up --qr --reset'..."
-        & $tailscaleExe up --qr --accept-routes=false --reset 2>&1 | Out-String | Write-Host
-        Start-Sleep -Seconds 2
+        Write-Host "  'up' sem link -- tentando 'up --reset'..."
+        [void](Start-TsUp @('--reset'))
+        for ($i = 0; $i -lt 12; $i++) {
+            Start-Sleep -Seconds 2
+            $st = Get-TsStatus
+            if ($st -and $st.BackendState -eq 'Running') { break }
+            if (-not $shown) { $shown = Show-TsAuthUrl $st }
+        }
+    }
+    if (-not $shown) {
+        Write-Host "  Sem link pelo status -- exibindo o QR no console:"
+        & $tailscaleExe up --qr --accept-routes=false
         $st = Get-TsStatus
-        $shown = Show-TsAuthUrl $st
     }
     if (-not $st -or $st.BackendState -ne 'Running') {
         Write-Host ""
@@ -340,9 +358,7 @@ if (-not $st -or $st.BackendState -ne 'Running') {
             Start-Sleep -Seconds 3
             $st = Get-TsStatus
             if ($st -and $st.BackendState -eq 'Running') { break }
-            if ($st -and $st.BackendState -eq 'NeedsMachineAuth') {
-                Write-Host "  Maquina aguardando aprovacao do admin no painel do Tailscale."
-            }
+            if (-not $shown) { $shown = Show-TsAuthUrl $st }
         }
     }
 }
