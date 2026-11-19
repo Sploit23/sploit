@@ -285,13 +285,25 @@ Write-Host "==> Tailscale..."
 function Get-TsStatus {
     try { (& $tailscaleExe status --json 2>$null | Out-String) | ConvertFrom-Json } catch { $null }
 }
+function Get-TsTextAuthUrl {
+    # o status em texto imprime "Log in at: https://login.tailscale.com/a/..."
+    # mesmo quando o AuthURL do --json vem vazio entao essa e a fonte confiavel.
+    $txt = ''
+    try { $txt = (& $tailscaleExe status 2>&1 | Out-String) } catch { return '' }
+    $m = [regex]::Match($txt, 'https://login\.tailscale\.com/[^\s]+')
+    if ($m.Success) { return $m.Value.TrimEnd('.', ')', ',') }
+    return ''
+}
 function Show-TsAuthUrl($st) {
-    if ($st -and $st.AuthURL) {
+    $url = ''
+    if ($st -and $st.AuthURL) { $url = $st.AuthURL }
+    if (-not $url) { $url = Get-TsTextAuthUrl }
+    if ($url) {
         Write-Host ""
         Write-Host "  ------------------------------------------------------------" -ForegroundColor Yellow
         Write-Host "  ABRA ESTE LINK (ou escaneie o QR) com a conta do Tailscale:" -ForegroundColor Yellow
         Write-Host ""
-        Write-Host "    $($st.AuthURL)" -ForegroundColor Cyan
+        Write-Host "    $url" -ForegroundColor Cyan
         Write-Host ""
         Write-Host "  ------------------------------------------------------------" -ForegroundColor Yellow
         return $true
@@ -364,7 +376,9 @@ if (-not $st -or $st.BackendState -ne 'Running') {
         }
     }
     if (-not $shown) {
-        Write-Host "  Sem link pelo status -- exibindo o QR no console:"
+        Write-Host "  Ainda sem link. Status atual do Tailscale:"
+        & $tailscaleExe status 2>&1 | Out-String | Write-Host
+        Write-Host "  Tentando 'up --qr' no console (se o QR nao couber, use o link acima):"
         & $tailscaleExe up --qr --accept-routes=false
         $st = Get-TsStatus
     }
