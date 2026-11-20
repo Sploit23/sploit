@@ -69,6 +69,7 @@ const getCoordinatorCli = () => { try { const v = fs.readFileSync(CLI_FILE, 'utf
 // LocalSystem e não tem "o próprio" perfil de usuário pra olhar.
 let desktopCache = { at: 0, value: false };
 function isDesktopInstalled() {
+  if (process.env.FORGE_HEADLESS) return false;
   if (!WIN) return false;
   if (Date.now() - desktopCache.at < 5 * 60 * 1000) return desktopCache.value;
   let value = false;
