@@ -105,6 +105,20 @@ button.ic{padding:6px 9px;font-size:12px}
 .chip .d.on{background:var(--ok);box-shadow:0 0 5px #2dd4a580}
 .chip.active{border-color:var(--blue);color:var(--tx);box-shadow:0 0 0 1px #3ef0d833}
 .chip.active .d.on{background:var(--blue);box-shadow:0 0 5px #3ef0d880}
+/* barra global no topo -- só nos PCs principais (os que têm a bandeja
+   instalada). Bot de loja não tem bandeja, /api/stats.desktop é false e
+   esta barra nunca aparece pra quem estiver usando aquele PC. */
+#pcbar{display:none;position:fixed;z-index:35;top:0;left:0;right:0;height:34px;align-items:center;gap:6px;padding:0 12px;background:#080b14f2;border-bottom:1px solid var(--ln);backdrop-filter:blur(8px);overflow-x:auto;scrollbar-width:none}
+#pcbar::-webkit-scrollbar{display:none}
+body.main-pc #pcbar{display:flex}
+#pcblist{display:flex;gap:6px;min-width:0}
+#pcbar .pcb{flex:none;display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:16px;border:1px solid var(--ln);background:var(--panel);font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--mu);white-space:nowrap;cursor:pointer}
+#pcbar .pcb .d{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 5px #2dd4a580}
+#pcbar .pcb.active{border-color:var(--blue);color:var(--tx)}
+#pcbar .pcb.hub{margin-left:auto;background:none;color:var(--blue)}
+body.main-pc .screen{padding-top:calc(max(20px,env(safe-area-inset-top)) + 34px)}
+body.main-pc #home.on,body.main-pc #chat.on,body.main-pc #term.on{height:calc(100dvh - 34px);padding-top:calc(env(safe-area-inset-top) + 34px)}
+@media (min-width:900px){#pcbar{left:220px}}
 .central-body{flex:1;overflow-y:auto;padding:0 18px 14px;display:flex;flex-direction:column;gap:6px}
 .lbl{font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;color:var(--mu);text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px}
 .lbl a{color:var(--blue);text-decoration:none;font-size:11px;cursor:pointer}
@@ -205,6 +219,8 @@ body.with-nav #nav{display:flex}
 </style>
 </head>
 <body>
+
+<div id="pcbar"><span class="pcbl">PCs</span><div id="pcblist"></div><button class="pcb hub" id="pcbhub" title="Painel de PCs">☰ todos</button></div>
 
 <div class="screen" id="login">
   <div class="top"><div class="brand"><b>Sploit-Forge</b><small>PRIVATE NODE</small></div></div>
@@ -660,6 +676,21 @@ function renderDeviceStrip(all){
     L.append(c);
   });
 }
+// mesma lista da Central, mas fixa no topo e só com quem está online e já
+// tem token -- é a "cara" do Sploit no PC principal, sem aparecer nos bots.
+function renderPcBar(all){
+  const list=$('#pcblist');if(!list)return;list.replaceChildren();
+  const self=h('button','pcb'+(devMachine==='local'?' active':''));
+  self.append(h('span','d'),document.createTextNode(SELF_NAME||'este PC'));
+  self.onclick=()=>switchDevice('local');
+  list.append(self);
+  (all||[]).filter(d=>d.online&&d.token).forEach(d=>{
+    const b=h('button','pcb'+(devMachine===d.dnsName?' active':''));
+    b.append(h('span','d'),document.createTextNode(d.hostname||d.dnsName));
+    b.onclick=()=>switchDevice(d.dnsName);
+    list.append(b);
+  });
+}
 let KNOWN_DEVICES=[]; // cache pro dock de arrastar-e-soltar (Fase 5) -- não refaz fetch a cada gesto
 async function refreshDevices(){
   let online=[],known=[];
@@ -670,6 +701,7 @@ async function refreshDevices(){
   const all=mergeDevices(online,known);
   KNOWN_DEVICES=all;
   renderDeviceStrip(all);
+  renderPcBar(all);
   renderPrjDevices();
 }
 // qual PC está sendo mostrado no topo (CPU/RAM/uptime) -- trocar não navega
@@ -677,7 +709,7 @@ async function refreshDevices(){
 // SELF_NAME guarda o nome desta máquina separado do que está em #host
 // agora (que pode estar mostrando outro device) -- "renomear este PC"
 // precisa saber qual é "este PC" independente do que está na tela.
-let devMachine='local',SELF_NAME='';
+let devMachine='local',SELF_NAME='',IS_MAIN_PC=false;
 async function stats(m){
   m=m===undefined?devMachine:m;
   try{
@@ -690,6 +722,9 @@ async function stats(m){
     $('#selficon').innerHTML=DEV_ICON;
     if(m==='local'){
       SELF_NAME=s.host;
+      IS_MAIN_PC=DEMO||s.desktop===true;
+      document.body.classList.toggle('main-pc',IS_MAIN_PC);
+      renderPcBar(KNOWN_DEVICES);
       // tela remota (Xvfb/xdotool) so existe no motor Linux -- esconde o
       // botao em vez de deixar morto numa instalacao Windows nativa. Só
       // reflete ESTA máquina -- abrir essas telas sempre opera localmente,
@@ -703,6 +738,7 @@ function switchDevice(m){
   devMachine=m;
   stats(m);
   renderDeviceStrip(KNOWN_DEVICES);
+  renderPcBar(KNOWN_DEVICES);
 }
 async function init(){
   try{const ps=(await api('/api/all-projects')).map(e=>({...e,name:e.alias,path:e.directory}));start(ps)}
@@ -725,6 +761,7 @@ $('#tkgo').onclick=async()=>{
   TOKEN=v;
   try{await api('/api/projects');localStorage.forge_token=TOKEN;init()}catch{$('#tkerr').textContent='token recusado'}
 };
+$('#pcbhub').onclick=()=>window.open('/hub#t='+encodeURIComponent(TOKEN),'_blank');
 
 /* ---------- gerenciar projetos ---------- */
 const mk=(t,fn,k)=>{const b=h('button',k||'',t);b.onclick=fn;return b};
