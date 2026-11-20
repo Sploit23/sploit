@@ -333,6 +333,47 @@ document.getElementById('tkok').onclick=function(){
 load();setInterval(load,8000);
 </script></body></html>`;
 
+const BAR_HTML = `<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sploit Forge</title>
+<style>
+:root{--bg:#080b14;--card:#111827;--line:#1c2840;--tx:#e6edf7;--mu:#9fb3cd;--blue:#7dd3fc}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+#bar{position:fixed;inset:0 0 auto 0;z-index:2;display:flex;align-items:flex-start;gap:8px;padding:8px 12px;background:#080b14f5;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+#bar::-webkit-scrollbar{display:none}
+.pc{flex:none;min-width:120px;max-width:320px;padding:6px 10px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+.pc .n{color:var(--blue);font-weight:700;font-size:12px;margin-bottom:4px}
+.pc .p{color:var(--mu);font-size:11px;line-height:1.5;white-space:normal;word-break:break-word}
+.pc .p:before{content:'└ ';color:#455b78}
+#tk{margin:60px 16px;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:8px;max-width:420px}
+#tk input{width:100%;margin:8px 0;padding:8px;background:#070b13;border:1px solid var(--line);border-radius:6px;color:var(--tx);font:12px ui-monospace,monospace}
+#tk button{padding:7px 12px;border:0;border-radius:6px;background:var(--blue);font-weight:700;cursor:pointer}
+</style></head><body>
+<div id="bar"></div>
+<div id="tk" hidden><div>Cole o token deste PC:</div><input id="tkin" autocomplete="off"><button id="tkok">Entrar</button></div>
+<script>
+var $=function(s){return document.querySelector(s)};
+(function(){var m=location.hash.match(/t=([^&]+)/);if(m){localStorage.forge_token=decodeURIComponent(m[1]);history.replaceState(null,'',location.pathname)}})();
+function tok(){return localStorage.forge_token||''}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function api(p){return fetch(p,{headers:{Authorization:'Bearer '+tok()}}).then(function(r){if(r.status===401)throw new Error('token');return r.json()})}
+function render(pcs,projects){
+  $('#bar').innerHTML=pcs.map(function(pc){
+    var list=projects.filter(function(x){return pc.self?x.machine==='local':(x.machine===pc.dnsName||x.machine===pc.hostname)});
+    return '<div class="pc"><div class="n">'+esc(pc.hostname||pc.dnsName||'?')+'</div>'+
+      (list.length?list.map(function(x){return '<div class="p">'+esc(x.alias||x.name)+'</div>'}).join(''):'<div class="p" style="color:#455b78">sem projetos</div>')+'</div>';
+  }).join('');
+}
+function load(){
+  if(!tok()){$('#tk').hidden=false;return}
+  $('#tk').hidden=true;
+  Promise.all([api('/api/stats'),api('/api/known-devices'),api('/api/all-projects')]).then(function(r){
+    render([{hostname:r[0].host,dnsName:'local',self:true}].concat(r[1].filter(function(d){return d.token})),r[2]);
+  }).catch(function(e){if(e.message==='token'){$('#tk').hidden=false}});
+}
+$('#tkok').onclick=function(){var v=$('#tkin').value.trim();if(v.length<24){alert('token inválido');return}localStorage.forge_token=v;load()};
+load();setInterval(load,8000);
+</script></body></html>`;
+
 const SW = `const C='forge-v1';self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.add('/'))));
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.pathname.startsWith('/api'))return;
 e.respondWith(fetch(e.request).then(r=>{const k=r.clone();caches.open(C).then(c=>c.put(e.request,k));return r}).catch(()=>caches.match(e.request)))});
@@ -349,6 +390,7 @@ const srv = http.createServer(async (req, res) => {
   if (u.pathname === '/') return send('text/html; charset=utf-8', fs.readFileSync(path.join(__dirname, 'index.html')));
   // app simples "Sploit Force": lista de PCs online (ver HUB_HTML acima)
   if (u.pathname === '/hub' || u.pathname === '/hub/') return send('text/html; charset=utf-8', HUB_HTML);
+  if (u.pathname === '/bar') return send('text/html; charset=utf-8', BAR_HTML);
   if (u.pathname === '/manifest.webmanifest') return send('application/manifest+json', MANIFEST);
   if (u.pathname === '/sw.js') return send('text/javascript', SW);
   // iOS não lê o ícone do manifest.json pra "Adicionar à Tela de Início" --

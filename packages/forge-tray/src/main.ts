@@ -1,4 +1,4 @@
-import { app, Tray, Menu, BrowserWindow, nativeImage } from "electron"
+import { app, Tray, Menu, BrowserWindow, nativeImage, screen } from "electron"
 import path from "path"
 import { fileURLToPath } from "url"
 import { getPairingInfo } from "./pairing.js"
@@ -9,6 +9,37 @@ let tray: Tray | null = null
 // uma janela nativa por PC -- clicar de novo foca a que já existe em vez
 // de empilhar outra apontando pro mesmo link.
 const pcWindows = new Map<string, BrowserWindow>()
+const BAR_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;background:transparent;overflow:hidden;user-select:none}
+#bar{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;background:rgba(8,11,20,.88);border:1px solid rgba(125,211,252,.25);border-radius:14px;backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,.45);font:11px ui-monospace,Consolas,monospace;color:#e6edf7}
+.pc{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid;border-radius:10px;background:rgba(17,24,39,.92);font:inherit;white-space:nowrap}
+.pc.main{border-color:rgba(125,211,252,.55);color:#7dd3fc}
+.pc.bot{border-color:rgba(52,211,153,.5);color:#6ee7b7}
+.dot{width:7px;height:7px;border-radius:50%;background:#64748b}
+.dot.on{background:#34d399;box-shadow:0 0 6px #34d399}
+</style></head><body><div id="bar"></div><script>
+var TOKEN=__TOKEN__,PORT=__PORT__;
+function api(p){return fetch('http://127.0.0.1:'+PORT+p,{headers:{Authorization:'Bearer '+TOKEN}}).then(function(r){return r.json()})}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function render(devices,desktops){
+  document.getElementById('bar').innerHTML=devices.map(function(d){
+    var key=d.self?'local':(d.dnsName||d.hostname),main=!!desktops[key];
+    return '<div class="pc '+(main?'main':'bot')+'" title="'+(main?'PC principal':'bot')+'"><span class="dot '+(d.online?'on':'')+'"></span>'+esc(d.hostname||key)+'</div>';
+  }).join('');
+}
+function load(){
+  api('/api/mesh').then(function(devices){
+    Promise.all(devices.map(function(d){
+      return d.self?api('/api/stats'):api('/api/stats?machine='+encodeURIComponent(d.dnsName||d.hostname)).catch(function(){return {desktop:false}});
+    })).then(function(stats){
+      var desktops={};devices.forEach(function(d,i){desktops[d.self?'local':(d.dnsName||d.hostname)]=!!stats[i].desktop});
+      render(devices,desktops);
+    });
+  }).catch(function(){});
+}
+load();setInterval(load,8000);
+</script></body></html>`
+let barWin: BrowserWindow | null = null
 
 // mesmo ícone ">_" com gradiente azul→roxo do manifest PWA (ver
 // ICON_ANY_SVG em app/server.js) -- rasterizado em assets/tray-icon-*.png
@@ -72,6 +103,33 @@ function openNativeWindow(url: string, title: string): void {
   pcWin.once("ready-to-show", () => bringToFront(pcWin))
 }
 
+function openBar(): void {
+  if (barWin && !barWin.isDestroyed()) {
+    barWin.show()
+    return
+  }
+  const info = getPairingInfo()
+  const width = screen.getPrimaryDisplay().workAreaSize.width
+  const w = 640, h = 80
+  barWin = new BrowserWindow({
+    width: w,
+    height: h,
+    x: Math.round((width - w) / 2),
+    y: 0,
+    frame: false,
+    transparent: true,
+    backgroundColor: "#00000000",
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    webPreferences: { contextIsolation: true, webSecurity: false },
+  })
+  barWin.setAlwaysOnTop(true, "screen-saver")
+  const html = BAR_HTML.replace("__TOKEN__", JSON.stringify(info.token || "")).replace("__PORT__", JSON.stringify(info.port || "7777"))
+  void barWin.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html))
+  barWin.on("closed", () => { barWin = null })
+}
+
 function openHub(): void {
   const info = getPairingInfo()
   if (!info.link) {
@@ -129,4 +187,5 @@ void app.whenReady().then(() => {
       { label: "Sair", click: () => app.quit() },
     ]),
   )
+  openBar()
 })
