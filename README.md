@@ -49,6 +49,62 @@ atalho da Área de Trabalho e o de Startup, e apaga a pasta
 `%LOCALAPPDATA%\SploitForgeTray` daquele PC. O serviço do FORGE
 continua rodando normalmente durante e depois disso.
 
+### Como falar com os PCs (MCP no `opencode`)
+
+A barra flutuante do app de bandeja é **só visual**: azul = PC
+principal (controlador), verde = bot, bolinha acesa = online. Não muda
+nada no comando — **o MCP é o mesmo para os dois**. O agente resolve o
+PC pelo nome que aparece na barra (`Escritorio`, `Casa`, `Servidor`,
+`raspberrypi`), então você não precisa saber IP, token ou tipo.
+
+Ferramentas usadas pelo agente (todas em `mcp-coordinator.js`):
+
+| Ferramenta | Para que serve |
+| --- | --- |
+| `list_devices` | descobre PC por nome e diz quem está online |
+| `run_command` | roda shell em qualquer PC (`machine:"Servidor"`, por exemplo) |
+| `read_file` / `write_file` / `edit_file` / `list_dir` | mexem em arquivos de qualquer PC |
+| `list_projects` | lista projetos de todos os PCs |
+| `transfer_project` | move um projeto inteiro para outro PC |
+| `dispatch` | manda uma instrução para a sessão de um projeto remoto |
+
+Exemplos que você pode digitar no `opencode`:
+
+```text
+quais PCs estão online?              -> o agente chama list_devices
+manda o projeto Kauanne_Natal para o Servidor
+copia C:\Users\Maxx\Desktop\arquivo.x para o PC Casa
+analisa porque a impressora parou no Servidor   (o agente roda comandos de leitura lá)
+```
+
+Configuração é **uma vez só**. No PC principal, pegue o `FORGE_TOKEN`
+de `C:\ProgramData\SploitForge\.env`, declare como variável de
+usuário `FORGE_TOKEN` (`setx FORGE_TOKEN <token>`) e configure o MCP:
+
+```jsonc
+// %USERPROFILE%\.config\opencode\opencode.jsonc
+{
+  "mcp": {
+    "sploit-forge": {
+      "type": "remote",
+      "url": "http://127.0.0.1:7777/mcp",
+      "oauth": false,
+      "headers": { "Authorization": "Bearer {env:FORGE_TOKEN}" }
+    }
+  }
+}
+```
+
+Depois disso, basta abrir um `opencode` novo: as ferramentas já vêm
+carregadas. Se você já estava numa sessão, reinicie-a para a lista de
+tools ser recarregada. Sempre use `127.0.0.1` (o FORGE daquele PC),
+nunca o endereço de outro PC — o roteamento cross-PC é feito pelo
+argumento `machine`.
+
+PCs atuais: `Escritorio` e `Casa` são principais (azul); `Servidor` e
+`raspberrypi` são bots (verde). Todos respondem ao mesmo MCP; a Casa
+também aceita `run_command`/`write_file` normalmente.
+
 ### Instalar o Sploit
 
 ```bash
