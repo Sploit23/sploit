@@ -142,10 +142,13 @@ no final. Idempotente -- seguro rodar de novo. Detalhes em
 `packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1`.
 
 Pra um PC que só vai ser controlado remotamente (sem IA rodando local
-nele, sem ícone nenhum visível -- só shell/`/api/exec`), dá pra pular
-opencode/Claude Code *e* o app de bandeja (nenhum dos dois é essencial;
-uma falha de rede ao instalá-los também não derruba mais o resto do
-instalador, mas dá pra pular de propósito):
+nele, sem ícone nenhum visível -- só shell/`/api/exec`), `-Headless` pula
+tudo o que o bot não usa: opencode/Claude Code, app de bandeja, UI web
+(`index.html` + `vendor/`), `sessions-tmux.js`, `mcp-coordinator.js` e as
+dependências npm `web-push`/`@modelcontextprotocol/sdk`/`zod`. O instalador
+também grava `FORGE_HEADLESS=1` no `.env`, então o próprio `server.js`
+continua enxergando o modo bot depois do restart e o auto-update só baixa
+`server.js`, `sessions-native.js` e `win-service.js` (nada de UI/MCP/push):
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://github.com/Sploit23/sploit/raw/refs/heads/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1))) -Headless

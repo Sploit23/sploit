@@ -3,8 +3,7 @@
 const http = require('http'), fs = require('fs'), os = require('os'), path = require('path'), net = require('net');
 const crypto = require('crypto'), { execFileSync, execFile, execSync, spawn } = require('child_process');
 const { Readable } = require('stream');
-const { WebSocketServer } = require('ws'), webpush = require('web-push');
-const mcpCoordinator = require('./mcp-coordinator');
+const { WebSocketServer } = require('ws');
 
 // Linux/WSL usa tmux (sessão sobrevive a updates do FORGE, processo
 // separado); Windows nativo usa um motor em memória próprio via ConPTY
@@ -27,6 +26,12 @@ const sessions = require(WIN ? './sessions-native' : './sessions-tmux');
     });
   } catch {}
 })();
+const HEADLESS = !!process.env.FORGE_HEADLESS;
+let webpush = null, mcpCoordinator = null;
+if (!HEADLESS) {
+  try { webpush = require('web-push') } catch {}
+  try { mcpCoordinator = require('./mcp-coordinator') } catch {}
+}
 const TOKEN = process.env.FORGE_TOKEN || '';
 if (TOKEN.length < 24) { console.error('Defina FORGE_TOKEN com 24+ caracteres'); process.exit(1); }
 // processos filhos (shell do /api/exec, sessões de terminal, xdotool) não precisam
@@ -156,13 +161,17 @@ async function announceToPeers() {
 // --- Notificação push (web push padrão, sem serviço de terceiro) ---
 const VAPID_FILE = path.join(__dirname, '.push-vapid.json');
 const SUBS_FILE = path.join(__dirname, 'push-subscriptions.json');
-let VAPID = fs.existsSync(VAPID_FILE) ? JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8')) : null;
-if (!VAPID) { VAPID = webpush.generateVAPIDKeys(); fs.writeFileSync(VAPID_FILE, JSON.stringify(VAPID)); }
-webpush.setVapidDetails('mailto:forge@localhost', VAPID.publicKey, VAPID.privateKey);
+let VAPID = null;
+if (webpush) {
+  VAPID = fs.existsSync(VAPID_FILE) ? JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8')) : null;
+  if (!VAPID) { VAPID = webpush.generateVAPIDKeys(); fs.writeFileSync(VAPID_FILE, JSON.stringify(VAPID)); }
+  webpush.setVapidDetails('mailto:forge@localhost', VAPID.publicKey, VAPID.privateKey);
+}
 let SUBS = fs.existsSync(SUBS_FILE) ? JSON.parse(fs.readFileSync(SUBS_FILE, 'utf8')) : [];
 const saveSubs = () => fs.writeFileSync(SUBS_FILE, JSON.stringify(SUBS, null, 2));
 const lastNotify = {};
 async function notify(projectName, body) {
+  if (!webpush || !SUBS.length) return;
   const now = Date.now();
   if (now - (lastNotify[projectName] || 0) < 20000) return;
   lastNotify[projectName] = now;
@@ -395,7 +404,10 @@ const srv = http.createServer(async (req, res) => {
   const send = (type, body, code = 200) => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(body); };
   const pt = previewTarget(req);
   if (pt) return cookieOk(req) ? proxy(req, res, pt) : send('text/plain', 'não autorizado', 401);
-  if (u.pathname === '/') return send('text/html; charset=utf-8', fs.readFileSync(path.join(__dirname, 'index.html')));
+  if (u.pathname === '/') {
+    const indexFile = path.join(__dirname, 'index.html');
+    return send('text/html; charset=utf-8', fs.existsSync(indexFile) ? fs.readFileSync(indexFile) : HUB_HTML);
+  }
   // app simples "Sploit Force": lista de PCs online (ver HUB_HTML acima)
   if (u.pathname === '/hub' || u.pathname === '/hub/') return send('text/html; charset=utf-8', HUB_HTML);
   if (u.pathname === '/bar') return send('text/html; charset=utf-8', BAR_HTML);
@@ -433,9 +445,13 @@ const srv = http.createServer(async (req, res) => {
   // mas com o mesmo Bearer de sempre. Ver mcp-coordinator.js.
   if (u.pathname === '/mcp' && req.method === 'POST') {
     if (!ok((req.headers.authorization || '').replace('Bearer ', ''))) return send('application/json', '{"error":401}', 401);
+    if (!mcpCoordinator) return send('application/json', '{"error":"MCP indisponível neste bot headless"}', 501);
     try { return await mcpCoordinator.handleMcpRequest(req, res, { token: TOKEN, port: PORT }); }
     catch (e) { return send('application/json', JSON.stringify({ error: String(e.message || e) }), 500); }
   }
+  // bots headless não baixam a UI completa; rotas vendor só existem no PC base
+  if (u.pathname.startsWith('/vendor/') && !fs.existsSync(path.join(__dirname, u.pathname.slice(1))))
+    return send('text/plain', 'not found', 404);
   // vendored locally -- never depend on an external CDN being reachable at runtime
   if (u.pathname === '/vendor/xterm.min.js') return send('text/javascript', fs.readFileSync(path.join(__dirname, 'vendor/xterm.min.js')));
   if (u.pathname === '/vendor/xterm.min.css') return send('text/css', fs.readFileSync(path.join(__dirname, 'vendor/xterm.min.css')));
@@ -607,6 +623,7 @@ const srv = http.createServer(async (req, res) => {
         } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 400) }
       }
       if (u.pathname === '/api/all-projects' && req.method === 'GET') {
+        if (!mcpCoordinator) return J([]);
         // lista unificada cross-PC pra tela "Projetos" -- mesma descoberta
         // ao vivo que list_projects do MCP já faz (local + /api/known-devices
         // + /api/projects de cada um), reusada daqui pra não duplicar lógica
@@ -682,7 +699,7 @@ const srv = http.createServer(async (req, res) => {
       if (u.pathname === '/api/llm/v1/models' && req.method === 'GET') {
         return J({ object: 'list', data: [{ id: 'fmm-local', object: 'model', owned_by: 'fmm' }] });
       }
-      if (u.pathname === '/api/push-vapid-key' && req.method === 'GET') return J({ key: VAPID.publicKey });
+      if (u.pathname === '/api/push-vapid-key' && req.method === 'GET') return J({ key: VAPID?.publicKey || '' });
       if (u.pathname === '/api/push-subscribe' && req.method === 'POST') {
         const sub = await readBody(req);
         if (!sub.endpoint) return J({ error: 'subscription inválida' }, 400);
@@ -980,6 +997,7 @@ const srv = http.createServer(async (req, res) => {
       if (m && req.method === 'DELETE') {
         const p = PROJECTS.find(x => x.name === m[1]);
         if (!p) {
+          if (!mcpCoordinator) return J({ error: 'projeto não existe' }, 404);
           // não existe nesta máquina -- pode viver em outro device do mesh
           // (a pessoa segurou o ícone dele no app sem trocar de PC pra
           // apagar/remover/encerrar sessão). Mesma resolução por alias que
@@ -1011,6 +1029,7 @@ const srv = http.createServer(async (req, res) => {
       }
       const mChat = u.pathname.match(/^\/api\/projects\/([\w-]+)\/chat$/);
       if (mChat && req.method === 'POST') {
+        if (!mcpCoordinator) return J({ error: 'chat de IA indisponível neste bot headless' }, 501);
         // "iniciar conversa" focado num projeto só -- a pessoa já sabe qual
         // (tocou no ícone dele), sem precisar que o Coordenador "adivinhe".
         // Reusa a mesma resolução/despacho que a ferramenta MCP dispatch já
@@ -1028,6 +1047,7 @@ const srv = http.createServer(async (req, res) => {
       }
       const mTransfer = u.pathname.match(/^\/api\/projects\/([\w-]+)\/transfer$/);
       if (mTransfer && req.method === 'POST') {
+        if (!mcpCoordinator) return J({ error: 'transferência de projeto indisponível neste bot headless' }, 501);
         // arrastar um ícone de projeto até outro dispositivo -- diferente de
         // /api/relay-send (que só sabe mandar a PARTIR desta própria
         // máquina), isso funciona mesmo pra projeto que já vive em outra
@@ -1218,15 +1238,15 @@ function attach(ws) {
 // GitHub e se atualiza sozinho. Só no Windows nativo por enquanto -- é onde
 // o safe-restart (via win-service.js, Task Scheduler) já existe e é seguro;
 // o caminho WSL/systemd fica pra depois se precisar.
-const UPDATE_BASE = 'https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/';
-const UPDATE_FILES = ['server.js', 'index.html', 'sessions-native.js', 'win-service.js', 'mcp-coordinator.js'];
+const UPDATE_BASE = 'https://github.com/Sploit23/sploit/raw/refs/heads/dev/packages/opencode/src/cli/cmd/forge/app/';
+const UPDATE_FILES = HEADLESS ? ['server.js', 'sessions-native.js', 'win-service.js'] : ['server.js', 'index.html', 'sessions-native.js', 'win-service.js', 'mcp-coordinator.js'];
 // toda vez que um arquivo daqui passar a depender de um pacote npm novo
 // (ex: mcp-coordinator.js precisando de @modelcontextprotocol/sdk+zod),
 // soma aqui -- senão o auto-update baixa o código novo, passa pelo
 // `node --check` (que não pega dependência faltando, só erro de
 // sintaxe), reinicia, e o processo cai com MODULE_NOT_FOUND em toda
 // máquina que nunca rodou o instalador de novo na mão.
-const UPDATE_NPM_DEPS = ['@modelcontextprotocol/sdk', 'zod'];
+const UPDATE_NPM_DEPS = HEADLESS ? [] : ['@modelcontextprotocol/sdk', 'zod'];
 // log simples em arquivo (console.log/error não dá pra ler num Serviço do
 // Windows sem anexar debugger) -- só assim uma falha silenciosa (já
 // aconteceu uma vez, nunca totalmente diagnosticada) fica visível depois,
@@ -1258,10 +1278,12 @@ async function checkForUpdates() {
     try { execFileSync(process.execPath, ['--check', tmp]) }
     catch (e) { fs.unlinkSync(tmp); throw new Error('server.js novo tem erro de sintaxe, abortando: ' + e.message, { cause: e }) }
     fs.unlinkSync(tmp);
-    logUpdate('sintaxe ok, garantindo dependências novas...');
-    // idempotente -- se já estiver instalado, só confirma rápido, não reinstala.
-    try { execFileSync('npm', ['install', ...UPDATE_NPM_DEPS, '--silent'], { cwd: __dirname, timeout: 120000 }) }
-    catch (e) { throw new Error('npm install das dependências novas falhou, abortando: ' + e.message, { cause: e }) }
+    if (UPDATE_NPM_DEPS.length) {
+      logUpdate('sintaxe ok, garantindo dependências novas...');
+      // idempotente -- se já estiver instalado, só confirma rápido, não reinstala.
+      try { execFileSync('npm', ['install', ...UPDATE_NPM_DEPS, '--silent'], { cwd: __dirname, timeout: 120000 }) }
+      catch (e) { throw new Error('npm install das dependências novas falhou, abortando: ' + e.message, { cause: e }) }
+    }
     logUpdate('válido, baixando o resto e aplicando...');
     for (const f of UPDATE_FILES) fs.writeFileSync(path.join(__dirname, f), await (await fetch(UPDATE_BASE + f)).text());
     logUpdate('arquivos atualizados, reiniciando com segurança...');

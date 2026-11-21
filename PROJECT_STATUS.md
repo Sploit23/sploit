@@ -93,8 +93,12 @@ construído ainda.
     restart normal já basta pra qualquer variável nova, sem precisar
     tocar neste arquivo a cada uma.
   - `win-native-install.ps1` — instalador Windows de um comando. O flag
-    `-Headless` (que também pode vir de `$env:FORGE_HEADLESS`) pula
-    opencode/Claude Code *e* o app de bandeja, e sobrevive ao UAC.
+    `-Headless` (que também pode vir de `$env:FORGE_HEADLESS`) sobrevive ao
+    UAC e pula opencode/Claude Code, app de bandeja, UI web
+    (`index.html`/`vendor/`), `sessions-tmux.js`, `mcp-coordinator.js` e os
+    pacotes npm `web-push`/`@modelcontextprotocol/sdk`/`zod`. Grava
+    `FORGE_HEADLESS=1` no `.env` pra o `server.js` continuar em modo bot
+    depois do restart.
   - `bootstrap.sh` — instalador Linux/ARM de um comando (`systemd`,
     idempotente — seguro rodar de novo pra atualizar, já que esse path
     não tem auto-update). Também suporta `FORGE_HEADLESS=1` (adicionado
@@ -114,7 +118,7 @@ construído ainda.
 
 ## Máquinas reais rodando isso hoje
 
-Quatro dispositivos, todos na mesma rede Tailscale, todos se enxergando e
+Cinco dispositivos, todos na mesma rede Tailscale, todos se enxergando e
 se controlando mutuamente:
 
 1. **Casa** — o PC "base": instalação gráfica completa, é o link que a
@@ -124,7 +128,12 @@ se controlando mutuamente:
    um projeto separado de LLM própria (ver seção abaixo) e hospeda o
    motor de triagem local.
 3. **Servidor** — bot (idem, sem app de bandeja).
-4. **raspberrypi** — Linux/ARM, instalado via `bootstrap.sh
+4. **pc_eventos** — bot Windows instalado em 20/11, renomeado de
+   `DESKTOP-S2EULD3`, dns `desktop-s2euld3.tail7ac2b.ts.net`. A bandeja
+   ainda está instalada nele (vinha do instalador antigo, antes do
+   `-Headless` existir) e pode ser removida; o serviço/`/api/run` já
+   responde normal.
+5. **raspberrypi** — Linux/ARM, instalado via `bootstrap.sh
    FORGE_HEADLESS=1` em 30/10. Always-on (plano do usuário: powerbank +
    fonte na tomada, sobrevive queda de luz se o roteador também estiver
    protegido). Candidato natural a âncora da malha (check-in proativo,
@@ -153,12 +162,20 @@ Sploit-Forge em 30/10 (ver seção "Motor de IA local").
 
 - Instalação de um comando só, idempotente, Windows (`win-native-install.ps1`)
   ou Linux/ARM (`bootstrap.sh`) — ambos com `FORGE_HEADLESS=1` pra virar
-  um bot sem nenhuma presença visual/CLI de IA local.
+  um bot sem nenhuma presença visual/CLI de IA local. No Windows o bot
+  baixa só `server.js`/`sessions-native.js`/`win-service.js` e instala só
+  `ws`/`node-pty`/`node-windows`; o servidor serve `/hub` como fallback
+  de `/` quando `index.html` não existe e devolve 501/404 nas rotas de
+  MCP/push/vendor em vez de quebrar.
 - Auto-update frequente (5 em 5 min, não mais 24h) do `server.js` e
-  arquivos relacionados — compara com o `dev` do GitHub, valida sintaxe
-  com `node --check` antes de aplicar, reinicia com segurança
-  (`win-service.js safe-restart`). Só no Windows por enquanto (Linux
-  ainda depende de rerodar o `bootstrap.sh` na mão — idempotente, seguro).
+  arquivos relacionados — compara com o `dev` do GitHub via
+  `github.com/.../raw/refs/heads/dev/...` (o CDN
+  `raw.githubusercontent.com` serviu versão stale em 20/11), valida
+  sintaxe com `node --check` antes de aplicar, reinicia com segurança
+  (`win-service.js safe-restart`). Em bot headless a lista de arquivos e
+  de pacotes npm é reduzida pelo mesmo `FORGE_HEADLESS` do `.env`. Só no
+  Windows por enquanto (Linux ainda depende de rerodar o `bootstrap.sh`
+  na mão — idempotente, seguro).
   Falhas ficam registradas em `update.log` (`GET /api/update-log`) —
   antes só dava pra diagnosticar entrando na máquina via `/api/exec`.
   **Nota**: já houve uma falha silenciosa não totalmente diagnosticada

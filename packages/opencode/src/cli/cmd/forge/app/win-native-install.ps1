@@ -23,7 +23,7 @@
 param([switch]$Headless)
 $HEADLESS = $Headless -or [bool]$env:FORGE_HEADLESS
 if ($HEADLESS) {
-    Write-Host "==> Modo BOT ativo: sem opencode/Claude Code e sem app de bandeja."
+    Write-Host "==> Modo BOT ativo: só serviço + shell remoto (sem IA local, bandeja, UI web, MCP ou push)."
 }
 
 $ErrorActionPreference = "Stop"
@@ -73,8 +73,8 @@ function Test-Command($name) {
     return $?
 }
 
-if (-not (Test-Command "winget")) {
-    Write-Host "winget não encontrado -- precisa do App Installer da Microsoft Store"
+if ((-not (Test-Command "winget")) -and ((-not (Test-Command "node")) -or (-not (Test-Command "npm")) -or (-not (Test-Command "tailscale")))) {
+    Write-Host "winget não encontrado e falta node/npm/tailscale -- precisa do App Installer da Microsoft Store"
     Write-Host "(já vem em qualquer Windows 10/11 atualizado). Atualize o Windows e rode de novo."
     exit 1
 }
@@ -156,8 +156,10 @@ if ($HEADLESS) {
 # nesta sessão, e passa pro serviço via env (ver sessions-native.js).
 $opencodeBin = (Get-Command opencode -ErrorAction SilentlyContinue).Source
 $claudeBin = (Get-Command claude -ErrorAction SilentlyContinue).Source
-if (-not $opencodeBin) { Write-Host "AVISO: não achei o caminho do opencode -- o botão 'opencode' pode não funcionar." }
-if (-not $claudeBin) { Write-Host "AVISO: não achei o caminho do claude -- o botão 'claude' pode não funcionar." }
+if (-not $HEADLESS) {
+    if (-not $opencodeBin) { Write-Host "AVISO: não achei o caminho do opencode -- o botão 'opencode' pode não funcionar." }
+    if (-not $claudeBin) { Write-Host "AVISO: não achei o caminho do claude -- o botão 'claude' pode não funcionar." }
+}
 
 $selfDir = $null
 $selfPath = $MyInvocation.MyCommand.Path
@@ -170,22 +172,23 @@ function Get-Asset($name, $dest) {
         Invoke-WebRequest -Uri "$BASE_URL/$name" -OutFile $dest -UseBasicParsing
     }
 }
-Write-Host "==> Baixando server.js, index.html, sessions-*.js, win-service.js, mcp-coordinator.js e vendor/..."
-Get-Asset "server.js" (Join-Path $FORGE_DIR "server.js")
-Get-Asset "sessions-native.js" (Join-Path $FORGE_DIR "sessions-native.js")
-Get-Asset "sessions-tmux.js" (Join-Path $FORGE_DIR "sessions-tmux.js")
-Get-Asset "index.html" (Join-Path $FORGE_DIR "index.html")
-Get-Asset "win-service.js" (Join-Path $FORGE_DIR "win-service.js")
-Get-Asset "mcp-coordinator.js" (Join-Path $FORGE_DIR "mcp-coordinator.js")
-New-Item -ItemType Directory -Force -Path (Join-Path $FORGE_DIR "vendor") | Out-Null
-foreach ($f in @("xterm.min.js", "xterm.min.css", "xterm-addon-fit.min.js", "qrcode.min.js")) {
-    Get-Asset "vendor/$f" (Join-Path $FORGE_DIR "vendor\$f")
+$assets = @("server.js", "sessions-native.js", "win-service.js")
+if (-not $HEADLESS) { $assets += @("sessions-tmux.js", "index.html", "mcp-coordinator.js") }
+Write-Host "==> Baixando $($assets -join ', ')..."
+foreach ($f in $assets) { Get-Asset $f (Join-Path $FORGE_DIR $f) }
+if (-not $HEADLESS) {
+    New-Item -ItemType Directory -Force -Path (Join-Path $FORGE_DIR "vendor") | Out-Null
+    foreach ($f in @("xterm.min.js", "xterm.min.css", "xterm-addon-fit.min.js", "qrcode.min.js")) {
+        Get-Asset "vendor/$f" (Join-Path $FORGE_DIR "vendor\$f")
+    }
 }
 
 Push-Location $FORGE_DIR
 try {
-    Write-Host "==> Instalando dependências node (ws, node-pty, node-windows, web-push, @modelcontextprotocol/sdk, zod)..."
-    npm install ws node-pty node-windows web-push @modelcontextprotocol/sdk zod --silent
+    $npmDeps = @("ws", "node-pty", "node-windows")
+    if (-not $HEADLESS) { $npmDeps += @("web-push", "@modelcontextprotocol/sdk", "zod") }
+    Write-Host "==> Instalando dependências node ($($npmDeps -join ', '))..."
+    npm install @npmDeps --silent
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
         Write-Host "Falha instalando as dependências node. node-pty normalmente já vem com"
@@ -211,6 +214,15 @@ if ((Test-Path $ENV_FILE) -and (Select-String -Path $ENV_FILE -Pattern "^FORGE_T
     $TOKEN = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
     Set-Content -Path $ENV_FILE -Value "FORGE_TOKEN=$TOKEN" -Encoding ASCII
     Write-Host "==> Novo token gerado."
+}
+
+if ($HEADLESS) {
+    if ((Test-Path $ENV_FILE) -and (Select-String -Path $ENV_FILE -Pattern "^FORGE_HEADLESS=" -Quiet)) {
+        Write-Host "==> FORGE_HEADLESS já presente no .env."
+    } else {
+        Add-Content -Path $ENV_FILE -Value "FORGE_HEADLESS=1" -Encoding ASCII
+        Write-Host "==> FORGE_HEADLESS=1 gravado no .env (o server.js lê direto dele no boot)."
+    }
 }
 
 New-Item -ItemType Directory -Force -Path $FORGE_ROOT | Out-Null
@@ -247,7 +259,7 @@ if ($HEADLESS) {
     $TRAY_DIR = Join-Path $env:LOCALAPPDATA "SploitForgeTray"
     New-Item -ItemType Directory -Force -Path (Join-Path $TRAY_DIR "src") | Out-Null
     New-Item -ItemType Directory -Force -Path (Join-Path $TRAY_DIR "assets") | Out-Null
-    $trayBase = "https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/forge-tray/dist"
+    $trayBase = "https://github.com/Sploit23/sploit/raw/refs/heads/dev/packages/forge-tray/dist"
     $trayOk = $true
     try {
         foreach ($f in @("package.json", "src/main.js", "src/pairing.js", "launch-tray.vbs", "assets/tray-icon-16.png", "assets/tray-icon-32.png", "assets/tray-icon-64.png", "assets/tray-icon-128.png", "assets/forge-tray.ico")) {
