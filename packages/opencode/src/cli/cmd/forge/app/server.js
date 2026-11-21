@@ -498,8 +498,8 @@ const srv = http.createServer(async (req, res) => {
         const shellBin = WIN ? (fs.existsSync(PS_EXE) ? PS_EXE : 'powershell.exe') : 'bash';
         const shellArgs = WIN ? ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', String(b.cmd || '')] : ['-c', String(b.cmd || '')];
         const r = await new Promise(done => {
-          execFile(shellBin, shellArgs, { cwd: p.path, timeout: 60000, maxBuffer: 10 * 1024 * 1024, env: CHILD_ENV },
-            (err, stdout, stderr) => done({ code: err ? (err.code ?? 1) : 0, stdout, stderr }));
+          execFile(shellBin, shellArgs, { cwd: p.path, timeout: 60000, maxBuffer: 10 * 1024 * 1024, env: CHILD_ENV, windowsHide: true },
+            (err, stdout, stderr) => done({ code: err ? (err.code ?? 1) : 0, stdout, stderr: stderr || (err ? err.message || '' : '') }));
         });
         return J(r);
       }
@@ -577,8 +577,8 @@ const srv = http.createServer(async (req, res) => {
         const shellBin = WIN ? (fs.existsSync(PS_EXE) ? PS_EXE : 'powershell.exe') : 'bash';
         const shellArgs = WIN ? ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', String(b.cmd || '')] : ['-c', String(b.cmd || '')];
         const r = await new Promise(done => {
-          execFile(shellBin, shellArgs, { cwd, timeout: Math.min(+b.timeout || 120000, 600000), maxBuffer: 20 * 1024 * 1024, env: CHILD_ENV },
-            (err, stdout, stderr) => done({ code: err ? (err.code ?? 1) : 0, stdout, stderr, cwd }));
+          execFile(shellBin, shellArgs, { cwd, timeout: Math.min(+b.timeout || 120000, 600000), maxBuffer: 20 * 1024 * 1024, env: CHILD_ENV, windowsHide: true },
+            (err, stdout, stderr) => done({ code: err ? (err.code ?? 1) : 0, stdout, stderr: stderr || (err ? err.message || '' : ''), cwd }));
         });
         return J(r);
       }
@@ -1305,7 +1305,7 @@ async function checkForUpdates() {
     if (UPDATE_NPM_DEPS.length) {
       logUpdate('sintaxe ok, garantindo dependências novas...');
       // idempotente -- se já estiver instalado, só confirma rápido, não reinstala.
-      try { execFileSync(NPM_BIN, ['install', ...UPDATE_NPM_DEPS, '--silent'], { cwd: __dirname, timeout: 120000 }) }
+      try { execFileSync(NPM_BIN, ['install', ...UPDATE_NPM_DEPS, '--silent'], { cwd: __dirname, timeout: 120000, windowsHide: true }) }
       catch (e) { throw new Error('npm install das dependências novas falhou, abortando: ' + e.message, { cause: e }) }
     }
     logUpdate('válido, baixando o resto e aplicando...');
