@@ -1,7 +1,7 @@
 # FORGE — instalador de um comando, 100% Windows nativo (sem WSL, sem Linux,
 # sem nenhuma VM no meio). Idempotente: seguro rodar de novo no mesmo PC.
 #
-#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
+#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://github.com/Sploit23/sploit/raw/refs/heads/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
 #
 # A linha de ExecutionPolicy evita um PSSecurityException/UnauthorizedAccess
 # que a política padrão de vários Windows dá no "iex" de script baixado
@@ -15,7 +15,7 @@
 # ser controlado remotamente, sem IA rodando local nele): use -Headless.
 # -Headless sobrevive ao re-lançamento elevado (UAC); só setar $env:FORGE_HEADLESS
 # numa linha separada é frágil e já causou bot com tray instalado.
-#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1))) -Headless
+#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://github.com/Sploit23/sploit/raw/refs/heads/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1))) -Headless
 #
 # Se faltar alguma dependência (winget, Node), o script avisa exatamente o
 # que falta em vez de travar silenciosamente.
@@ -38,7 +38,7 @@ $ENV_FILE = Join-Path $FORGE_DIR ".env"
 # LocalSystem) cai no perfil escondido do sistema em vez de um lugar obvio.
 $FORGE_ROOT = Join-Path $FORGE_DIR "projects"
 $PORT = 7777
-$BASE_URL = "https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app"
+$BASE_URL = "https://github.com/Sploit23/sploit/raw/refs/heads/dev/packages/opencode/src/cli/cmd/forge/app"
 
 function Test-Admin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
