@@ -37,23 +37,30 @@ if (TOKEN.length < 24) { console.error('Defina FORGE_TOKEN com 24+ caracteres');
 // processos filhos (shell do /api/exec, sessões de terminal, xdotool) não precisam
 // do token pra nada -- sem isso ele aparece em claro em todo scrollback/log deles.
 const CHILD_ENV = { ...process.env }; delete CHILD_ENV.FORGE_TOKEN;
-// o Serviço do Windows roda com um environment mínimo (node-windows só grava
-// as vars explícitas do win-service.js): sem SystemRoot/PATH/ComSpec o
-// powershell.exe até acha o executável mas morre em silêncio, e `npm` falha
-// com ENOENT no auto-update. Completa o que o Windows sempre tem, sem
-// sobrescrever nada que já veio de fora.
+// o Serviço do Windows roda como LocalSystem com um environment mínimo e
+// potencialmente errado (node-windows só grava as vars explícitas do
+// win-service.js): copiar USERPROFILE/APPDATA/PATH dele faz o powershell.exe
+// sair com code 1 e stdout/stderr vazios, e o `npm` do auto-update falhar com
+// ENOENT. Força um ambiente Windows conhecido, mantendo só as vars FORGE_*.
 if (WIN) {
-  const win = process.env.SystemRoot || 'C:\\Windows';
-  Object.entries({
+  const win = /^[A-Za-z]:\\/.test(process.env.SystemRoot || '') ? process.env.SystemRoot : 'C:\\Windows';
+  const profile = process.env.FORGE_USER_PROFILE || path.join(win, 'System32', 'config', 'systemprofile');
+  Object.assign(CHILD_ENV, {
     SystemRoot: win,
     windir: win,
     ComSpec: path.join(win, 'System32', 'cmd.exe'),
     PATHEXT: '.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC',
-    PATH: process.env.PATH || `${win}\\System32;${win};${win}\\System32\\WindowsPowerShell\\v1.0;C:\\Program Files\\nodejs`,
-    TEMP: process.env.TEMP || path.join(win, 'Temp'),
-    TMP: process.env.TMP || path.join(win, 'Temp'),
-    USERPROFILE: process.env.FORGE_USER_PROFILE || process.env.USERPROFILE || win,
-  }).forEach(([k, v]) => { if (!CHILD_ENV[k]) CHILD_ENV[k] = v; });
+    PATH: `${win}\\System32;${win};${win}\\System32\\Wbem;${win}\\System32\\WindowsPowerShell\\v1.0;C:\\Program Files\\nodejs`,
+    TEMP: path.join(win, 'Temp'),
+    TMP: path.join(win, 'Temp'),
+    USERPROFILE: profile,
+    APPDATA: path.join(profile, 'AppData', 'Roaming'),
+    LOCALAPPDATA: path.join(profile, 'AppData', 'Local'),
+    PSModulePath: path.join(win, 'System32', 'WindowsPowerShell', 'v1.0', 'Modules'),
+    ProgramFiles: 'C:\\Program Files',
+    'ProgramFiles(x86)': 'C:\\Program Files (x86)',
+    OS: 'Windows_NT',
+  });
 }
 const PS_EXE = WIN ? path.join(CHILD_ENV.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : '';
 const NPM_BIN = WIN ? path.join(path.dirname(process.execPath), 'npm.cmd') : 'npm';
