@@ -261,7 +261,10 @@ do lado do agente, acesso total como se estivesse instalado no outro PC —
 - **`POST /api/run`** `{cmd, cwd?, timeout?, machine?}` — shell (PowerShell/
   bash) em **qualquer pasta**, sem precisar de projeto registrado (o
   `/api/exec` antigo exigia projeto; `cwd` default é o `FORGE_ROOT`).
-  Com `machine` (hostname OU dnsName), repassa pro device certo.
+  `timeout` é em **milissegundos** (default 120000) — passar `20` mata o
+  PowerShell em 20ms e devolve `code 1` com stderr "Command failed" vazio;
+  use `20000` pra 20s. Com `machine` (hostname OU dnsName), repassa pro
+  device certo.
 - **`POST /api/file`** `{op: read|write|edit|list|stat, path, ...}` — edição
   de arquivo sem passar por shell (evita escaping de caminho Windows).
   `read` recusa binário e arquivo >4MB (aí é `run_command`); `write` cria as
