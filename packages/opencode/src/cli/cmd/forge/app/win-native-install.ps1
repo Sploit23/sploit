@@ -197,8 +197,34 @@ try {
         Write-Host "com o workload C++ e rode o script de novo."
         throw "npm install falhou (código $LASTEXITCODE)"
     }
+    # instalacao antiga pode ter deixado esses pacotes no package.json/node_modules
+    # -- remova pra bot ficar minimo tambem em disco, nao so no download.
+    if ($HEADLESS) {
+        npm uninstall web-push @modelcontextprotocol/sdk zod --silent
+        if ($LASTEXITCODE -ne 0) { Write-Host "AVISO: não consegui remover dependências npm extras do bot (código $LASTEXITCODE) -- o server.js em modo BOT não as carrega de qualquer forma." }
+    }
 } finally {
     Pop-Location
+}
+
+if ($HEADLESS) {
+    Write-Host "==> Modo BOT -- removendo restos de UI/bandeja de instalação anterior..."
+    Get-CimInstance Win32_Process -Filter "Name = 'electron.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.ExecutablePath -like "*$env:LOCALAPPDATA\SploitForgeTray*" } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    foreach ($p in @(
+        (Join-Path $env:USERPROFILE "Desktop\Sploit-Forge.lnk"),
+        (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup\Sploit-Forge.lnk"),
+        (Join-Path $env:LOCALAPPDATA "SploitForgeTray")
+    )) {
+        if (Test-Path $p) { Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    foreach ($f in @("index.html", "mcp-coordinator.js", "sessions-tmux.js", ".push-vapid.json", "push-subscriptions.json")) {
+        $p = Join-Path $FORGE_DIR $f
+        if (Test-Path $p) { Remove-Item $p -Force -ErrorAction SilentlyContinue }
+    }
+    $vendorDir = Join-Path $FORGE_DIR "vendor"
+    if (Test-Path $vendorDir) { Remove-Item $vendorDir -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
 if ((Test-Path $ENV_FILE) -and (Select-String -Path $ENV_FILE -Pattern "^FORGE_TOKEN=" -Quiet)) {

@@ -148,7 +148,11 @@ tudo o que o bot não usa: opencode/Claude Code, app de bandeja, UI web
 dependências npm `web-push`/`@modelcontextprotocol/sdk`/`zod`. O instalador
 também grava `FORGE_HEADLESS=1` no `.env`, então o próprio `server.js`
 continua enxergando o modo bot depois do restart e o auto-update só baixa
-`server.js`, `sessions-native.js` e `win-service.js` (nada de UI/MCP/push):
+`server.js`, `sessions-native.js` e `win-service.js` (nada de UI/MCP/push).
+
+Num PC que já tinha a instalação completa, rerodar com `-Headless` remove
+`index.html`/`vendor/`, `mcp-coordinator.js`, a bandeja e os atalhos; a raiz
+passa a servir `/hub` mesmo que algum `index.html` antigo tenha sobrado:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://github.com/Sploit23/sploit/raw/refs/heads/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1))) -Headless

@@ -164,17 +164,24 @@ Sploit-Forge em 30/10 (ver seção "Motor de IA local").
   ou Linux/ARM (`bootstrap.sh`) — ambos com `FORGE_HEADLESS=1` pra virar
   um bot sem nenhuma presença visual/CLI de IA local. No Windows o bot
   baixa só `server.js`/`sessions-native.js`/`win-service.js` e instala só
-  `ws`/`node-pty`/`node-windows`; o servidor serve `/hub` como fallback
-  de `/` quando `index.html` não existe e devolve 501/404 nas rotas de
-  MCP/push/vendor em vez de quebrar.
+  `ws`/`node-pty`/`node-windows`; rerodar `-Headless` numa máquina que já
+  teve instalação completa remove `index.html`/`vendor/`,
+  `mcp-coordinator.js`, a bandeja e os atalhos, encerra o Electron antigo
+  e desinstala os pacotes npm extras. Em headless o servidor **sempre**
+  serve `/hub` na raiz (mesmo se sobrar um `index.html` antigo) e devolve
+  501/404 nas rotas de MCP/push/vendor em vez de quebrar.
+
 - Auto-update frequente (5 em 5 min, não mais 24h) do `server.js` e
   arquivos relacionados — compara com o `dev` do GitHub via
   `github.com/.../raw/refs/heads/dev/...` (o CDN
   `raw.githubusercontent.com` serviu versão stale em 20/11), valida
   sintaxe com `node --check` antes de aplicar, reinicia com segurança
-  (`win-service.js safe-restart`). Em bot headless a lista de arquivos e
-  de pacotes npm é reduzida pelo mesmo `FORGE_HEADLESS` do `.env`. Só no
-  Windows por enquanto (Linux ainda depende de rerodar o `bootstrap.sh`
+  (`win-service.js safe-restart`). O `npm install` do auto-update usa o
+  `npm.cmd` ao lado do `process.execPath` — o PATH do Serviço não traz
+  npm (`spawnSync npm ENOENT` apareceu em máquina real). Em bot headless
+  a lista de arquivos e de pacotes npm é reduzida pelo mesmo
+  `FORGE_HEADLESS` do `.env`. Só no Windows por enquanto (Linux ainda
+  depende de rerodar o `bootstrap.sh`
   na mão — idempotente, seguro).
   Falhas ficam registradas em `update.log` (`GET /api/update-log`) —
   antes só dava pra diagnosticar entrando na máquina via `/api/exec`.
