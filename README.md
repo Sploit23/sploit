@@ -26,8 +26,8 @@ aparecendo: o jeito recomendado de montar a rede é
   bandeja, atalho na Área de Trabalho, opencode/Claude Code
   instalados) — é o link que a pessoa de fato abre no celular/PWA
   pra ver e gerenciar tudo;
-- **os demais PCs como "bots"**, instalados com `FORGE_HEADLESS=1`
-  (Windows ou Linux/ARM) — nenhum ícone, nenhum app visível, só o
+- **os demais PCs como "bots"**, instalados com `-Headless` no Windows
+  (ou `FORGE_HEADLESS=1` no Linux/ARM) — nenhum ícone, nenhum app visível, só o
   serviço rodando em segundo plano, controlado inteiramente pela
   malha (pelo app do PC base, pelo Coordenador, ou por qualquer CLI
   conectado via MCP).
@@ -148,11 +148,13 @@ uma falha de rede ao instalá-los também não derruba mais o resto do
 instalador, mas dá pra pular de propósito):
 
 ```powershell
-$env:FORGE_HEADLESS = 1
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1))) -Headless
 ```
+
+Use tudo numa linha só e com `-Headless`: ele sobrevive ao re-lançamento
+elevado pelo UAC, enquanto setar `$env:FORGE_HEADLESS` numa linha separada
+já causou bot com tray instalado. O script imprime `Modo BOT ativo` no começo
+quando o flag foi reconhecido.
 
 Sessões de terminal usam ConPTY nativo (mesma base do terminal do VS
 Code) em vez de tmux -- sobrevivem a desconectar/reconectar o celular,

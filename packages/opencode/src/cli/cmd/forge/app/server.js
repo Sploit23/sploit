@@ -126,6 +126,14 @@ async function getSelfDns() {
   } catch { selfDnsCache = { at: Date.now(), value: '' } }
   return selfDnsCache.value;
 }
+function getLanIp() {
+  for (const [name, list] of Object.entries(os.networkInterfaces())) {
+    if (/tailscale|protonvpn|wireguard/i.test(name)) continue;
+    const ip = (list || []).find(x => (x.family === 'IPv4' || x.family === 4) && !x.internal && !x.address.startsWith('100.'));
+    if (ip) return ip.address;
+  }
+  return '';
+}
 // anuncia pra cada FORGE já descoberto na rede quem eu sou -- roda no boot e
 // periodicamente (pega PCs instalados depois). Sem isso, um PC sem tela
 // nenhuma nunca aparece pra ninguém sem alguém copiar/colar token na mão.
@@ -140,7 +148,7 @@ async function announceToPeers() {
     try {
       await fetch('http://' + p.ip + ':' + PORT + '/api/announce', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
-        body: JSON.stringify({ hostname: getDeviceName(), dnsName: selfDns, token: TOKEN }),
+        body: JSON.stringify({ hostname: getDeviceName(), dnsName: selfDns, token: TOKEN, lanIp: getLanIp() }),
       });
     } catch {} finally { clearTimeout(t) }
   }));
@@ -406,9 +414,11 @@ const srv = http.createServer(async (req, res) => {
     const hostname = String(b.hostname || '').trim().slice(0, 64);
     const dnsName = String(b.dnsName || '').trim().slice(0, 253);
     const token = String(b.token || '').trim();
+    const lanIp = String(b.lanIp || '').trim().slice(0, 64);
     if (!hostname || !dnsName || token.length < 16) return send('application/json', '{"error":"dados inválidos"}', 400);
-    const isNew = !KNOWN.some(d => d.dnsName === dnsName);
-    KNOWN = [...KNOWN.filter(d => d.dnsName !== dnsName), { hostname, dnsName, token, announcedAt: Date.now() }];
+    const old = KNOWN.find(d => d.dnsName === dnsName);
+    const isNew = !old;
+    KNOWN = [...KNOWN.filter(d => d.dnsName !== dnsName), { hostname, dnsName, token, lanIp: lanIp || old?.lanIp || '', announcedAt: Date.now() }];
     saveKnown();
     // reciprocidade na hora -- sem isso, um PC novo só aparecia pros outros
     // no próximo ciclo periódico deles (era de 1h), podendo levar até 1h
@@ -488,8 +498,15 @@ const srv = http.createServer(async (req, res) => {
           const t0 = Date.now();
           try {
             const r = await fetch(`https://${d.dnsName}/health`, { signal: AbortSignal.timeout(3000) });
-            return { ...d, online: r.ok, ms: Date.now() - t0 };
-          } catch { return { ...d, online: false, ms: null } }
+            if (r.ok) return { ...d, online: true, ms: Date.now() - t0 };
+          } catch {}
+          if (d.lanIp) {
+            try {
+              const r = await fetch(`http://${d.lanIp}:${PORT}/health`, { signal: AbortSignal.timeout(1500) });
+              if (r.ok) return { ...d, online: true, ms: Date.now() - t0 };
+            } catch {}
+          }
+          return { ...d, online: false, ms: null };
         })));
       }
       if (u.pathname === '/api/run' && req.method === 'POST') {

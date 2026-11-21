@@ -98,6 +98,8 @@ html,body{margin:0;background:transparent;overflow:hidden;user-select:none}
 .pc.bot{border-color:rgba(52,211,153,.5);color:#6ee7b7}
 .dot{width:7px;height:7px;border-radius:50%;background:#64748b}
 .dot.on{background:#34d399;box-shadow:0 0 6px #34d399}
+.close{margin-left:4px;width:20px;height:20px;padding:0;border:1px solid rgba(148,163,184,.55);border-radius:6px;background:rgba(30,41,59,.95);color:#e2e8f0;font:bold 14px ui-monospace,Consolas,monospace;cursor:pointer;line-height:18px;text-align:center}
+.close:hover{background:rgba(71,85,105,.95);color:#fff}
 </style></head><body><div id="bar"></div><script>
 var TOKEN=__TOKEN__,PORT=__PORT__;
 function api(p){return fetch('http://127.0.0.1:'+PORT+p,{headers:{Authorization:'Bearer '+TOKEN}}).then(function(r){return r.json()})}
@@ -106,7 +108,7 @@ function render(devices,desktops){
   document.getElementById('bar').innerHTML=devices.map(function(d){
     var key=d.self?'local':(d.dnsName||d.hostname),main=!!desktops[key];
     return '<div class="pc '+(main?'main':'bot')+'" title="'+(main?'PC principal':'bot')+'"><span class="dot '+(d.online?'on':'')+'"></span>'+esc(d.hostname||key)+'</div>';
-  }).join('');
+  }).join('')+'<button class="close" id="close" title="Fechar barra">&times;</button>';
 }
 function load(){
   api('/api/mesh').then(function(devices){
@@ -119,6 +121,7 @@ function load(){
   }).catch(function(){});
 }
 load();setInterval(load,8000);
+document.addEventListener('click',function(e){if(e.target&&e.target.id==='close') window.close()});
 </script></body></html>`;
 var barWin = null;
 function createTrayIcon() {
@@ -190,6 +193,12 @@ function openBar() {
     barWin = null;
   });
 }
+function toggleBar() {
+  if (barWin && !barWin.isDestroyed() && barWin.isVisible())
+    barWin.hide();
+  else
+    openBar();
+}
 function openHub() {
   const info = getPairingInfo();
   if (!info.link) {
@@ -219,8 +228,9 @@ app.whenReady().then(() => {
   app.setLoginItemSettings({ openAtLogin: true });
   tray = new Tray(createTrayIcon());
   tray.setToolTip("Sploit-Forge");
-  tray.on("click", openHub);
+  tray.on("click", toggleBar);
   tray.setContextMenu(Menu.buildFromTemplate([
+    { label: "Mostrar/ocultar barra", click: () => toggleBar() },
     { label: "Painel de PCs", click: () => openHub() },
     { label: "Abrir este PC (completo)", click: () => openThisPc() },
     { type: "separator" },

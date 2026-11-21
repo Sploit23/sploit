@@ -28,8 +28,8 @@ Não existe servidor central — cada máquina roda seu próprio FORGE
 independente (mesh via Tailscale, cada um com seu token). O padrão
 adotado na prática: **um PC "base"** com a instalação gráfica completa
 (é o link que a pessoa realmente abre no celular/PWA pra ver e
-gerenciar tudo) e **os demais como "bots"** (`FORGE_HEADLESS=1`, Windows
-ou Linux/ARM) — nenhum ícone/atalho/app visível, só o serviço rodando em
+gerenciar tudo) e **os demais como "bots"** (`-Headless` no Windows,
+`FORGE_HEADLESS=1` no Linux/ARM) — nenhum ícone/atalho/app visível, só o serviço rodando em
 segundo plano, controlado inteiramente pela malha. Gerenciar projeto,
 mover/apagar, navegar e transferir arquivo, checar atualização e ver
 estatística já funcionam em qualquer PC bot **sem abrir o link dele** —
@@ -92,8 +92,9 @@ construído ainda.
     `server.js` agora lê o `.env` direto do arquivo no boot, então um
     restart normal já basta pra qualquer variável nova, sem precisar
     tocar neste arquivo a cada uma.
-  - `win-native-install.ps1` — instalador Windows de um comando.
-    `FORGE_HEADLESS=1` pula opencode/Claude Code *e* o app de bandeja.
+  - `win-native-install.ps1` — instalador Windows de um comando. O flag
+    `-Headless` (que também pode vir de `$env:FORGE_HEADLESS`) pula
+    opencode/Claude Code *e* o app de bandeja, e sobrevive ao UAC.
   - `bootstrap.sh` — instalador Linux/ARM de um comando (`systemd`,
     idempotente — seguro rodar de novo pra atualizar, já que esse path
     não tem auto-update). Também suporta `FORGE_HEADLESS=1` (adicionado

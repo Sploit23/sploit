@@ -11,12 +11,20 @@
 # do script começar a rodar (o TLS 1.2 que o script seta lá embaixo só vale
 # depois que ele já foi baixado).
 #
-# Pra instalar sem opencode/Claude Code (PC que só vai ser controlado
-# remotamente, sem IA rodando local nele):
-#   $env:FORGE_HEADLESS=1; Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1 | iex
+# Pra instalar sem opencode/Claude Code e sem app de bandeja (PC que só vai
+# ser controlado remotamente, sem IA rodando local nele): use -Headless.
+# -Headless sobrevive ao re-lançamento elevado (UAC); só setar $env:FORGE_HEADLESS
+# numa linha separada é frágil e já causou bot com tray instalado.
+#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Sploit23/sploit/dev/packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1))) -Headless
 #
 # Se faltar alguma dependência (winget, Node), o script avisa exatamente o
 # que falta em vez de travar silenciosamente.
+
+param([switch]$Headless)
+$HEADLESS = $Headless -or [bool]$env:FORGE_HEADLESS
+if ($HEADLESS) {
+    Write-Host "==> Modo BOT ativo: sem opencode/Claude Code e sem app de bandeja."
+}
 
 $ErrorActionPreference = "Stop"
 # Windows PowerShell 5.1 usa TLS antigo por padrao em muitas instalacoes --
@@ -44,7 +52,9 @@ if (-not (Test-Admin)) {
         $self = Join-Path $env:TEMP "sploit-forge-win-native-install.ps1"
         Invoke-WebRequest -Uri "$BASE_URL/win-native-install.ps1" -OutFile $self -UseBasicParsing
     }
-    Start-Process powershell -Verb RunAs -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-File", $self)
+    $elevArgs = @("-NoExit", "-ExecutionPolicy", "Bypass", "-File", $self)
+    if ($HEADLESS) { $elevArgs += "-Headless" }
+    Start-Process powershell -Verb RunAs -ArgumentList $elevArgs
     Write-Host "Continua na janela nova (Administrador) que acabou de abrir."
     exit 0
 }
@@ -120,11 +130,11 @@ if (-not (Test-Path $tailscaleExe) -and -not (Test-Command "tailscale")) {
 # projeto). Pra um PC que só existe pra ser controlado remotamente (shell/
 # /api/exec), o FORGE funciona 100% sem nenhum dos dois -- então uma falha
 # aqui (rede instável, npm sem conseguir falar com o registry etc) não pode
-# derrubar o instalador inteiro. $env:FORGE_HEADLESS=1 antes do irm pula os
+# derrubar o instalador inteiro. -Headless (ou $env:FORGE_HEADLESS=1) pula os
 # dois de propósito -- junto com o app de bandeja mais abaixo -- pra
 # instalações 100% headless, controladas só por fora.
-if ($env:FORGE_HEADLESS) {
-    Write-Host "==> FORGE_HEADLESS definido -- pulando opencode/Claude Code (só shell remoto nesta máquina)."
+if ($HEADLESS) {
+    Write-Host "==> Modo BOT -- pulando opencode/Claude Code (só shell remoto nesta máquina)."
 } else {
     if (-not (Test-Command "opencode")) {
         Write-Host "==> Instalando o opencode (CLI que roda dentro de cada sessão)..."
@@ -227,10 +237,10 @@ Start-Sleep -Seconds 2
 
 # --- App de bandeja (ícone + janela nativa) -- roda como o usuário logado,
 # não como o Serviço (LocalSystem não tem sessão de desktop pra mostrar
-# ícone nenhum). $env:FORGE_HEADLESS pula isso de propósito, pra PCs que só
+# ícone nenhum). -Headless pula isso de propósito, pra PCs que só
 # vão ser controlados remotamente (shell/`/api/exec`), sem nada visível.
-if ($env:FORGE_HEADLESS) {
-    Write-Host "==> FORGE_HEADLESS definido -- pulando o app de bandeja (só o serviço, controlado remotamente)."
+if ($HEADLESS) {
+    Write-Host "==> Modo BOT -- pulando o app de bandeja (só o serviço, controlado remotamente)."
 } else {
     Write-Host ""
     Write-Host "==> Instalando o app de bandeja..."
