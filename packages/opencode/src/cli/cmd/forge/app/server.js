@@ -507,6 +507,45 @@ const srv = http.createServer(async (req, res) => {
   if (u.pathname === '/vendor/xterm.min.css') return send('text/css', fs.readFileSync(path.join(__dirname, 'vendor/xterm.min.css')));
   if (u.pathname === '/vendor/xterm-addon-fit.min.js') return send('text/javascript', fs.readFileSync(path.join(__dirname, 'vendor/xterm-addon-fit.min.js')));
   if (u.pathname === '/vendor/qrcode.min.js') return send('text/javascript', fs.readFileSync(path.join(__dirname, 'vendor/qrcode.min.js')));
+  // status ao vivo do piloto (pensando/ocioso/retry), via SSE -- achado
+  // revisitando o protótipo antigo "Bit" (coucou/): em vez de o celular
+  // ficar perguntando "mudou?" toda hora, o opencode serve já EMPURRA
+  // session.status (evt.type==='session.status', evt.data.status.type)
+  // pro endpoint nativo /event assim que muda -- zero polling extra.
+  // EventSource não manda header customizado, por isso o token vai na
+  // query (mesmo padrão que o próprio opencode usa pro auth_token dele).
+  if (u.pathname === '/api/events' && req.method === 'GET') {
+    if (!ok(String(u.searchParams.get('token') || ''))) return send('text/plain', 'unauthorized', 401);
+    try {
+      ensureOpenCodeServe();
+      await waitOpenCodeServe();
+      const upstream = await openCodeServeFetch('/event', COORD_DIR, { method: 'GET' });
+      if (!upstream.ok || !upstream.body) { res.writeHead(502); return res.end(); }
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
+      const reader = upstream.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      req.on('close', () => { try { reader.cancel() } catch {} });
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let idx;
+          while ((idx = buffer.indexOf('\n\n')) !== -1) {
+            const block = buffer.slice(0, idx); buffer = buffer.slice(idx + 2);
+            const dataLine = block.split('\n').find(l => l.startsWith('data:'));
+            if (!dataLine) continue;
+            try {
+              const evt = JSON.parse(dataLine.slice(5).trim());
+              if (evt.type === 'session.status') res.write(`data: ${JSON.stringify({ kind: evt.data?.status?.type || 'idle' })}\n\n`);
+            } catch {}
+          }
+        }
+      } catch {} finally { try { res.end() } catch {} }
+      return;
+    } catch (e) { try { res.writeHead(500); res.end(String(e.message || e)) } catch {}; return }
+  }
   if (u.pathname.startsWith('/api/')) {
     if (!ok((req.headers.authorization || '').replace('Bearer ', ''))) return send('application/json', '{"error":401}', 401);
     const J = (o, c) => send('application/json', JSON.stringify(o), c);

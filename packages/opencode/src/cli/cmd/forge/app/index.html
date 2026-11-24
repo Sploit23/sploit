@@ -45,6 +45,10 @@ input:focus{outline:none;border-color:var(--blue)}
 .brand b{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}
 .brand small{display:block;font-size:10px;letter-spacing:1px;color:var(--mu);font-weight:500}
 .tag{font-size:11px;border:1px solid var(--ln);color:var(--mu);border-radius:20px;padding:3px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.04em}
+/* status ao vivo do piloto via SSE (/api/events) -- ver connectEvents() */
+#ordlive{padding:3px 7px;font-size:9px;color:var(--mu)}
+#ordlive.busy{color:var(--blue);border-color:#3ef0d855;animation:bl 1s steps(2) infinite}
+#ordlive.retry{color:#ffb86c;border-color:#ffb86c55;animation:bl .6s steps(2) infinite}
 #boot{margin:4px 0 16px;color:var(--mu);font-size:12px;white-space:pre-wrap;min-height:30px}
 .cur{color:var(--blue);animation:bl 1s steps(2) infinite}@keyframes bl{50%{opacity:0}}
 .noise{color:#44506a;font-size:10px;letter-spacing:1px;opacity:.7}
@@ -301,7 +305,7 @@ body.with-nav #nav{display:flex}
 </div>
 
 <div class="screen" id="orders">
-  <div class="top"><div class="brand"><b>Pedidos</b></div><span class="tag" id="ordpilot">piloto</span></div>
+  <div class="top"><div class="brand"><b>Pedidos</b></div><span class="tag" id="ordlive" title="status ao vivo do piloto">●</span><span class="tag" id="ordpilot">piloto</span></div>
   <div id="ordfeed"><div class="mu">peça em português. O piloto executa nos outros PCs e te avisa quando terminar.</div></div>
   <div class="composer">
     <!-- nenhum pedido real se repete igual -- em vez de frase pronta, os
@@ -392,7 +396,8 @@ const show=id=>{
   document.body.classList.toggle('with-nav',NAV_SCREENS.includes(id));
   document.body.classList.toggle('on-central',id==='home');
   document.querySelectorAll('.navitem').forEach(b=>b.classList.toggle('on',b.dataset.go===id));
-  if(id==='orders'){refreshOrders();renderOrdChips()}
+  if(id==='orders'){refreshOrders();renderOrdChips();connectEvents()}
+  else disconnectEvents();
 };
 const ago=t=>{const s=Math.max(0,Date.now()/1e3-t);return s<60?'agora':s<3600?Math.floor(s/60)+' min':s<86400?Math.floor(s/3600)+' h':Math.floor(s/86400)+' d'};
 const api=async p=>{const r=await fetch(p,{headers:{Authorization:'Bearer '+TOKEN}});if(r.status===401)throw 401;return r.json()};
@@ -839,6 +844,28 @@ function sendOrder(text){
 }
 $('#ordsend').onclick=()=>sendOrder();
 $('#ordinput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendOrder()}});
+// status ao vivo do piloto (pensando/ocioso) -- /api/events é um SSE que o
+// servidor já alimenta direto do opencode serve (session.status), sem
+// polling nenhum da nossa parte. Só conecta enquanto a tela de Pedidos
+// está aberta (ver show()), fecha ao sair -- não fica gastando conexão à toa.
+let ordEvt=null;
+function connectEvents(){
+  if(DEMO||ordEvt)return;
+  try{
+    ordEvt=new EventSource('/api/events?token='+encodeURIComponent(TOKEN));
+    ordEvt.onmessage=e=>{
+      try{
+        const{kind}=JSON.parse(e.data);
+        const live=$('#ordlive');if(!live)return;
+        live.className='tag'+(kind==='busy'?' busy':kind==='retry'?' retry':'');
+        live.title='piloto: '+kind;
+        if(kind==='idle')refreshOrders(); // pode ter terminado algo -- atualiza na hora, sem esperar o próximo poll de 4s
+      }catch{}
+    };
+    ordEvt.onerror=()=>{ordEvt&&ordEvt.close();ordEvt=null;setTimeout(()=>{if(document.getElementById('orders').classList.contains('on'))connectEvents()},3000)};
+  }catch{}
+}
+function disconnectEvents(){if(ordEvt){ordEvt.close();ordEvt=null}}
 let KNOWN_DEVICES=[]; // cache pro dock de arrastar-e-soltar (Fase 5) -- não refaz fetch a cada gesto
 async function refreshDevices(){
   let online=[],known=[];
