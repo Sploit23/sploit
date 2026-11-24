@@ -1501,7 +1501,12 @@ async function checkForUpdates() {
 // api/check-updates) nem esperar quase um dia. Custo é baixo: só um GET
 // pro raw.githubusercontent.com quando não muda nada, cai fora na
 // primeira comparação (remote === local).
-if (WIN) { void checkForUpdates(); setInterval(() => void checkForUpdates(), 5 * 60 * 1000); }
+// de 5min pra 1min -- pedido do usuário depois da saga de bugs de 24/11:
+// quando o código novo já está correto, não tem motivo pra esperar quase
+// 5min pra ver o efeito. Custo por ciclo é só um GET ao GitHub quando
+// nada mudou (fetchFresh já evita CDN em cache) -- barato o bastante pra
+// rodar a cada minuto sem pesar.
+if (WIN) { void checkForUpdates(); setInterval(() => void checkForUpdates(), 60 * 1000); }
 // de hora em hora -- pega PCs instalados depois sem precisar esperar o ciclo
 // de 24h do auto-update, e é barato (só sonda quem já responde no /health).
 // Diferente do checkForUpdates (Windows-only de propósito, depende do
