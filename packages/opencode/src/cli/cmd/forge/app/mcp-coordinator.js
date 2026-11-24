@@ -208,12 +208,12 @@ function createMcpServer(ctx) {
   });
 
   server.registerTool('list_devices', {
-    description: 'Lista as máquinas Sploit-Forge da rede (esta e as outras) com o status online/offline AGORA, nome e endereço Tailscale. Use antes de run_command/read_file/list_dir quando não souber em qual PC está a coisa.',
+    description: 'Lista as máquinas Sploit-Forge da rede (esta e as outras) com o status online/offline AGORA, nome e endereço Tailscale. As marcadas como piloto têm o app completo (terminal, chat, projetos) instalado; as demais são bots e só respondem comandos. Use antes de run_command/read_file/list_dir quando não souber em qual PC está a coisa.',
     inputSchema: {},
   }, async () => {
     const devices = await meshDevices(ctx);
     if (!devices.length) return { content: [{ type: 'text', text: '(nenhuma máquina encontrada)' }] };
-    const text = devices.map(d => `${d.online ? '●' : '○'} ${d.hostname}${d.self ? ' (esta máquina)' : ''} — ${d.dnsName || 'sem endereço Tailscale'}${d.online && d.ms != null ? ' · ' + d.ms + 'ms' : d.online ? '' : ' · offline'}`).join('\n');
+    const text = devices.map(d => `${d.online ? '●' : '○'} ${d.hostname}${d.self ? ' (esta máquina)' : ''}${d.pilot ? ' [piloto]' : ''} — ${d.dnsName || 'sem endereço Tailscale'}${d.online && d.ms != null ? ' · ' + d.ms + 'ms' : d.online ? '' : ' · offline'}`).join('\n');
     return { content: [{ type: 'text', text }] };
   });
 
@@ -287,6 +287,32 @@ function createMcpServer(ctx) {
       return { content: [{ type: 'text', text: `${j.path}\n` + (lines.join('\n') || '(vazio)') }] };
     } catch (e) {
       return { content: [{ type: 'text', text: `list_dir falhou: ${String(e.message || e)}` }], isError: true };
+    }
+  });
+
+  server.registerTool('update_app', {
+    description: 'Força o Sploit-Forge a se atualizar AGORA (baixa a versão nova do branch dev e reinicia o serviço naquele PC). Com "machine" atualiza só aquela máquina; sem, atualiza todas as que estão online. Use pra "atualiza o Sploit", "põe a versão nova em todo mundo", "atualiza o app do PC X".',
+    inputSchema: { machine: z.string().optional() },
+  }, async ({ machine }) => {
+    try {
+      const devices = (await meshDevices(ctx)).filter(d => d.online);
+      const targets = machine
+        ? devices.filter(d => d.hostname.toLowerCase() === machine.toLowerCase() || d.dnsName.toLowerCase() === machine.toLowerCase())
+        : devices;
+      if (!targets.length) return { content: [{ type: 'text', text: `máquina "${machine}" não encontrada ou offline` }], isError: true };
+      const lines = [];
+      for (const d of targets) {
+        try {
+          if (d.self) await postJson(`http://127.0.0.1:${ctx.port}/api/check-updates`, ctx.token, {}, 20000);
+          else await postJson(`http://127.0.0.1:${ctx.port}/api/check-updates`, ctx.token, { dnsName: d.dnsName }, 20000);
+          lines.push(`${d.hostname}: pedido de atualização enviado (reinicia em segundos se houver versão nova)`);
+        } catch (e) {
+          lines.push(`${d.hostname}: falhou -- ${String(e.message || e)}`);
+        }
+      }
+      return { content: [{ type: 'text', text: lines.join('\n') }] };
+    } catch (e) {
+      return { content: [{ type: 'text', text: `update_app falhou: ${String(e.message || e)}` }], isError: true };
     }
   });
 

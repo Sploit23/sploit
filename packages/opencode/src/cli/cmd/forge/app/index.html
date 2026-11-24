@@ -19,7 +19,9 @@
 /* fundo com profundidade -- não é mais um chapado só, tem glow sutil
    nos cantos (igual tela de verdade refletindo luz) + uma scanline bem
    fraca pra dar o toque técnico, sem custo de JS nenhum. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{
+  overflow-x:hidden;
   background-color:var(--bg);
   background-image:
     radial-gradient(circle at 15% 0%,#3ef0d81a,transparent 55%),
@@ -116,6 +118,7 @@ body.main-pc #pcbar{display:flex}
 #pcbar .pcb .d{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 5px #2dd4a580}
 #pcbar .pcb.active{border-color:var(--blue);color:var(--tx)}
 #pcbar .pcb.hub{margin-left:auto;background:none;color:var(--blue)}
+#pcbar .pcb.pilot{background:none;color:var(--blue)}
 body.main-pc .screen{padding-top:calc(max(20px,env(safe-area-inset-top)) + 34px)}
 body.main-pc #home.on,body.main-pc #chat.on,body.main-pc #term.on{height:calc(100dvh - 34px);padding-top:calc(env(safe-area-inset-top) + 34px)}
 @media (min-width:900px){#pcbar{left:220px}}
@@ -125,7 +128,7 @@ body.main-pc #home.on,body.main-pc #chat.on,body.main-pc #term.on{height:calc(10
 .projrow{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}
 .projrow::-webkit-scrollbar{display:none}
 .projrow .icon{flex:none;width:64px}
-.feed{display:flex;flex-direction:column;gap:10px}
+.feed{display:flex;flex-direction:column;gap:10px;min-width:0}
 .bubble .bubbletag{display:block;font:10px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--mu);margin-bottom:4px;letter-spacing:.04em}
 .composer{flex:none;padding:10px 14px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--ln);background:var(--panel);display:flex;flex-direction:column;gap:8px}
 .route{display:flex;gap:6px}
@@ -134,13 +137,32 @@ body.main-pc #home.on,body.main-pc #chat.on,body.main-pc #term.on{height:calc(10
 .inrow{display:flex;gap:8px;align-items:center}
 .inrow input{margin:0;flex:1}
 .inrow button,.inrow a{flex:none}
+/* ---------- Pedidos: pede em português e o piloto executa na malha ---------- */
+#orders.on{display:flex;flex-direction:column;height:100dvh;max-width:none;padding:env(safe-area-inset-top) 0 0}
+body.main-pc #orders.on{height:calc(100dvh - 34px)}
+#orders .top{flex:none;padding:14px 16px 4px}
+#ordfeed{flex:1;overflow-y:auto;padding:8px 16px 14px;display:flex;flex-direction:column;gap:8px}
+#orders .composer{padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+#ordchips{flex-wrap:wrap;gap:6px}
+#ordchips .routebtn{flex:0 0 auto;padding:6px 10px}
+.chip-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+
 /* ---------- chat focado num projeto só ("iniciar conversa") ---------- */
 #chat.on{display:flex;flex-direction:column;height:100dvh;max-width:none;padding:env(safe-area-inset-top) 0 0}
 #chatlog{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
-.bubble{max-width:82%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.bubble{max-width:min(82%,100%);padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;box-sizing:border-box}
 .bubble.me{align-self:flex-end;background:linear-gradient(135deg,var(--blue),var(--purple));color:#06111c;font-weight:500;border-bottom-right-radius:4px}
 .bubble.ai{align-self:flex-start;background:var(--panel);border:1px solid var(--ln);border-left:2px solid var(--blue);border-bottom-left-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
 .bubble.err{border-color:var(--er);border-left-color:var(--er);color:var(--er)}
+.typingdots{display:inline-flex;gap:4px;padding:2px 0}
+.typingdots i{width:6px;height:6px;border-radius:50%;background:var(--blue);display:inline-block;animation:typingbounce 1.1s ease-in-out infinite}
+.typingdots i:nth-child(2){animation-delay:.15s}
+.typingdots i:nth-child(3){animation-delay:.3s}
+/* ---------- aprovar/negar ação pausada (AGUARDA_APROVACAO) ---------- */
+.approve{display:flex;gap:8px;margin-top:10px}
+.approve button{flex:1;border-radius:9px;padding:8px 0;font-size:12px;font-weight:700}
+.approve .allow{color:#06110f;background:linear-gradient(135deg,var(--blue),var(--purple));border-color:transparent}
+@keyframes typingbounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-5px);opacity:1}}
 .chatbar{display:flex;gap:8px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--ln);background:var(--panel)}
 .chatbar input{margin:0;flex:1}
 .chatbar button{flex:none}
@@ -220,7 +242,7 @@ body.with-nav #nav{display:flex}
 </head>
 <body>
 
-<div id="pcbar"><span class="pcbl">PCs</span><div id="pcblist"></div><button class="pcb hub" id="pcbhub" title="Painel de PCs">☰ todos</button></div>
+<div id="pcbar"><span class="pcbl">PCs</span><div id="pcblist"></div><button class="pcb pilot" id="pcbpilot" title="Escolher outro piloto">⚡ piloto</button><button class="pcb hub" id="pcbhub" title="Painel de PCs">☰ todos</button></div>
 
 <div class="screen" id="login">
   <div class="top"><div class="brand"><b>Sploit-Forge</b><small>PRIVATE NODE</small></div></div>
@@ -234,6 +256,7 @@ body.with-nav #nav{display:flex}
 <nav id="nav">
   <div class="navbrand brand"><b>Sploit-Forge</b></div>
   <button class="navitem" data-go="home">🏠 Central</button>
+  <button class="navitem" data-go="orders">⚡ Pedidos</button>
   <button class="navitem" data-go="projects">📁 Projetos</button>
   <button class="navitem" data-go="browse" id="navexplorer">🗂️ Arquivos</button>
   <button class="navitem" data-go="devices">📲 Pareamento</button>
@@ -273,6 +296,22 @@ body.with-nav #nav{display:flex}
       <button id="centralmic" style="display:none" title="ditar">🎤</button>
       <a id="centralmicfb" href="#" target="_blank" style="display:none" title="o iOS bloqueia o microfone dentro do app instalado -- abre a mesma tela num navegador normal pra ditar">🌐</a>
       <button id="centralsend" class="go">➤</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="orders">
+  <div class="top"><div class="brand"><b>Pedidos</b></div><span class="tag" id="ordpilot">piloto</span></div>
+  <div id="ordfeed"><div class="mu">peça em português. O piloto executa nos outros PCs e te avisa quando terminar.</div></div>
+  <div class="composer">
+    <!-- nenhum pedido real se repete igual -- em vez de frase pronta, os
+         chips só inserem o nome exato de uma máquina/projeto conhecido
+         (ver renderOrdChips), pra não precisar lembrar/digitar certinho. -->
+    <div class="route" id="ordchips"></div>
+    <div class="inrow">
+      <button id="ordengine" class="tag" title="qual IA executa este pedido">opencode</button>
+      <input id="ordinput" placeholder="ex: entra no pc_eventos e vê o erro da impressora">
+      <button id="ordsend" class="go">➤</button>
     </div>
   </div>
 </div>
@@ -345,14 +384,15 @@ body.with-nav #nav{display:flex}
 const $=s=>document.querySelector(s);
 let DEEP_LINK_VIEW='';
 (function(){const h=location.hash;const m=h.match(/t=([^&]+)/);if(m){localStorage.forge_token=decodeURIComponent(m[1])}const v=h.match(/view=([^&]+)/);if(v)DEEP_LINK_VIEW=decodeURIComponent(v[1]);if(m||v)history.replaceState(null,'',location.pathname+location.search)})();
-let TOKEN=localStorage.forge_token||'',DEMO=false,term,fit,ws,timer,thinkTimer,booted=false;
+let TOKEN=localStorage.forge_token||'',DEMO=false,term,fit,ws,timer,thinkTimer,booted=false,ordTimer=null;
 const h=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
-const NAV_SCREENS=['home','projects','browse','devices'];
+const NAV_SCREENS=['home','projects','browse','devices','orders'];
 const show=id=>{
   document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));
   document.body.classList.toggle('with-nav',NAV_SCREENS.includes(id));
   document.body.classList.toggle('on-central',id==='home');
   document.querySelectorAll('.navitem').forEach(b=>b.classList.toggle('on',b.dataset.go===id));
+  if(id==='orders'){refreshOrders();renderOrdChips()}
 };
 const ago=t=>{const s=Math.max(0,Date.now()/1e3-t);return s<60?'agora':s<3600?Math.floor(s/60)+' min':s<86400?Math.floor(s/3600)+' h':Math.floor(s/86400)+' d'};
 const api=async p=>{const r=await fetch(p,{headers:{Authorization:'Bearer '+TOKEN}});if(r.status===401)throw 401;return r.json()};
@@ -537,16 +577,24 @@ let centralRoute='coordenador';
 function addCentralBubble(kind,text,tag){
   const b=h('div','bubble '+kind);
   if(tag)b.append(h('span','bubbletag',tag));
-  const t=document.createTextNode(text);b.append(t);
+  const content=h('span');
+  if(text==='__thinking__'){
+    content.className='typingdots';
+    content.innerHTML='<i></i><i></i><i></i>';
+  } else {
+    content.textContent=text;
+  }
+  b.append(content);
   $('#centralfeed').append(b);
-  return {el:b,set:txt=>{t.textContent=txt}};
+  $('#centralfeed').scrollTop=$('#centralfeed').scrollHeight;
+  return {el:b,set:txt=>{content.className='';content.innerHTML='';content.textContent=txt;$('#centralfeed').scrollTop=$('#centralfeed').scrollHeight}};
 }
 async function sendCentral(){
   const v=$('#centralinput').value.trim();if(!v)return;
   $('#centralinput').value='';
   addCentralBubble('me',v);
   const routeTag=centralRoute==='local'?'🧠 local':'🧭 coordenador';
-  const thinking=addCentralBubble('ai','digitando…',routeTag);
+  const thinking=addCentralBubble('ai','__thinking__',routeTag);
   try{
     if(DEMO){thinking.set('(modo demo — sem sessão real pra despachar)');return}
     const r=centralRoute==='local'
@@ -556,9 +604,10 @@ async function sendCentral(){
   }catch(e){thinking.set('Erro: '+e.message);thinking.el.classList.add('err')}
 }
 $('#centralroute').addEventListener('click',e=>{
-  const b=e.target.closest('.routebtn');if(!b)return;
+  const b=e.target.closest('.routebtn');
+  if(!b||!b.dataset.route)return;
   centralRoute=b.dataset.route;
-  $('#centralroute').querySelectorAll('.routebtn').forEach(x=>x.classList.toggle('on',x===b));
+  $('#centralroute').querySelectorAll('.routebtn[data-route]').forEach(x=>x.classList.toggle('on',x===b));
 });
 $('#centralsend').onclick=sendCentral;
 $('#centralinput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendCentral()}});
@@ -615,7 +664,7 @@ function renameDevice(d){
 }
 function mergeDevices(online,known){
   const byDns={};
-  online.forEach(p=>{if(p.dnsName)byDns[p.dnsName]={hostname:p.hostname,dnsName:p.dnsName,online:true}});
+  online.forEach(p=>{if(p.dnsName)byDns[p.dnsName]={hostname:p.hostname,dnsName:p.dnsName,online:true,pilot:p.pilot===true}});
   // /api/known-devices -- cada Sploit-Forge se anuncia sozinho pros outros
   // (announceToPeers() em server.js) já com o nome que a própria máquina
   // escolheu pra si (getDeviceName()/"renomear este PC") -- esse nome tem
@@ -625,7 +674,7 @@ function mergeDevices(online,known){
   (known||[]).forEach(d=>{
     if(!d.dnsName)return;
     const prev=byDns[d.dnsName];
-    byDns[d.dnsName]={hostname:d.hostname||(prev&&prev.hostname),dnsName:d.dnsName,online:!!(prev&&prev.online),token:d.token};
+    byDns[d.dnsName]={hostname:d.hostname||(prev&&prev.hostname),dnsName:d.dnsName,online:!!(prev&&prev.online),token:d.token,pilot:d.pilot===true||!!(prev&&prev.pilot)};
   });
   // localStorage só cobre token colado manualmente antes do auto-anúncio
   // alcançar este device -- nome de exibição nunca mais vem de cá.
@@ -686,11 +735,106 @@ function renderPcBar(all){
   list.append(self);
   (all||[]).filter(d=>d.online&&d.token).forEach(d=>{
     const b=h('button','pcb'+(devMachine===d.dnsName?' active':''));
-    b.append(h('span','d'),document.createTextNode(d.hostname||d.dnsName));
+    b.append(h('span','d'),document.createTextNode((d.pilot?'⚡ ':'')+(d.hostname||d.dnsName)));
     b.onclick=()=>switchDevice(d.dnsName);
     list.append(b);
   });
 }
+// escolher o "piloto": o PC onde o app abre DE VERDADE (terminal, chat,
+// projetos). Trocar de piloto navega pro link dele -- diferente de tocar num
+// chip da #pcbar acima, que só troca as estatísticas mostradas via proxy.
+// Piloto = PC com a bandeja instalada (/api/mesh devolve pilot:true); bot
+// headless só responde comando, não tem app pra abrir.
+async function openPilotPicker(){
+  let list=[];
+  try{list=await api('/api/mesh')}catch(e){if(e===401)return show('login')}
+  const here=location.hostname;
+  const rows=[h('b',0,'qual piloto usar')];
+  rows.push(h('div','mu','o piloto abre o app inteiro (terminal, chat, projetos). Os bots só respondem comandos.'));
+  const pilots=list.filter(d=>d.pilot);
+  (pilots.length?pilots:list).forEach(d=>{
+    const isHere=d.self||d.dnsName===here;
+    const b=mk((d.hostname||d.dnsName)+(isHere?' · atual':''),()=>{
+      if(isHere)return closeSheet();
+      if(!d.token)return alert('sem token salvo pra este PC');
+      closeSheet();
+      location.href='https://'+d.dnsName+'/#t='+encodeURIComponent(d.token);
+    },isHere?'':'go');
+    if(d.online===false){b.disabled=true;b.textContent+=' (offline)'}
+    rows.push(b);
+  });
+  const bots=list.filter(d=>!d.pilot).map(d=>d.hostname||d.dnsName);
+  if(bots.length)rows.push(h('div','mu','bots (só comandos): '+bots.join(', ')));
+  rows.push(mk('cancelar',closeSheet));
+  sheet(...rows);
+}
+$('#pcbpilot').onclick=openPilotPicker;
+// --- Pedidos: "pede e ele faz" (ver /api/task no server.js) --------------
+// Um pedido = um card com status ao vivo; o piloto roda o agente com as
+// ferramentas MCP (run_command etc.) e no fim manda push. Não é um chat --
+// a pessoa pede, sai e volta depois pra ver o resultado.
+const ORD_LABEL={queued:'na fila',running:'executando',waiting_approval:'aguardando você',done:'feito',error:'falhou'};
+async function refreshOrders(){
+  const feed=$('#ordfeed');if(!feed||DEMO)return;
+  let list=[];try{list=await api('/api/tasks')}catch{return}
+  const near=feed.scrollHeight-feed.scrollTop-feed.clientHeight<120;
+  feed.replaceChildren();
+  if(!list.length)feed.append(h('div','mu','nenhum pedido ainda — escreva abaixo ou toque num chip/atalho. O piloto executa e te avisa quando terminar.'));
+  list.slice().reverse().forEach(t=>{
+    const me=h('div','bubble me');
+    me.append(h('span','bubbletag',new Date(t.at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · pedido'+(t.engine?' · '+t.engine:'')));
+    me.append(document.createTextNode(t.text));
+    feed.append(me);
+    const ai=h('div','bubble ai'+(t.status==='error'?' err':''));
+    ai.append(h('span','bubbletag',(t.status==='running'?'⚙️ ':t.status==='queued'?'⏳ ':t.status==='waiting_approval'?'⏸ ':t.status==='error'?'⚠️ ':'✅ ')+(ORD_LABEL[t.status]||t.status)+(t.machine?' · '+t.machine:'')));
+    if(t.status==='running'||t.status==='queued'){
+      const dots=h('span','typingdots');dots.innerHTML='<i></i><i></i><i></i>';ai.append(dots);
+    } else if(t.status==='waiting_approval'){
+      ai.append(document.createTextNode(t.question||t.reply||'precisa da sua autorização pra continuar.'));
+      const row=h('div','approve');
+      const deny=h('button','','negar');
+      const allow=h('button','allow','permitir');
+      deny.onclick=()=>{deny.disabled=allow.disabled=true;call('POST','/api/task/'+encodeURIComponent(t.id)+'/approve',{approved:false}).then(refreshOrders).catch(e=>alert(e.message||e))};
+      allow.onclick=()=>{deny.disabled=allow.disabled=true;call('POST','/api/task/'+encodeURIComponent(t.id)+'/approve',{approved:true}).then(refreshOrders).catch(e=>alert(e.message||e))};
+      row.append(deny,allow);ai.append(row);
+    } else {
+      ai.append(document.createTextNode(t.reply||'(sem resposta)'));
+    }
+    feed.append(ai);
+  });
+  if(near)feed.scrollTop=feed.scrollHeight;
+}
+// chips inserem nome exato de máquina/projeto conhecido no texto do
+// pedido -- nenhum pedido real se repete igual, então frase pronta não
+// ajuda (ver nota no HTML). Reaproveita os mesmos caches que Projetos/
+// Central já mantêm quentes (PRJ_ALL, KNOWN_DEVICES), sem fetch novo.
+function renderOrdChips(){
+  const box=$('#ordchips');if(!box)return;
+  const items=[];
+  (KNOWN_DEVICES||[]).forEach(d=>{const n=d.hostname||d.dnsName;if(n)items.push({label:'🖥️ '+n,ins:n})});
+  const seen=new Set();
+  (PRJ_ALL||[]).forEach(p=>{if(p.name&&!seen.has(p.name)){seen.add(p.name);items.push({label:'📁 '+p.name,ins:'projeto '+p.name})}});
+  box.replaceChildren();
+  if(!items.length){box.append(h('span','mu','sem dispositivos/projetos ainda'));return}
+  items.slice(0,10).forEach(it=>{
+    const b=h('button','routebtn',it.label);
+    b.onclick=()=>{const inp=$('#ordinput');inp.value=(inp.value?inp.value.trim()+' ':'')+it.ins+' ';inp.focus()};
+    box.append(b);
+  });
+}
+const ORD_ENGINES=['opencode','claude'];
+let ordEngine=localStorage.forge_ord_engine||'opencode';
+function paintOrdEngine(){const b=$('#ordengine');if(b)b.textContent=ordEngine}
+$('#ordengine').onclick=()=>{ordEngine=ORD_ENGINES[(ORD_ENGINES.indexOf(ordEngine)+1)%ORD_ENGINES.length];localStorage.forge_ord_engine=ordEngine;paintOrdEngine()};
+paintOrdEngine();
+function sendOrder(text){
+  const v=String(text!==undefined?text:($('#ordinput')||{}).value||'').trim();
+  if(!v)return;
+  if(text===undefined&&$('#ordinput'))$('#ordinput').value='';
+  call('POST','/api/task',{text:v,engine:ordEngine}).then(()=>refreshOrders()).catch(e=>alert(e.message||e));
+}
+$('#ordsend').onclick=()=>sendOrder();
+$('#ordinput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendOrder()}});
 let KNOWN_DEVICES=[]; // cache pro dock de arrastar-e-soltar (Fase 5) -- não refaz fetch a cada gesto
 async function refreshDevices(){
   let online=[],known=[];
@@ -722,6 +866,7 @@ async function stats(m){
     $('#selficon').innerHTML=DEV_ICON;
     if(m==='local'){
       SELF_NAME=s.host;
+      if($('#ordpilot'))$('#ordpilot').textContent='piloto: '+s.host;
       IS_MAIN_PC=DEMO||s.desktop===true;
       document.body.classList.toggle('main-pc',IS_MAIN_PC);
       renderPcBar(KNOWN_DEVICES);
@@ -748,6 +893,7 @@ function start(ps){
   show('home');boot();PRJ_ALL=ps;renderPrjDevices();renderList(applyPrjFilter(ps));renderCentralProjects();stats();refreshDevices();
   clearInterval(timer);timer=setInterval(()=>{stats();refreshDevices()},5000);
   clearInterval(thinkTimer);pollThink();thinkTimer=setInterval(pollThink,2000);
+  clearInterval(ordTimer);refreshOrders();ordTimer=setInterval(()=>{if(document.getElementById('orders').classList.contains('on'))refreshOrders()},4000);
   $('#centralmic').style.display=micSupported?'':'none';
   if(!micSupported){$('#centralmicfb').style.display='';$('#centralmicfb').href=location.origin+'/#t='+encodeURIComponent(TOKEN)+'&view=home'}
   else $('#centralmicfb').style.display='none';
