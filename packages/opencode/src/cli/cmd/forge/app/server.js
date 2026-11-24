@@ -1463,8 +1463,13 @@ async function checkForUpdates() {
       // `shell: true` é obrigatório aqui: npm.cmd é um batch, não um .exe --
       // sem isso, execFileSync tenta CreateProcess direto no .cmd e o Windows
       // devolve EINVAL (achado em 24/11, auto-update ficando preso em loop
-      // de "checagem falhou" a cada 5min sem nunca aplicar nada).
-      try { execFileSync(NPM_BIN, ['install', ...UPDATE_NPM_DEPS, '--silent'], { cwd: __dirname, timeout: 120000, windowsHide: true, shell: true }) }
+      // de "checagem falhou" a cada 5min sem nunca aplicar nada). Com
+      // shell:true o Node NÃO cota o caminho do executável sozinho -- e
+      // "C:\Program Files\nodejs\npm.cmd" tem espaço, então sem as aspas
+      // literais aqui o cmd.exe lê "C:\Program" como comando e quebra
+      // ("'C:\Program' não é reconhecido...", achado logo depois do fix
+      // acima, mesmo dia). Testado à mão nesta máquina antes de reentrar.
+      try { execFileSync(`"${NPM_BIN}"`, ['install', ...UPDATE_NPM_DEPS, '--silent'], { cwd: __dirname, timeout: 120000, windowsHide: true, shell: true }) }
       catch (e) { throw new Error('npm install das dependências novas falhou, abortando: ' + e.message, { cause: e }) }
     }
     logUpdate('válido, baixando o resto e aplicando...');
