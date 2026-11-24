@@ -242,7 +242,7 @@ body.with-nav #nav{display:flex}
 </head>
 <body>
 
-<div id="pcbar"><span class="pcbl">PCs</span><div id="pcblist"></div><button class="pcb pilot" id="pcbpilot" title="Escolher outro piloto">⚡ piloto</button><button class="pcb hub" id="pcbhub" title="Painel de PCs">☰ todos</button></div>
+<div id="pcbar"><span class="pcbl">PCs</span><div id="pcblist"></div><button class="pcb pilot" id="pcbpilot" title="Escolher outro piloto">⚡ piloto</button><button class="pcb pilot" id="pcbpair" title="Parear outro aparelho">📱 parear</button><button class="pcb hub" id="pcbhub" title="Painel de PCs">☰ todos</button></div>
 
 <div class="screen" id="login">
   <div class="top"><div class="brand"><b>Sploit-Forge</b><small>PRIVATE NODE</small></div></div>
@@ -769,6 +769,10 @@ async function openPilotPicker(){
   sheet(...rows);
 }
 $('#pcbpilot').onclick=openPilotPicker;
+// atalho pra QR/link de pareamento direto da barra de topo -- mesma ação
+// de tocar em 📲 Pareamento na nav, só que acessível sem precisar achar
+// a aba (pedido real: usuário entrou num sheet/modal e não via mais a nav).
+$('#pcbpair').onclick=()=>{closeSheet();show('devices');openPairing()};
 // --- Pedidos: "pede e ele faz" (ver /api/task no server.js) --------------
 // Um pedido = um card com status ao vivo; o piloto roda o agente com as
 // ferramentas MCP (run_command etc.) e no fim manda push. Não é um chat --
