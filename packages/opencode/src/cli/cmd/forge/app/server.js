@@ -1421,7 +1421,11 @@ async function checkForUpdates() {
     if (UPDATE_NPM_DEPS.length) {
       logUpdate('sintaxe ok, garantindo dependências novas...');
       // idempotente -- se já estiver instalado, só confirma rápido, não reinstala.
-      try { execFileSync(NPM_BIN, ['install', ...UPDATE_NPM_DEPS, '--silent'], { cwd: __dirname, timeout: 120000, windowsHide: true }) }
+      // `shell: true` é obrigatório aqui: npm.cmd é um batch, não um .exe --
+      // sem isso, execFileSync tenta CreateProcess direto no .cmd e o Windows
+      // devolve EINVAL (achado em 24/11, auto-update ficando preso em loop
+      // de "checagem falhou" a cada 5min sem nunca aplicar nada).
+      try { execFileSync(NPM_BIN, ['install', ...UPDATE_NPM_DEPS, '--silent'], { cwd: __dirname, timeout: 120000, windowsHide: true, shell: true }) }
       catch (e) { throw new Error('npm install das dependências novas falhou, abortando: ' + e.message, { cause: e }) }
     }
     logUpdate('válido, baixando o resto e aplicando...');
