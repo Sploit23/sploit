@@ -212,12 +212,12 @@ if (webpush) {
 let SUBS = fs.existsSync(SUBS_FILE) ? JSON.parse(fs.readFileSync(SUBS_FILE, 'utf8')) : [];
 const saveSubs = () => fs.writeFileSync(SUBS_FILE, JSON.stringify(SUBS, null, 2));
 const lastNotify = {};
-async function notify(projectName, body) {
+async function notify(projectName, body, url) {
   if (!webpush || !SUBS.length) return;
   const now = Date.now();
   if (now - (lastNotify[projectName] || 0) < 20000) return;
   lastNotify[projectName] = now;
-  const payload = JSON.stringify({ title: 'Sploit-Forge · ' + projectName, body });
+  const payload = JSON.stringify({ title: 'Sploit-Forge · ' + projectName.split(':')[0], body, url: url || '/' });
   const dead = [];
   await Promise.all(SUBS.map(s => webpush.sendNotification(s, payload).catch(e => {
     if (e.statusCode === 404 || e.statusCode === 410) dead.push(s);
@@ -441,9 +441,9 @@ const SW = `const C='forge-v1';self.addEventListener('install',e=>e.waitUntil(ca
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.pathname.startsWith('/api'))return;
 e.respondWith(fetch(e.request).then(r=>{const k=r.clone();caches.open(C).then(c=>c.put(e.request,k));return r}).catch(()=>caches.match(e.request)))});
 self.addEventListener('push',e=>{let d={};try{d=e.data.json()}catch{}
-e.waitUntil(self.registration.showNotification(d.title||'Sploit-Forge',{body:d.body||'',tag:'forge'}))});
-self.addEventListener('notificationclick',e=>{e.notification.close();
-e.waitUntil(clients.matchAll({type:'window'}).then(cs=>{const c=cs.find(x=>x.url.includes(location.origin));if(c)return c.focus();return clients.openWindow('/')}))});`;
+e.waitUntil(self.registration.showNotification(d.title||'Sploit-Forge',{body:d.body||'',tag:'forge',data:{url:d.url||'/'}}))});
+self.addEventListener('notificationclick',e=>{e.notification.close();const url=(e.notification.data&&e.notification.data.url)||'/';
+e.waitUntil(clients.matchAll({type:'window'}).then(cs=>{const c=cs.find(x=>x.url.includes(location.origin));if(c){c.navigate(url);return c.focus()}return clients.openWindow(url)}))});`;
 
 const srv = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
@@ -1193,13 +1193,30 @@ const srv = http.createServer(async (req, res) => {
       const b = await readBody(req);
       const text = String(b.text || '').trim().slice(0, 2000);
       if (!text) return J({ error: 'pedido vazio' }, 400);
-      const t = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: Date.now(), text, machine: String(b.machine || '').trim().slice(0, 64), status: 'queued' };
+      // engine por pedido -- se não vier explícito, usa a preferência desta
+      // máquina (getCoordinatorCli()); antes o Pedido sempre rodava via
+      // opencode, ignorando até a config do próprio Coordenador.
+      const engine = b.engine === 'claude' || b.engine === 'opencode' ? b.engine : getCoordinatorCli();
+      const t = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: Date.now(), text, machine: String(b.machine || '').trim().slice(0, 64), engine, status: 'queued' };
       TASKS.push(t);
       if (TASKS.length > 30) TASKS = TASKS.slice(-30);
       saveTasks();
       // fila serial: dois pedidos ao mesmo tempo disputariam o mesmo diretório
-      // de sessão e o mesmo `opencode serve` -- um de cada vez é previsível.
+      // de sessão e o mesmo `opencode serve`/processo `claude` -- um de cada
+      // vez é previsível.
       taskQueue = taskQueue.then(() => runTask(t));
+      return J(t);
+    }
+    // aprova ou nega uma ação que o pedido pausou pra perguntar (ver
+    // AGUARDA_APROVACAO em operatorPrompt) -- continua a MESMA sessão
+    // (sessionId guardado em runTask), nunca abre uma nova do zero.
+    const mApprove = u.pathname.match(/^\/api\/task\/([\w-]+)\/approve$/);
+    if (mApprove && req.method === 'POST') {
+      const t = TASKS.find(x => x.id === mApprove[1]);
+      if (!t) return J({ error: 'pedido não encontrado' }, 404);
+      if (t.status !== 'waiting_approval') return J({ error: 'esse pedido não está esperando aprovação' }, 400);
+      const b = await readBody(req).catch(() => ({}));
+      await resumeTask(t, !!b.approved);
       return J(t);
     }
     if (u.pathname === '/api/coordinator-cli' && req.method === 'GET') {
@@ -1647,38 +1664,145 @@ async function operatorPrompt(t) {
   const hit = target && devices.find(d => d.hostname.toLowerCase() === target || d.dnsName.toLowerCase() === target);
   return [
     `Você é o operador da malha Sploit-Forge, rodando no piloto "${getDeviceName()}".`,
-    'Ferramentas MCP disponíveis: list_devices, run_command, read_file, write_file, edit_file, list_dir, update_app, dispatch.',
+    'Ferramentas MCP disponíveis: list_devices, list_projects, run_command, read_file, write_file, edit_file, list_dir, update_app, dispatch, transfer_project, ask_local_model.',
     `Pedido do usuário: "${t.text}"`,
     'Máquinas: ' + devices.map(d => d.hostname + (d.self ? ' (este PC)' : '')).join(', ') + '.',
     hit ? `O pedido parece ser sobre "${hit.hostname}" (${hit.dnsName}) -- use machine="${hit.hostname}" nas ferramentas.` : '',
-    'Regras: execute as ferramentas de verdade antes de responder; pra diagnóstico use comandos de leitura (serviços, logs, fila de impressão, eventos); corrija quando for seguro; NÃO faça nada irreversível (apagar, reinstalar, reiniciar, mexer em rede/senha) sem antes perguntar -- nesse caso responda com o que faria; no fim, responda em no máximo 6 linhas: o que encontrou, o que fez e o que falta.',
+    'Se o pedido for sobre continuar/trabalhar num projeto específico: use list_projects pra achar o caminho e a máquina certa; leia "<caminho>/.sploit-handoff.md" com read_file (se existir) pra saber onde a última sessão parou; se o projeto for um repositório git com remote configurado, dê um `git pull` nele via run_command antes de agir.',
+    'Ao terminar um trabalho que mudou código num projeto com git+remote: comite e dê `git push`, e reescreva o ".sploit-handoff.md" dele (data/hora, o que foi feito, estado atual, próximo passo) via write_file -- é assim que a pessoa continua o mesmo projeto de outro PC/engine depois.',
+    'Regras: execute as ferramentas de verdade antes de responder; pra diagnóstico use comandos de leitura (serviços, logs, fila de impressão, eventos); corrija quando for seguro.',
+    'Se pra completar o pedido você precisar fazer algo IRREVERSÍVEL numa máquina real (apagar, reinstalar, reiniciar, mexer em rede/senha, ou qualquer coisa difícil de desfazer): NÃO faça -- em vez disso, termine sua resposta com uma linha exatamente assim: "AGUARDA_APROVACAO: <pergunta objetiva de sim/não sobre o que você quer fazer>". Isso pausa o pedido e pede autorização da pessoa antes de continuar (ela recebe push e aprova/nega do celular). Use isso só quando for de verdade irreversível; pra tudo que for seguro (diagnóstico, configuração, correção, leitura), já execute sem perguntar.',
+    'No fim (quando não precisar de aprovação), responda em no máximo 6 linhas: o que encontrou, o que fez e o que falta.',
   ].filter(Boolean).join('\n');
+}
+
+// --- engine Claude, modo headless (sem interface) pra Pedidos -------------
+// opencode tem um "serve" HTTP (ver ensureOpenCodeServe/openCodeServeFetch);
+// Claude Code não -- cada chamada sobe um processo `claude -p` próprio
+// (print mode) e sai. O prompt vai via STDIN, nunca como argumento de
+// linha de comando, pra nunca precisar escapar aspas/caminho Windows
+// dentro do -Command do PowerShell (mesma categoria de pegadinha do
+// Git Bash/MSYS já documentada no projeto pra JSON com path). Resume via
+// `--resume <session_id>` explícito (não `--continue`, que pega "a mais
+// recente" -- não serve se outro Pedido rodar no meio da espera por
+// aprovação). --dangerously-skip-permissions: autorizado explicitamente
+// pelo usuário em 23/11 pra essa automação específica -- testado à mão
+// nesta mesma máquina antes de entrar aqui: sem a flag, o Claude só
+// responde "permissão negada" e para (não trava, mas também não executa
+// nada -- inútil pro Pedido de verdade fazer algo).
+function claudeHeadlessPrompt(directory, instruction, resumeId) {
+  if (resumeId && !/^[\w-]+$/.test(resumeId)) return Promise.reject(new Error('sessionId inválido'));
+  return new Promise((resolve, reject) => {
+    const bin = process.env.CLAUDE_BIN || 'claude';
+    const resumeArg = resumeId ? ` --resume '${resumeId}'` : '';
+    const child = spawn('powershell.exe', [
+      '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
+      `& '${bin}' -p --output-format json --dangerously-skip-permissions${resumeArg}`,
+    ], { cwd: directory, env: CHILD_ENV, windowsHide: true });
+    let out = '', err = '';
+    child.stdout.on('data', d => out += d);
+    child.stderr.on('data', d => err += d);
+    const timer = setTimeout(() => { try { child.kill() } catch {} ; reject(new Error('claude headless: timeout (10min)')) }, 10 * 60 * 1000);
+    child.on('error', e => { clearTimeout(timer); reject(e) });
+    child.on('exit', code => {
+      clearTimeout(timer);
+      if (code !== 0) return reject(new Error('claude saiu com código ' + code + ': ' + err.slice(0, 300)));
+      try {
+        const j = JSON.parse(out);
+        resolve({ text: j.result || '(sem resposta)', sessionId: j.session_id });
+      } catch { reject(new Error('claude: resposta inesperada -- ' + out.slice(0, 300))) }
+    });
+    child.stdin.write(instruction);
+    child.stdin.end();
+  });
+}
+
+const APPROVAL_RE = /AGUARDA_APROVACAO:\s*(.+)/i;
+function applyTaskReply(t, reply) {
+  const m = reply.match(APPROVAL_RE);
+  if (m) {
+    t.status = 'waiting_approval';
+    t.question = m[1].trim().slice(0, 400);
+  } else {
+    t.status = 'done';
+    t.finishedAt = Date.now();
+  }
+  t.reply = reply.slice(0, 2000);
+}
+const taskStatusEmoji = s => s === 'done' ? '✅ ' : s === 'waiting_approval' ? '⏸ ' : '⚠️ ';
+function notifyTask(t) {
+  // chave por tarefa (não só 'Pedidos') -- senão dois Pedidos terminando
+  // a menos de 20s um do outro faziam o segundo aviso ser engolido pelo
+  // debounce de notify(), e um dos dois podia ser justo um que está
+  // esperando sua aprovação.
+  void notify('Pedidos:' + t.id, taskStatusEmoji(t.status) + ' ' + t.text.slice(0, 80) + ' -- ' + (t.question || t.reply || '').slice(0, 300), '/#view=orders');
 }
 
 async function runTask(t) {
   t.status = 'running';
+  if (t.engine !== 'claude' && t.engine !== 'opencode') t.engine = getCoordinatorCli();
   saveTasks();
   try {
-    ensureOpenCodeServe();
-    await waitOpenCodeServe();
     fs.mkdirSync(COORD_DIR, { recursive: true });
     ensureCoordinatorMcpConfig();
-    const cr = await openCodeServeFetch('/session', COORD_DIR, { method: 'POST', body: JSON.stringify({ title: 'Pedido: ' + t.text.slice(0, 60) }) });
-    if (!cr.ok) throw new Error('não consegui criar sessão: ' + cr.status);
-    const sid = (await cr.json()).id;
-    const mr = await openCodeServeFetch(`/session/${sid}/message`, COORD_DIR, { method: 'POST', body: JSON.stringify({ parts: [{ type: 'text', text: await operatorPrompt(t) }] }) });
-    if (!mr.ok) throw new Error('o piloto falhou: ' + mr.status + ' ' + (await mr.text()).slice(0, 200));
-    const res = await mr.json();
-    const parts = res.parts || res.info?.parts || [];
-    t.reply = ([...parts].reverse().find(p => p.type === 'text') || {}).text || '(sem resposta)';
-    t.status = 'done';
+    const prompt = await operatorPrompt(t);
+    let reply, sessionId;
+    if (t.engine === 'claude') {
+      ({ text: reply, sessionId } = await claudeHeadlessPrompt(COORD_DIR, prompt, null));
+    } else {
+      ensureOpenCodeServe();
+      await waitOpenCodeServe();
+      const cr = await openCodeServeFetch('/session', COORD_DIR, { method: 'POST', body: JSON.stringify({ title: 'Pedido: ' + t.text.slice(0, 60) }) });
+      if (!cr.ok) throw new Error('não consegui criar sessão: ' + cr.status);
+      sessionId = (await cr.json()).id;
+      const mr = await openCodeServeFetch(`/session/${sessionId}/message`, COORD_DIR, { method: 'POST', body: JSON.stringify({ parts: [{ type: 'text', text: prompt }] }) });
+      if (!mr.ok) throw new Error('o piloto falhou: ' + mr.status + ' ' + (await mr.text()).slice(0, 200));
+      const res = await mr.json();
+      const parts = res.parts || res.info?.parts || [];
+      reply = ([...parts].reverse().find(p => p.type === 'text') || {}).text || '(sem resposta)';
+    }
+    t.sessionId = sessionId;
+    applyTaskReply(t, reply);
   } catch (e) {
     t.reply = String(e.message || e).slice(0, 500);
     t.status = 'error';
+    t.finishedAt = Date.now();
   }
-  t.finishedAt = Date.now();
   saveTasks();
-  void notify('Pedidos', (t.status === 'done' ? '✅ ' : '⚠️ ') + t.text.slice(0, 80) + ' -- ' + t.reply.slice(0, 300));
+  notifyTask(t);
+}
+
+// continua a MESMA sessão depois de aprovar/negar uma ação pausada (ver
+// AGUARDA_APROVACAO) -- fora da taskQueue de propósito: a aprovação pode
+// demorar horas (a pessoa só vendo o push depois) e não devia bloquear
+// outros Pedidos esperando na fila.
+async function resumeTask(t, approved) {
+  t.status = 'running';
+  saveTasks();
+  const followup = approved
+    ? 'Autorizado: pode fazer o que você perguntou. Continue e finalize o pedido, respondendo em no máximo 6 linhas o que fez.'
+    : 'Negado: não faça essa ação. Finalize respondendo em no máximo 6 linhas o que você faria e o que ficou pendente.';
+  try {
+    let reply;
+    if (t.engine === 'claude') {
+      ({ text: reply } = await claudeHeadlessPrompt(COORD_DIR, followup, t.sessionId));
+    } else {
+      ensureOpenCodeServe();
+      await waitOpenCodeServe();
+      const mr = await openCodeServeFetch(`/session/${t.sessionId}/message`, COORD_DIR, { method: 'POST', body: JSON.stringify({ parts: [{ type: 'text', text: followup }] }) });
+      if (!mr.ok) throw new Error('o piloto falhou: ' + mr.status + ' ' + (await mr.text()).slice(0, 200));
+      const res = await mr.json();
+      const parts = res.parts || res.info?.parts || [];
+      reply = ([...parts].reverse().find(p => p.type === 'text') || {}).text || '(sem resposta)';
+    }
+    applyTaskReply(t, reply);
+  } catch (e) {
+    t.reply = String(e.message || e).slice(0, 500);
+    t.status = 'error';
+    t.finishedAt = Date.now();
+  }
+  saveTasks();
+  notifyTask(t);
 }
 
 // --- Coordenador proativo: além de só reagir quando chamado, ele mesmo

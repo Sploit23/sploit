@@ -898,6 +898,7 @@ function start(ps){
   if(!micSupported){$('#centralmicfb').style.display='';$('#centralmicfb').href=location.origin+'/#t='+encodeURIComponent(TOKEN)+'&view=home'}
   else $('#centralmicfb').style.display='none';
   if(DEEP_LINK_VIEW==='explorer'){DEEP_LINK_VIEW='';openExplorer()}
+  else if(DEEP_LINK_VIEW==='orders'){DEEP_LINK_VIEW='';show('orders')}
   else if(DEEP_LINK_VIEW.startsWith('term:')){const[,name,mode]=DEEP_LINK_VIEW.split(':');DEEP_LINK_VIEW='';const p=ps.find(x=>x.name===decodeURIComponent(name));if(p)openTerm(p,mode)}
 }
 $('#tkgo').onclick=async()=>{
