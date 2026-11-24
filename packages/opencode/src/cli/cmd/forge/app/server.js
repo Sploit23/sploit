@@ -1659,14 +1659,14 @@ let taskQueue = Promise.resolve();
 
 async function operatorPrompt(t) {
   const selfDns = await getSelfDns();
-  const devices = [{ hostname: getDeviceName(), dnsName: selfDns, self: true }, ...KNOWN.map(d => ({ hostname: d.hostname, dnsName: d.dnsName }))];
+  const devices = [{ hostname: getDeviceName(), dnsName: selfDns, pilot: true, self: true }, ...KNOWN.map(d => ({ hostname: d.hostname, dnsName: d.dnsName, pilot: d.pilot === true }))];
   const target = String(t.machine || '').trim().toLowerCase();
   const hit = target && devices.find(d => d.hostname.toLowerCase() === target || d.dnsName.toLowerCase() === target);
   return [
     `Você é o operador da malha Sploit-Forge, rodando no piloto "${getDeviceName()}".`,
     'Ferramentas MCP disponíveis: list_devices, list_projects, run_command, read_file, write_file, edit_file, list_dir, update_app, dispatch, transfer_project, ask_local_model.',
     `Pedido do usuário: "${t.text}"`,
-    'Máquinas: ' + devices.map(d => d.hostname + (d.self ? ' (este PC)' : '')).join(', ') + '.',
+    'Máquinas: ' + devices.map(d => d.hostname + (d.self ? ' (este PC)' : d.pilot ? ' [piloto]' : ' [bot]')).join(', ') + '. Bots só respondem run_command/read_file/write_file/edit_file/list_dir -- não têm sessão de agente própria (dispatch só funciona em projetos, não direto num bot).',
     hit ? `O pedido parece ser sobre "${hit.hostname}" (${hit.dnsName}) -- use machine="${hit.hostname}" nas ferramentas.` : '',
     'Se o pedido for sobre continuar/trabalhar num projeto específico: use list_projects pra achar o caminho e a máquina certa; leia "<caminho>/.sploit-handoff.md" com read_file (se existir) pra saber onde a última sessão parou; se o projeto for um repositório git com remote configurado, dê um `git pull` nele via run_command antes de agir.',
     'Ao terminar um trabalho que mudou código num projeto com git+remote: comite e dê `git push`, e reescreva o ".sploit-handoff.md" dele (data/hora, o que foi feito, estado atual, próximo passo) via write_file -- é assim que a pessoa continua o mesmo projeto de outro PC/engine depois.',
