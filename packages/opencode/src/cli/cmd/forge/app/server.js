@@ -1466,9 +1466,18 @@ async function checkForUpdates() {
     try { execFileSync(process.execPath, ['--check', tmp]) }
     catch (e) { fs.unlinkSync(tmp); throw new Error('server.js novo tem erro de sintaxe, abortando: ' + e.message, { cause: e }) }
     fs.unlinkSync(tmp);
-    if (UPDATE_NPM_DEPS.length) {
-      logUpdate('sintaxe ok, garantindo dependências novas...');
-      // idempotente -- se já estiver instalado, só confirma rápido, não reinstala.
+    // só tenta instalar o que REALMENTE falta -- achado em 24/11 numa
+    // máquina real (Escritório): NPM_BIN assume que npm.cmd mora do lado
+    // do node.exe, mas isso não é universal (instalação de Node
+    // diferente da do Casa) e deu `spawnSync npm ENOENT`. As duas
+    // dependências já estavam instaladas há tempos ali -- o auto-update
+    // nem precisava ter tentado rodar npm pra nada. Pular o npm inteiro
+    // quando node_modules já tem tudo evita essa classe de erro de vez
+    // (e nas máquinas onde o caminho do npm É confiável, continua
+    // instalando normalmente quando uma dependência nova aparecer).
+    const missingDeps = UPDATE_NPM_DEPS.filter(d => !fs.existsSync(path.join(__dirname, 'node_modules', d)));
+    if (missingDeps.length) {
+      logUpdate('sintaxe ok, faltam dependências (' + missingDeps.join(', ') + '), instalando...');
       // `shell: true` é obrigatório aqui: npm.cmd é um batch, não um .exe --
       // sem isso, execFileSync tenta CreateProcess direto no .cmd e o Windows
       // devolve EINVAL (achado em 24/11, auto-update ficando preso em loop
@@ -1478,7 +1487,7 @@ async function checkForUpdates() {
       // literais aqui o cmd.exe lê "C:\Program" como comando e quebra
       // ("'C:\Program' não é reconhecido...", achado logo depois do fix
       // acima, mesmo dia). Testado à mão nesta máquina antes de reentrar.
-      try { execFileSync(`"${NPM_BIN}"`, ['install', ...UPDATE_NPM_DEPS, '--silent'], { cwd: __dirname, timeout: 120000, windowsHide: true, shell: true }) }
+      try { execFileSync(`"${NPM_BIN}"`, ['install', ...missingDeps, '--silent'], { cwd: __dirname, timeout: 120000, windowsHide: true, shell: true }) }
       catch (e) { throw new Error('npm install das dependências novas falhou, abortando: ' + e.message, { cause: e }) }
     }
     logUpdate('válido, baixando o resto e aplicando...');
