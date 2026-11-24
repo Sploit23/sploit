@@ -1880,4 +1880,16 @@ function maybeRunCheckIn() {
 }
 if (WIN) { setInterval(maybeRunCheckIn, 30 * 60 * 1000); maybeRunCheckIn(); }
 
+// achado em 24/11: um reinstall/restart podia deixar o processo ANTIGO
+// vivo (zumbi, sem conseguir religar a porta) enquanto o novo assumia --
+// confuso de diagnosticar (dois processos, só update.log silencioso).
+// Se não conseguir religar a porta, melhor morrer alto e claro (o
+// serviço do Windows reinicia sozinho) do que ficar um zumbi mudo.
+srv.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') {
+    logUpdate(`porta ${PORT} já em uso por outro processo -- encerrando este (provável zumbi de um restart anterior).`);
+    process.exit(1);
+  }
+  logUpdate('erro no servidor HTTP: ' + e.message);
+});
 srv.listen(PORT, HOST, () => console.log(`FORGE em http://${HOST}:${PORT}`));

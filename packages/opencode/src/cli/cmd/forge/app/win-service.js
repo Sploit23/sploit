@@ -38,6 +38,29 @@ if (process.argv[2] === 'safe-restart') {
   process.exit(0)
 }
 
+// achado em 24/11: um reinstall podia deixar o processo node.exe ANTIGO
+// vivo (zumbi -- não religava a porta, mas continuava rodando código
+// desatualizado) enquanto svc.uninstall()+svc.install() subia um novo em
+// cima. Garante terreno limpo ANTES de instalar/desinstalar: mata
+// qualquer node.exe cuja linha de comando referencie este mesmo
+// server.js. NUNCA chamar isso no caminho safe-restart acima -- essa
+// chamada roda de dentro de uma sessão que o próprio server.js pode ter
+// aberto (pty do Coordenador); matar o processo síncrono aqui mataria a
+// própria sessão antes de ela conseguir agendar o restart via Task
+// Scheduler, reproduzindo exatamente o bug que o safe-restart existe pra
+// evitar (ver nota grande no topo do arquivo).
+function killStrayServerProcesses() {
+  const scriptPath = path.join(__dirname, 'server.js')
+  try {
+    const filter = scriptPath.replace(/'/g, "''")
+    execFileSync('powershell', [
+      '-NoProfile', '-Command',
+      `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -like '*${filter}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`,
+    ], { stdio: 'ignore', timeout: 10000 })
+  } catch {}
+}
+killStrayServerProcesses()
+
 const svc = new Service({
   name: 'SploitForge',
   description: 'FORGE (controle remoto do opencode/claude pelo celular)',
