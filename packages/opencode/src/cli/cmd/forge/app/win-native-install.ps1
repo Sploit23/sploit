@@ -169,7 +169,13 @@ function Get-Asset($name, $dest) {
     if ($selfDir -and (Test-Path (Join-Path $selfDir $name))) {
         Copy-Item (Join-Path $selfDir $name) $dest -Force
     } else {
-        Invoke-WebRequest -Uri "$BASE_URL/$name" -OutFile $dest -UseBasicParsing
+        # cache-bust: achado em 24/11 que o CDN do GitHub às vezes serve
+        # versão velha pra essa mesma URL (confirmado na mão -- só um
+        # query param novo forçou o conteúdo certo a aparecer). Sem isso,
+        # rodar o instalador de novo podia "funcionar" sem erro nenhum e
+        # ainda assim instalar código de horas atrás.
+        $cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        Invoke-WebRequest -Uri "$BASE_URL/${name}?v=$cacheBust" -OutFile $dest -UseBasicParsing -Headers @{ 'Cache-Control' = 'no-cache' }
     }
 }
 $assets = @("server.js", "sessions-native.js", "win-service.js")

@@ -1441,10 +1441,19 @@ function logUpdate(msg) {
     fs.writeFileSync(UPDATE_LOG, prev.slice(-80).join('\n') + '\n');
   } catch {}
 }
+// achado em 24/11, no meio de uma sessão de debug: o GitHub (CDN) às
+// vezes serve conteúdo em cache pra essa mesma URL (confirmado na mão --
+// um `?cachebust=` forçou a versão certa a aparecer quando a URL "pura"
+// insistia numa versão várias horas mais velha, mesmo o `dev` já tendo
+// commit novo há tempos). Já tinha acontecido antes com
+// raw.githubusercontent.com (ver histórico); dessa vez foi na variante
+// github.com/.../raw/. Query param único + no-cache nos dois fetches do
+// auto-update, pra nunca mais depender de sorte de CDN.
+const fetchFresh = url => fetch(url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now(), { headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } });
 async function checkForUpdates() {
   if (!WIN) return;
   try {
-    const remote = await (await fetch(UPDATE_BASE + 'server.js')).text();
+    const remote = await (await fetchFresh(UPDATE_BASE + 'server.js')).text();
     const local = fs.readFileSync(__filename, 'utf8');
     if (remote === local) return; // já atualizado
     logUpdate('versão nova encontrada, validando antes de aplicar...');
@@ -1473,7 +1482,7 @@ async function checkForUpdates() {
       catch (e) { throw new Error('npm install das dependências novas falhou, abortando: ' + e.message, { cause: e }) }
     }
     logUpdate('válido, baixando o resto e aplicando...');
-    for (const f of UPDATE_FILES) fs.writeFileSync(path.join(__dirname, f), await (await fetch(UPDATE_BASE + f)).text());
+    for (const f of UPDATE_FILES) fs.writeFileSync(path.join(__dirname, f), await (await fetchFresh(UPDATE_BASE + f)).text());
     logUpdate('arquivos atualizados, reiniciando com segurança...');
     spawn(process.execPath, [path.join(__dirname, 'win-service.js'), 'safe-restart'], { detached: true, stdio: 'ignore' }).unref();
   } catch (e) { logUpdate('checagem falhou: ' + e.message); }
