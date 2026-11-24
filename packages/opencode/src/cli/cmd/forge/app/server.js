@@ -128,7 +128,22 @@ function isDesktopInstalled() {
 // token é X"); só LER essa lista (/api/known-devices) exige token de algum
 // FORGE da rede.
 const KNOWN_FILE = path.join(__dirname, 'known-devices.json');
-let KNOWN = fs.existsSync(KNOWN_FILE) ? JSON.parse(fs.readFileSync(KNOWN_FILE, 'utf8')) : [];
+// reinstalar o app gera um dnsName novo no Tailscale (sufixo -2) e a entrada
+// antiga do MESMO hostname ficava pra sempre na lista como "offline" --
+// o painel mostrava um "Escritorio" morto ao lado do vivo, e o check-in das 8h
+// chegava a anunciar um PC que estava ligado como se estivesse desligado.
+// Um hostname só pode ter uma entrada: fica a mais recente.
+function loadKnown() {
+  let raw = [];
+  try { raw = fs.existsSync(KNOWN_FILE) ? JSON.parse(fs.readFileSync(KNOWN_FILE, 'utf8')) : [] } catch { return [] }
+  if (!Array.isArray(raw)) return [];
+  const newest = {};
+  for (const d of raw) if (!newest[d.hostname] || (d.announcedAt || 0) > (newest[d.hostname].announcedAt || 0)) newest[d.hostname] = d;
+  const out = Object.values(newest);
+  if (out.length !== raw.length) try { fs.writeFileSync(KNOWN_FILE, JSON.stringify(out, null, 2)) } catch {}
+  return out;
+}
+let KNOWN = loadKnown();
 const saveKnown = () => fs.writeFileSync(KNOWN_FILE, JSON.stringify(KNOWN, null, 2));
 // mesma descoberta usada por /api/peers e por announceToPeers() -- sonda o
 // /health de cada peer do Tailscale direto por IP, sem trocar token nenhum.
@@ -138,11 +153,11 @@ async function discoverForgePeers() {
   const found = await Promise.all(peers.map(async p => {
     const ip = (p.TailscaleIPs || [])[0];
     if (!ip) return null;
-    const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 800);
+    const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 2500);
     try {
       const r = await fetch('http://' + ip + ':' + PORT + '/health', { signal: ctrl.signal });
       const j = r.ok ? await r.json() : null;
-      return j && j.forge ? { hostname: p.HostName, dnsName: (p.DNSName || '').replace(/\.$/, ''), ip } : null;
+      return j && j.forge ? { hostname: p.HostName, dnsName: (p.DNSName || '').replace(/\.$/, ''), ip, pilot: j.pilot === true } : null;
     } catch { return null }
     finally { clearTimeout(t) }
   }));
@@ -180,7 +195,7 @@ async function announceToPeers() {
     try {
       await fetch('http://' + p.ip + ':' + PORT + '/api/announce', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
-        body: JSON.stringify({ hostname: getDeviceName(), dnsName: selfDns, token: TOKEN, lanIp: getLanIp() }),
+        body: JSON.stringify({ hostname: getDeviceName(), dnsName: selfDns, token: TOKEN, lanIp: getLanIp(), pilot: isDesktopInstalled() }),
       });
     } catch {} finally { clearTimeout(t) }
   }));
@@ -322,6 +337,7 @@ h1 b{background:linear-gradient(90deg,var(--blue),var(--purple));-webkit-backgro
 .dot{width:9px;height:9px;border-radius:50%;background:var(--bad);flex:0 0 auto}
 .pc.on .dot{background:var(--ok);box-shadow:0 0 10px var(--ok)}
 .name{font-weight:600;font-size:15px}
+.tag{margin-left:6px;font:10px/1 ui-monospace,Consolas,monospace;color:var(--blue);border:1px solid #17324a;border-radius:5px;padding:2px 5px;vertical-align:2px}
 .sub{color:var(--dim);font:11.5px/1.3 ui-monospace,Consolas,monospace;word-break:break-all}
 .here{margin-left:auto;color:var(--blue);font:11px/1 ui-monospace,monospace;border:1px solid #17324a;border-radius:6px;padding:3px 6px;white-space:nowrap}
 .off .here{color:var(--dim);border-color:var(--line)}
@@ -334,7 +350,7 @@ h1 b{background:linear-gradient(90deg,var(--blue),var(--purple));-webkit-backgro
 <header><h1>Sploit <b>Force</b></h1><span id="sum">…</span></header>
 <div id="tk"><div>Cole o token deste PC pra ver a rede:</div><input id="tkin" placeholder="FORGE_TOKEN" autocomplete="off"><button id="tkok">Entrar</button></div>
 <div id="grid"></div>
-<div id="hint">Clique num PC pra abrir. O resto é pelo agente: <code>list_devices</code>, <code>run_command</code>, <code>read_file</code>… (MCP do Coordenador).</div>
+<div id="hint">Clique num PC pra abrir. PCs com <b>piloto</b> abrem o app inteiro (terminal, chat, projetos); os outros são bots e só respondem comandos. O resto é pelo agente: <code>list_devices</code>, <code>run_command</code>, <code>read_file</code>… (MCP do Coordenador).</div>
 <script>
 var $=function(s){return document.querySelector(s)};
 (function(){var m=location.hash.match(/t=([^&]+)/);if(m){localStorage.forge_token=decodeURIComponent(m[1]);history.replaceState(null,'',location.pathname+location.search)}})();
@@ -344,6 +360,9 @@ function api(p){return fetch(p,{headers:{Authorization:'Bearer '+tok()}}).then(f
 function showToken(){document.getElementById('tk').style.display='block';document.getElementById('grid').innerHTML='';document.getElementById('sum').textContent='sem token'}
 function openPc(d){location.href='https://'+d.dnsName+'/#t='+encodeURIComponent(d.token)}
 function render(list){
+  // pilotos (PCs com app de verdade) primeiro -- é neles que a pessoa
+  // consegue trabalhar; bot de loja só responde comando via agente.
+  list=list.slice().sort(function(a,b){return (b.pilot?1:0)-(a.pilot?1:0)});
   var on=0;
   var html=list.map(function(d){
     if(d.online)on++;
@@ -351,7 +370,7 @@ function render(list){
     if(d.self)cls+=' me';
     return '<div class="'+cls+'" data-i="'+list.indexOf(d)+'">'+
       '<span class="dot"></span>'+
-      '<div><div class="name">'+esc(d.hostname||d.dnsName||'?')+'</div>'+
+      '<div><div class="name">'+esc(d.hostname||d.dnsName||'?')+(d.pilot?'<span class="tag">piloto</span>':'')+'</div>'+
       '<div class="sub">'+esc(d.dnsName||'sem endereço Tailscale')+(d.online&&d.ms!=null?' · '+d.ms+'ms':'')+'</div></div>'+
       '<span class="here">'+(d.self?'esta máquina':(d.online?'abrir':'offline'))+'</span></div>';
   }).join('');
@@ -448,7 +467,7 @@ const srv = http.createServer(async (req, res) => {
   // precisa de um <link rel="apple-touch-icon"> explícito apontando pra isso.
   if (u.pathname === '/icon.svg') return send('image/svg+xml', ICON_ANY_SVG);
   // sem token: só pra outro FORGE na mesma rede Tailscale se reconhecer (ver /api/peers)
-  if (u.pathname === '/health') return send('application/json', JSON.stringify({ forge: true, name: getDeviceName() }));
+  if (u.pathname === '/health') return send('application/json', JSON.stringify({ forge: true, name: getDeviceName(), pilot: isDesktopInstalled() }));
   // sem token de propósito -- ver comentário em KNOWN_FILE acima. Só grava
   // "existo, meu token é X"; nunca devolve nada, nunca lê o registro (isso é
   // /api/known-devices, autenticado).
@@ -461,7 +480,7 @@ const srv = http.createServer(async (req, res) => {
     if (!hostname || !dnsName || token.length < 16) return send('application/json', '{"error":"dados inválidos"}', 400);
     const old = KNOWN.find(d => d.dnsName === dnsName);
     const isNew = !old;
-    KNOWN = [...KNOWN.filter(d => d.dnsName !== dnsName), { hostname, dnsName, token, lanIp: lanIp || old?.lanIp || '', announcedAt: Date.now() }];
+    KNOWN = [...KNOWN.filter(d => d.dnsName !== dnsName), { hostname, dnsName, token, lanIp: lanIp || old?.lanIp || '', pilot: b.pilot === true || old?.pilot === true, announcedAt: Date.now() }];
     saveKnown();
     // reciprocidade na hora -- sem isso, um PC novo só aparecia pros outros
     // no próximo ciclo periódico deles (era de 1h), podendo levar até 1h
@@ -533,8 +552,8 @@ const srv = http.createServer(async (req, res) => {
         // saber nada de Tailscale.
         const selfDns = await getSelfDns();
         const devices = [
-          { hostname: getDeviceName(), dnsName: selfDns, token: TOKEN, self: true },
-          ...KNOWN.filter(d => d.dnsName !== selfDns).map(d => ({ ...d, self: false })),
+          { hostname: getDeviceName(), dnsName: selfDns, token: TOKEN, pilot: isDesktopInstalled(), self: true },
+          ...KNOWN.filter(d => d.dnsName !== selfDns).map(d => ({ ...d, pilot: d.pilot === true, self: false })),
         ];
         return J(await Promise.all(devices.map(async d => {
           // esta máquina é sempre "online" (é ela que está respondendo o
@@ -545,7 +564,13 @@ const srv = http.createServer(async (req, res) => {
           const t0 = Date.now();
           try {
             const r = await fetch(`https://${d.dnsName}/health`, { signal: AbortSignal.timeout(3000) });
-            if (r.ok) return { ...d, online: true, ms: Date.now() - t0 };
+            if (r.ok) {
+              // pilot vem ao vivo do /health -- a cópia salva em KNOWN pode
+              // estar velha (o PC instalou/desinstalou a bandeja depois do
+              // último anúncio).
+              const j = await r.json().catch(() => ({}));
+              return { ...d, online: true, ms: Date.now() - t0, pilot: j.pilot === true || d.pilot };
+            }
           } catch {}
           if (d.lanIp) {
             try {
@@ -781,6 +806,11 @@ const srv = http.createServer(async (req, res) => {
           } else fs.mkdirSync(dir, { recursive: true });
         }
         PROJECTS.push({ name, path: dir }); save();
+        // qualquer projeto novo já nasce pronto pra continuar de outro PC/engine
+        // (ver ensureMcpConfig/ensureProjectContinuity) -- sem isso só a pasta
+        // interna do Coordenador ganhava as ferramentas MCP automaticamente.
+        ensureMcpConfig(dir);
+        ensureProjectContinuity(dir);
         return J({ ok: true });
       }
       if (u.pathname === '/api/browse' && req.method === 'GET') {
@@ -1155,6 +1185,23 @@ const srv = http.createServer(async (req, res) => {
       try { return send('text/plain', fs.readFileSync(UPDATE_LOG, 'utf8')) }
       catch { return send('text/plain', '(nenhum log ainda)') }
     }
+    // pedidos em linguagem natural pro piloto operar a malha (ver runTask).
+    // GET é barato de propósito: o app do celular faz polling enquanto a
+    // tela de Pedidos está aberta e o push avisa se o app estiver fechado.
+    if (u.pathname === '/api/tasks' && req.method === 'GET') return J(TASKS);
+    if (u.pathname === '/api/task' && req.method === 'POST') {
+      const b = await readBody(req);
+      const text = String(b.text || '').trim().slice(0, 2000);
+      if (!text) return J({ error: 'pedido vazio' }, 400);
+      const t = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: Date.now(), text, machine: String(b.machine || '').trim().slice(0, 64), status: 'queued' };
+      TASKS.push(t);
+      if (TASKS.length > 30) TASKS = TASKS.slice(-30);
+      saveTasks();
+      // fila serial: dois pedidos ao mesmo tempo disputariam o mesmo diretório
+      // de sessão e o mesmo `opencode serve` -- um de cada vez é previsível.
+      taskQueue = taskQueue.then(() => runTask(t));
+      return J(t);
+    }
     if (u.pathname === '/api/coordinator-cli' && req.method === 'GET') {
       return J({ cli: getCoordinatorCli() });
     }
@@ -1230,21 +1277,66 @@ function mergeJsonFile(filePath, mutate) {
   mutate(data);
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
-function ensureCoordinatorMcpConfig() {
+// Mesma lógica, mas pra QUALQUER diretório de projeto (não só o do
+// coordenador) -- registrada em ensureProjectContinuity() abaixo, pra uma
+// sessão normal (opencode/claude aberta direto na pasta do projeto, sem
+// passar pelo Coordenador) já nascer com as mesmas ferramentas MCP.
+function ensureMcpConfig(dir) {
   const url = `http://127.0.0.1:${PORT}/mcp`;
   const headers = { Authorization: `Bearer ${TOKEN}` };
   try {
-    mergeJsonFile(path.join(COORD_DIR, 'opencode.json'), (data) => {
+    mergeJsonFile(path.join(dir, 'opencode.json'), (data) => {
       data.mcp = data.mcp || {};
       data.mcp['sploit-forge'] = { type: 'remote', url, headers };
     });
   } catch {}
   try {
-    mergeJsonFile(path.join(COORD_DIR, '.mcp.json'), (data) => {
+    mergeJsonFile(path.join(dir, '.mcp.json'), (data) => {
       data.mcpServers = data.mcpServers || {};
       data.mcpServers['sploit-forge'] = { type: 'http', url, headers };
     });
   } catch {}
+}
+const ensureCoordinatorMcpConfig = () => ensureMcpConfig(COORD_DIR);
+
+// Convenção de continuidade entre PCs/engines: AGENTS.md (opencode) e
+// CLAUDE.md (Claude Code) são lidos automaticamente por cada CLI ao abrir
+// uma sessão na pasta -- em vez de inventar um mecanismo próprio, só
+// ensina essa regra ali (idempotente via marcador, nunca sobrescreve
+// conteúdo que a pessoa já tenha escrito no arquivo). `.sploit-handoff.md`
+// é o bilhete de verdade: a única "memória" que atravessa PC e engine,
+// porque é um arquivo normal do projeto (viaja com git pull/push).
+const HANDOFF_MARKER = 'Continuidade entre PCs (Sploit-Forge)';
+function ensureProjectContinuity(dir) {
+  try {
+    const note = path.join(dir, '.sploit-handoff.md');
+    if (!fs.existsSync(note)) {
+      fs.writeFileSync(note, '# Handoff\n\n(sem sessão anterior ainda -- a primeira sessão que rodar aqui escreve o que fez.)\n');
+    }
+  } catch {}
+  const block = [
+    `## ${HANDOFF_MARKER}`,
+    '',
+    'Este projeto pode ser trabalhado em mais de um PC da malha Sploit-Forge',
+    '(ex: Casa, Escritório), por engines diferentes (opencode ou Claude Code).',
+    '',
+    '- No INÍCIO de qualquer sessão: leia `.sploit-handoff.md` (se existir) pra',
+    '  saber onde a última sessão parou. Se este projeto for um repositório git',
+    '  com remote configurado, dê `git pull` antes de começar.',
+    '- No FIM de qualquer sessão (ou de qualquer pedido que mudou algo):',
+    '  reescreva `.sploit-handoff.md` com data/hora, o que foi feito, estado',
+    '  atual e o próximo passo. Se houve mudança de código e existe remote',
+    '  git, comite e dê `git push`.',
+    '- Nunca pule esses dois passos -- é assim que a pessoa consegue continuar',
+    '  o mesmo projeto de outro PC ou do celular depois.',
+  ].join('\n');
+  for (const fname of ['AGENTS.md', 'CLAUDE.md']) {
+    try {
+      const p = path.join(dir, fname);
+      const existing = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
+      if (!existing.includes(HANDOFF_MARKER)) fs.writeFileSync(p, (existing ? existing.replace(/\s+$/, '') + '\n\n' : '') + block + '\n');
+    } catch {}
+  }
 }
 
 function attach(ws) {
@@ -1533,6 +1625,61 @@ async function promptProject(directory, instruction) {
 // lazy -- só sobe o `opencode serve` no primeiro dispatch de verdade (ver
 // promptProject acima), não em todo boot de todo PC instalado. Evita um
 // processo ocioso em máquinas que nunca vão usar o Coordenador.
+
+// --- Pedidos: "pede e ele faz" ------------------------------------------
+// A caixa de texto do celular não é um chat sobre arquivos -- é um pedido em
+// linguagem natural pro piloto operar a malha via MCP (run_command,
+// read_file, update_app...). Cada pedido roda numa sessão própria (não
+// mistura com a conversa do Coordenador), fica salvo em tasks.json e manda
+// push quando termina, pra pessoa pedir da rua e só ser avisada no fim.
+const TASKS_FILE = path.join(__dirname, 'tasks.json');
+function loadTasks() {
+  try { const j = JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8')); return Array.isArray(j) ? j : [] } catch { return [] }
+}
+let TASKS = loadTasks().slice(-30);
+const saveTasks = () => { try { fs.writeFileSync(TASKS_FILE, JSON.stringify(TASKS.slice(-30), null, 2)) } catch {} };
+let taskQueue = Promise.resolve();
+
+async function operatorPrompt(t) {
+  const selfDns = await getSelfDns();
+  const devices = [{ hostname: getDeviceName(), dnsName: selfDns, self: true }, ...KNOWN.map(d => ({ hostname: d.hostname, dnsName: d.dnsName }))];
+  const target = String(t.machine || '').trim().toLowerCase();
+  const hit = target && devices.find(d => d.hostname.toLowerCase() === target || d.dnsName.toLowerCase() === target);
+  return [
+    `Você é o operador da malha Sploit-Forge, rodando no piloto "${getDeviceName()}".`,
+    'Ferramentas MCP disponíveis: list_devices, run_command, read_file, write_file, edit_file, list_dir, update_app, dispatch.',
+    `Pedido do usuário: "${t.text}"`,
+    'Máquinas: ' + devices.map(d => d.hostname + (d.self ? ' (este PC)' : '')).join(', ') + '.',
+    hit ? `O pedido parece ser sobre "${hit.hostname}" (${hit.dnsName}) -- use machine="${hit.hostname}" nas ferramentas.` : '',
+    'Regras: execute as ferramentas de verdade antes de responder; pra diagnóstico use comandos de leitura (serviços, logs, fila de impressão, eventos); corrija quando for seguro; NÃO faça nada irreversível (apagar, reinstalar, reiniciar, mexer em rede/senha) sem antes perguntar -- nesse caso responda com o que faria; no fim, responda em no máximo 6 linhas: o que encontrou, o que fez e o que falta.',
+  ].filter(Boolean).join('\n');
+}
+
+async function runTask(t) {
+  t.status = 'running';
+  saveTasks();
+  try {
+    ensureOpenCodeServe();
+    await waitOpenCodeServe();
+    fs.mkdirSync(COORD_DIR, { recursive: true });
+    ensureCoordinatorMcpConfig();
+    const cr = await openCodeServeFetch('/session', COORD_DIR, { method: 'POST', body: JSON.stringify({ title: 'Pedido: ' + t.text.slice(0, 60) }) });
+    if (!cr.ok) throw new Error('não consegui criar sessão: ' + cr.status);
+    const sid = (await cr.json()).id;
+    const mr = await openCodeServeFetch(`/session/${sid}/message`, COORD_DIR, { method: 'POST', body: JSON.stringify({ parts: [{ type: 'text', text: await operatorPrompt(t) }] }) });
+    if (!mr.ok) throw new Error('o piloto falhou: ' + mr.status + ' ' + (await mr.text()).slice(0, 200));
+    const res = await mr.json();
+    const parts = res.parts || res.info?.parts || [];
+    t.reply = ([...parts].reverse().find(p => p.type === 'text') || {}).text || '(sem resposta)';
+    t.status = 'done';
+  } catch (e) {
+    t.reply = String(e.message || e).slice(0, 500);
+    t.status = 'error';
+  }
+  t.finishedAt = Date.now();
+  saveTasks();
+  void notify('Pedidos', (t.status === 'done' ? '✅ ' : '⚠️ ') + t.text.slice(0, 80) + ' -- ' + t.reply.slice(0, 300));
+}
 
 // --- Coordenador proativo: além de só reagir quando chamado, ele mesmo
 // escreve e manda uma notificação resumindo o estado da rede, sem ninguém
