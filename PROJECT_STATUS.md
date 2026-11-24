@@ -2,7 +2,7 @@
 
 Documento pra qualquer agente de IA (ou pessoa) que vá continuar o
 desenvolvimento a partir daqui, sem precisar reconstruir o contexto do
-zero. Escrito em 2026-10-28, atualizado em 2026-10-30.
+zero. Escrito em 2026-10-28, atualizado em 2026-11-23.
 
 ## O que é isso
 
@@ -413,3 +413,82 @@ expõe**, sem nenhuma modificação no CLI:
    `bun run --cwd packages/opencode typecheck` **antes** de commitar —
    sempre. Pra `index.html`: extrair o `<script>` e validar com
    `new Function()` (syntax check rápido sem precisar de browser).
+
+## Continuidade de projeto entre PC/engine + Pedidos com aprovação — 23/11
+
+Motivação do usuário: trabalhar um projeto (ex: loja de fotos de Natal em
+8 PCs/shops) no Escritório de dia e continuar o mesmo projeto de Casa (ou
+do celular) à noite — mesmo trocando de engine (opencode no Escritório,
+Claude em Casa) — sem perder contexto nem ter que reexplicar tudo.
+
+- **Qualquer projeto novo** (`POST /api/projects`, tanto "criar nova"
+  quanto "procurar existente") já nasce com:
+  - `ensureMcpConfig(dir)` — a mesma config MCP que só existia pra
+    `.coordinator` agora é gravada no próprio projeto (`opencode.json`
+    local + `.mcp.json`), pra uma sessão opencode/Claude aberta direto na
+    pasta já ganhar `list_devices`/`run_command`/`dispatch`/etc. sem o
+    passo manual de `claude mcp add`.
+  - `ensureProjectContinuity(dir)` — cria `.sploit-handoff.md` (bilhete:
+    o que foi feito, estado, próximo passo) e anexa a convenção de
+    ler/`git pull` no início e reescrever/`git push` no fim em
+    `AGENTS.md`+`CLAUDE.md` do projeto (lidos automaticamente por cada
+    CLI — é a "memória" que atravessa PC e engine, porque é um arquivo
+    normal do projeto que viaja com git). **Importante**: só roda no
+    registro de projeto NOVO, não retroativo pros já existentes nem a
+    cada boot — projetos antigos continuam sem isso até reregistrar ou
+    alguém adicionar na mão.
+  - Isso só funciona de ponta a ponta se o projeto tiver um `git remote`
+    configurado — sem remote, o pull/push da convenção não tem onde
+    sincronizar (fica como no-op silencioso pro agente, que só não vai
+    achar remote pra usar).
+
+- **Pedidos (`/api/task`) ganhou `engine` escolhível por pedido**
+  (`'opencode'|'claude'`, default = `getCoordinatorCli()` desta máquina —
+  antes `runTask` **sempre** rodava via opencode, ignorando até a config
+  do próprio Coordenador, bug real encontrado nesta sessão). Engine
+  Claude roda headless: `claude -p --output-format json
+  --dangerously-skip-permissions`, prompt via **STDIN** (nunca como
+  argumento de `-Command` do PowerShell — mesma categoria de pegadinha
+  de escaping já documentada pra JSON/path Windows no Git Bash/MSYS).
+  `--dangerously-skip-permissions` autorizado explicitamente pelo usuário
+  em 23/11 só pra essa automação (testado à mão na máquina Casa antes de
+  entrar em produção: sem a flag, o Claude headless só responde
+  "permissão negada" e para — não trava, mas também não executa nada).
+
+- **Pedido pode pausar pedindo aprovação** em vez de só reportar "faria
+  isso": `operatorPrompt` instrui o operador a terminar a resposta com
+  `AGUARDA_APROVACAO: <pergunta>` quando a ação for irreversível numa
+  máquina real (apagar, reinstalar, reiniciar, rede/senha). O servidor
+  detecta esse marcador, põe a tarefa em `status: 'waiting_approval'`,
+  guarda `sessionId`+`engine`, e manda push com a pergunta. `POST
+  /api/task/:id/approve {approved}` continua a **mesma sessão** (nunca
+  cria outra) — opencode via `/session/{id}/message`, Claude via
+  `--resume <sessionId>` explícito (não `--continue`, que pegaria "a mais
+  recente" se outro Pedido rodar enquanto este espera aprovação, já que
+  a espera pode durar horas e por isso fica fora da `taskQueue` serial).
+  PWA: card do pedido mostra a pergunta + botões permitir/negar.
+
+- **Bug de push corrigido**: `notify()` tem debounce de 20s por
+  `projectName`, e Pedidos usava sempre a chave fixa `'Pedidos'` — dois
+  pedidos terminando a menos de 20s um do outro faziam o segundo aviso
+  (podendo ser justo um esperando aprovação) ser engolido em silêncio.
+  Agora a chave é por tarefa (`Pedidos:<id>`). Push de Pedidos também
+  carrega uma URL (`/#view=orders`); o Service Worker guarda isso em
+  `notification.data` e navega pra lá ao tocar, em vez de só abrir `/`.
+
+- **PWA**: os 3 atalhos de frase pronta da tela Pedidos saíram (feedback
+  real do usuário: "nenhum comando vai ser igual ao outro") — entraram
+  chips que só inserem nome exato de máquina/projeto conhecido no texto
+  (reaproveita `KNOWN_DEVICES`/`PRJ_ALL` já quentes, sem fetch novo), e
+  um toggle de engine por pedido (`#ordengine`, salvo em
+  `localStorage.forge_ord_engine`).
+
+- **O que NÃO foi feito** (de propósito, fora do escopo desta sessão):
+  nenhuma UI pra escolher remote git na hora de criar um projeto (a
+  convenção é agnóstica — funciona com GitHub privado, self-hosted, ou
+  nenhum, mas configurar o remote em si ainda é manual); nenhuma
+  simplificação de navegação do PWA (5 abas continuam 5 — a ideia
+  discutida de reduzir pra Central/Bots/Ajustes ficou só em mockup,
+  nunca entrou no `index.html` real); o Coordenador terminal
+  (`sessions-native.js`/modo `coordinator` do WS) continua só opencode/
+  Claude interativo, sem o engine-por-pedido que os Pedidos ganharam.
