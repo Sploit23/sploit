@@ -64,6 +64,16 @@ if (WIN) {
 }
 const PS_EXE = WIN ? path.join(CHILD_ENV.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : '';
 const NPM_BIN = WIN ? path.join(path.dirname(process.execPath), 'npm.cmd') : 'npm';
+// achado em 25/11: rodando como o Serviço do Windows (LocalSystem), o
+// `tailscale` bare não resolve -- "CommandNotFoundException" (confirmado
+// rodando via /api/run na própria máquina). PATH de uma sessão de usuário
+// normal não é o mesmo PATH do Serviço -- mesma classe de bug do NPM_BIN
+// acima. getSelfDns() ficava sempre com dnsName vazio por causa disso
+// (o do PEER funciona -- vem de known-devices.json salvo, não de CLI ao
+// vivo -- só o SELF que precisa consultar o tailscale na hora). Mesmo
+// fallback que o forge-tray já usa (ver resolveTailscaleExe em
+// packages/forge-tray/src/pairing.ts).
+const TAILSCALE_EXE = WIN && fs.existsSync('C:\\Program Files\\Tailscale\\tailscale.exe') ? 'C:\\Program Files\\Tailscale\\tailscale.exe' : 'tailscale';
 // 0.0.0.0, não 127.0.0.1 -- senão o processo nunca escuta em nenhum endereço
 // alcançável por outra máquina, e /api/peers (que depende de sondar o /health
 // de cada peer do Tailscale direto por IP) nunca encontra nada, mesmo com o
@@ -149,7 +159,7 @@ const saveKnown = () => fs.writeFileSync(KNOWN_FILE, JSON.stringify(KNOWN, null,
 // /health de cada peer do Tailscale direto por IP, sem trocar token nenhum.
 async function discoverForgePeers() {
   let peers = [];
-  try { peers = Object.values(JSON.parse(await sh('tailscale', ['status', '--json'])).Peer || {}); } catch { return [] }
+  try { peers = Object.values(JSON.parse(await sh(TAILSCALE_EXE, ['status', '--json'])).Peer || {}); } catch { return [] }
   const found = await Promise.all(peers.map(async p => {
     const ip = (p.TailscaleIPs || [])[0];
     if (!ip) return null;
@@ -169,7 +179,7 @@ let selfDnsCache = { at: 0, value: '' };
 async function getSelfDns() {
   if (Date.now() - selfDnsCache.at < 60000) return selfDnsCache.value;
   try {
-    selfDnsCache = { at: Date.now(), value: ((JSON.parse(await sh('tailscale', ['status', '--json'])).Self || {}).DNSName || '').replace(/\.$/, '') };
+    selfDnsCache = { at: Date.now(), value: ((JSON.parse(await sh(TAILSCALE_EXE, ['status', '--json'])).Self || {}).DNSName || '').replace(/\.$/, '') };
   } catch { selfDnsCache = { at: Date.now(), value: '' } }
   return selfDnsCache.value;
 }
@@ -186,7 +196,7 @@ function getLanIp() {
 // nenhuma nunca aparece pra ninguém sem alguém copiar/colar token na mão.
 async function announceToPeers() {
   let selfDns = '';
-  try { selfDns = (JSON.parse(await sh('tailscale', ['status', '--json'])).Self || {}).DNSName || '' } catch {}
+  try { selfDns = (JSON.parse(await sh(TAILSCALE_EXE, ['status', '--json'])).Self || {}).DNSName || '' } catch {}
   selfDns = selfDns.replace(/\.$/, '');
   if (!selfDns) return;
   const peers = await discoverForgePeers();

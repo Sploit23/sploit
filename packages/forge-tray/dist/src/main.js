@@ -276,15 +276,20 @@ function goto(name){
   ['list','pair','proj'].forEach(function(k){ document.getElementById('pg-'+k).classList.toggle('hidden',k!==name) });
 }
 document.querySelectorAll('[data-back]').forEach(function(b){b.onclick=function(){goto('list')}});
+function paintPairing(devices){
+  var self=(devices||[]).find(function(d){return d.self}) || (devices||[])[0];
+  var link='https://'+(self&&self.dnsName?self.dnsName:'')+'/#t='+TOKEN;
+  document.getElementById('pairlink').value=link;
+  document.getElementById('qrbox').innerHTML='';
+  if(self&&self.dnsName){ var qr=qrcode(0,'M');qr.addData(link);qr.make();document.getElementById('qrbox').innerHTML=qr.createSvgTag(4); }
+}
 document.getElementById('wpair').onclick=function(){
   goto('pair');
-  api('/api/mesh').then(function(devices){
-    var self=devices.find(function(d){return d.self}) || devices[0];
-    var link='https://'+(self&&self.dnsName?self.dnsName:'')+'/#t='+TOKEN;
-    document.getElementById('pairlink').value=link;
-    var qr=qrcode(0,'M');qr.addData(link);qr.make();
-    document.getElementById('qrbox').innerHTML=qr.createSvgTag(4);
-  });
+  // reaproveita o cache de loadMesh() (~5s pra buscar de novo seria bobagem
+  // -- o usuário já esperou isso quando a faixinha abriu) -- só busca na
+  // hora se ainda não tiver nada (primeiríssimo clique, antes do 1º load).
+  if(lastDevices.length)paintPairing(lastDevices);
+  else api('/api/mesh').then(function(devices){ lastDevices=devices; paintPairing(devices) });
 };
 document.getElementById('copylink').onclick=function(){
   var v=document.getElementById('pairlink').value;
