@@ -294,8 +294,12 @@ if ($HEADLESS) {
     $trayBase = "https://github.com/Sploit23/sploit/raw/refs/heads/dev/packages/forge-tray/dist"
     $trayOk = $true
     try {
+        # mesmo cache-bust de Get-Asset acima -- o GitHub já serviu versão em
+        # cache pra esses raw/refs/heads/dev/... (achado em 24/11), e aqui não
+        # tinha a proteção ainda.
+        $trayCacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
         foreach ($f in @("package.json", "src/main.js", "src/pairing.js", "launch-tray.vbs", "assets/tray-icon-16.png", "assets/tray-icon-32.png", "assets/tray-icon-64.png", "assets/tray-icon-128.png", "assets/forge-tray.ico")) {
-            Invoke-WebRequest -Uri "$trayBase/$f" -OutFile (Join-Path $TRAY_DIR $f) -UseBasicParsing
+            Invoke-WebRequest -Uri "$trayBase/${f}?v=$trayCacheBust" -OutFile (Join-Path $TRAY_DIR $f) -UseBasicParsing -Headers @{ 'Cache-Control' = 'no-cache' }
         }
         # electron.exe vem do zip oficial direto, não via `npm install electron`
         # -- confirmado nesta mesma sessão de testes que a extração via

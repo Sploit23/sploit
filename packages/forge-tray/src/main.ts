@@ -9,38 +9,195 @@ let tray: Tray | null = null
 // uma janela nativa por PC -- clicar de novo foca a que já existe em vez
 // de empilhar outra apontando pro mesmo link.
 const pcWindows = new Map<string, BrowserWindow>()
+// --- Bit: a faixinha de status que fica sempre no topo ---------------------
+// Substituiu a barra antiga (só nome+dot+× por PC, feedback real do usuário:
+// "aquela barra feia") por um widget que faz 3 coisas que importavam de
+// verdade: ver quem tá online/pensando, parear aparelho novo (QR de
+// verdade, mesma lib do app), e criar/procurar projeto -- tudo sem precisar
+// abrir a janela completa. Status ao vivo via o mesmo /api/events (SSE) que
+// a tela Pedidos do PWA já usa, não fica dando polling. Janela continua
+// transparente/sem moldura -- "colapsar" é só CSS, a janela nunca muda de
+// tamanho de verdade (mais simples que IPC de resize, e o fundo
+// transparente já esconde a sobra).
 const BAR_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
-html,body{margin:0;background:transparent;overflow:hidden;user-select:none}
-#bar{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;background:rgba(8,11,20,.88);border:1px solid rgba(125,211,252,.25);border-radius:14px;backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,.45);font:11px ui-monospace,Consolas,monospace;color:#e6edf7}
-.pc{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid;border-radius:10px;background:rgba(17,24,39,.92);font:inherit;white-space:nowrap}
-.pc.main{border-color:rgba(125,211,252,.55);color:#7dd3fc}
-.pc.bot{border-color:rgba(52,211,153,.5);color:#6ee7b7}
-.dot{width:7px;height:7px;border-radius:50%;background:#64748b}
-.dot.on{background:#34d399;box-shadow:0 0 6px #34d399}
-.close{margin-left:4px;width:20px;height:20px;padding:0;border:1px solid rgba(148,163,184,.55);border-radius:6px;background:rgba(30,41,59,.95);color:#e2e8f0;font:bold 14px ui-monospace,Consolas,monospace;cursor:pointer;line-height:18px;text-align:center}
-.close:hover{background:rgba(71,85,105,.95);color:#fff}
-</style></head><body><div id="bar"></div><script>
+:root{--bg:#05070d;--panel:#11131f;--ln:#1f2436;--mu:#7b85a3;--tx:#eef1fb;--blue:#3ef0d8;--purple:#a855f7;--ok:#2dd4a5;--off:#4a5568;--pink:#ef4fd8}
+html,body{margin:0;background:transparent;overflow:hidden;-webkit-user-select:none;user-select:none;height:100%}
+*{box-sizing:border-box}
+body{font:13px/1.4 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--tx);display:flex;justify-content:center;padding-top:8px}
+.widget{width:272px;border:1px solid #2a3350;background:#0d1120d9;backdrop-filter:blur(14px);box-shadow:0 20px 50px -14px #000000b0, inset 0 1px 0 #ffffff0f;border-radius:18px;overflow:hidden;transition:height .25s}
+.whead{display:flex;align-items:center;gap:8px;height:40px;padding:0 8px 0 10px;cursor:pointer;-webkit-app-region:drag}
+.whead button{-webkit-app-region:no-drag}
+.bit{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--blue),var(--purple));flex:none;position:relative;box-shadow:0 0 8px #3ef0d84d;transition:background .4s,box-shadow .4s}
+.bit .eyes{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);display:flex;gap:4px}
+.bit .eye{width:3px;height:3px;border-radius:50%;background:#06101a;transition:height .12s}
+.bit.blink .eye{height:1px;border-radius:1px}
+.widget.needs .bit{background:linear-gradient(135deg,var(--pink),#ff8a3d);box-shadow:0 0 12px #ef4fd8a0;animation:bitshake .5s ease-in-out infinite}
+@keyframes bitshake{0%,100%{transform:rotate(0)}25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
+.whead b{font-size:11.5px;font-weight:700;white-space:nowrap;flex:1}
+.widget.needs .whead b{color:var(--pink)}
+.whead .chev{color:var(--mu);font-size:10px;transition:transform .3s}
+.widget.expanded .whead .chev{transform:rotate(180deg)}
+.wctl{width:18px;height:18px;border-radius:5px;border:none;background:transparent;color:var(--mu);font-size:10px;cursor:pointer}
+.wctl:hover{background:#ffffff1a;color:var(--tx)}
+.wbody{display:none;flex-direction:column;max-height:380px}
+.widget.expanded .wbody{display:flex}
+.page{display:flex;flex-direction:column}
+.page.hidden{display:none}
+.wlist{overflow-y:auto;padding:2px 8px 6px;display:flex;flex-direction:column;gap:5px;max-height:240px}
+.lbl{font:9px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.1em;color:#5a6485;text-transform:uppercase;margin:6px 2px 0}
+.node{border:1px solid #1f2436;background:#11131fb0;border-radius:10px;padding:7px 9px}
+.node .nh{display:flex;align-items:center;gap:6px}
+.node .d{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 5px #2dd4a580;flex:none}
+.node .d.off{background:var(--off);box-shadow:none}
+.node .nm{font-size:11.5px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node .role{font:8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--blue);border:1px solid #3ef0d84a;border-radius:9px;padding:1px 5px}
+.node .role.bot{color:#6a7493;border-color:#1f2436}
+.node.off{opacity:.45}
+.wactions{display:flex;gap:7px;padding:8px}
+.wa{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 0;border-radius:9px;border:1px solid #1f2436;background:#161a2a;color:var(--tx);cursor:pointer;font-size:10.5px;font-weight:700}
+.wa:hover{border-color:var(--blue)}
+.phead{display:flex;align-items:center;gap:7px;padding:8px 10px 2px}
+.back{width:19px;height:19px;border-radius:50%;background:#161a2a;border:1px solid #1f2436;color:var(--mu);cursor:pointer;font-size:11px}
+.phead b{font-size:11px}
+.pbody{padding:4px 12px 12px;display:flex;flex-direction:column;align-items:center;gap:8px}
+#qrbox{width:140px;height:140px;border-radius:9px;overflow:hidden;background:#0a0d16;border:1px solid #1f2436}
+#qrbox svg{width:100%;height:100%}
+.qrhint{font-size:10px;color:var(--mu);text-align:center}
+.linkrow{width:100%;display:flex;gap:5px}
+.linkrow input{flex:1;background:#0d1320;border:1px solid #1f2436;border-radius:7px;padding:6px 8px;color:var(--mu);font:9.5px ui-monospace,Consolas,monospace;min-width:0}
+.linkrow button{border-radius:7px;border:1px solid #1f2436;background:#161a2a;color:var(--tx);font-size:10px;font-weight:700;padding:0 8px;cursor:pointer}
+.pform{width:100%;display:flex;flex-direction:column;gap:6px}
+.pform label{font:8.5px ui-monospace,Consolas,monospace;color:#5a6485;text-transform:uppercase}
+.pform input{background:#0d1320;border:1px solid #1f2436;border-radius:8px;padding:7px 8px;color:var(--tx);font-size:11px}
+.pgo{border:none;border-radius:8px;padding:8px 0;color:#06110f;background:linear-gradient(135deg,var(--blue),var(--purple));font-size:11px;font-weight:700;cursor:pointer}
+.por{text-align:center;color:#5a6485;font-size:9.5px}
+.pbrowse{border:1px solid #1f2436;background:#161a2a;border-radius:8px;padding:8px 0;color:var(--tx);font-size:11px;font-weight:600;cursor:pointer}
+.approve{border:1px solid #ef4fd84a;background:#1a0f20c0;border-radius:10px;padding:8px 9px;margin:0 8px 6px}
+.approve .ah{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--pink);font-weight:700;margin-bottom:4px}
+.approve .aq{font-size:10.5px;color:var(--tx);line-height:1.4;margin-bottom:6px}
+.approve .arow{display:flex;gap:6px}
+.approve button{flex:1;border-radius:7px;padding:6px 0;font-size:10px;font-weight:700;border:1px solid #1f2436;background:#161a2a;color:var(--tx);cursor:pointer}
+.approve .allow{border-color:transparent;background:linear-gradient(135deg,var(--blue),var(--purple));color:#06110f}
+.empty{color:#5a6485;font-size:10.5px;text-align:center;padding:14px 8px}
+</style></head><body>
+<div class="widget" id="widget">
+  <div class="whead" id="whead">
+    <div class="bit" id="bit"><div class="eyes"><span class="eye"></span><span class="eye"></span></div></div>
+    <b id="wtitle">carregando...</b>
+    <span class="chev">▾</span>
+    <button class="wctl" id="wclose" title="fechar (continua rodando em segundo plano)">✕</button>
+  </div>
+  <div class="wbody">
+    <div class="page" id="pg-list">
+      <div id="approveSlot"></div>
+      <div class="wlist" id="wlist"></div>
+      <div class="wactions">
+        <div class="wa" id="wpair">📱 parear</div>
+        <div class="wa" id="wproj">📁 projeto</div>
+      </div>
+    </div>
+    <div class="page hidden" id="pg-pair">
+      <div class="phead"><div class="back" data-back>‹</div><b>parear aparelho novo</b></div>
+      <div class="pbody">
+        <div id="qrbox"></div>
+        <div class="qrhint">escaneia com a câmera do celular, ou copia o link</div>
+        <div class="linkrow"><input id="pairlink" readonly><button id="copylink">copiar</button></div>
+      </div>
+    </div>
+    <div class="page hidden" id="pg-proj">
+      <div class="phead"><div class="back" data-back>‹</div><b>novo projeto</b></div>
+      <div class="pbody">
+        <div class="pform">
+          <label>nome</label><input id="pname" placeholder="ex: kauanne_natal-loja4">
+          <label>git (opcional, clona direto)</label><input id="pgit" placeholder="https://github.com/...">
+          <button class="pgo" id="pcreate">criar</button>
+        </div>
+        <div class="qrhint">pra procurar uma pasta já existente, abra "Abrir este PC" no menu da bandeja.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="http://127.0.0.1:__PORT_RAW__/vendor/qrcode.min.js"></script>
+<script>
 var TOKEN=__TOKEN__,PORT=__PORT__;
-function api(p){return fetch('http://127.0.0.1:'+PORT+p,{headers:{Authorization:'Bearer '+TOKEN}}).then(function(r){return r.json()})}
+function api(p,opts){return fetch('http://127.0.0.1:'+PORT+p,Object.assign({headers:{Authorization:'Bearer '+TOKEN,'Content-Type':'application/json'}},opts||{})).then(function(r){return r.json()})}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-function render(devices,desktops){
-  document.getElementById('bar').innerHTML=devices.map(function(d){
-    var key=d.self?'local':(d.dnsName||d.hostname),main=!!desktops[key];
-    return '<div class="pc '+(main?'main':'bot')+'" title="'+(main?'PC principal':'bot')+'"><span class="dot '+(d.online?'on':'')+'"></span>'+esc(d.hostname||key)+'</div>';
-  }).join('')+'<button class="close" id="close" title="Fechar barra">&times;</button>';
+var widget=document.getElementById('widget');
+document.getElementById('whead').addEventListener('click',function(e){
+  if(e.target.closest('.wctl'))return;
+  widget.classList.toggle('expanded');
+});
+document.getElementById('wclose').onclick=function(e){e.stopPropagation();window.close()};
+
+// --- lista de PCs + aprovação pendente -------------------------------------
+function renderList(devices){
+  var list=document.getElementById('wlist');
+  var online=devices.filter(function(d){return d.online}).length;
+  document.getElementById('wtitle').textContent=online+'/'+devices.length+' online';
+  var pilots=devices.filter(function(d){return d.pilot}),bots=devices.filter(function(d){return !d.pilot});
+  var html='';
+  if(pilots.length)html+='<div class="lbl">pilotos</div>'+pilots.map(nodeHtml).join('');
+  if(bots.length)html+='<div class="lbl">bots</div>'+bots.map(nodeHtml).join('');
+  list.innerHTML=html||'<div class="empty">nenhum PC conhecido ainda</div>';
 }
-function load(){
+function nodeHtml(d){
+  return '<div class="node'+(d.online?'':' off')+'"><div class="nh"><span class="d'+(d.online?' on':' off')+'"></span><span class="nm">'+esc(d.hostname||d.dnsName)+'</span><span class="role'+(d.pilot?'':' bot')+'">'+(d.pilot?'piloto':'bot')+'</span></div></div>';
+}
+function loadMesh(){ api('/api/mesh').then(renderList).catch(function(){}); }
+loadMesh();setInterval(loadMesh,15000);
+
+function renderApprove(tasks){
+  var slot=document.getElementById('approveSlot');
+  var t=(tasks||[]).find(function(x){return x.status==='waiting_approval'});
+  widget.classList.toggle('needs',!!t);
+  if(!t){slot.innerHTML='';return}
+  slot.innerHTML='<div class="approve"><div class="ah">⏸ esperando você</div><div class="aq">'+esc(t.question||t.text)+'</div><div class="arow"><button data-deny="'+t.id+'">negar</button><button class="allow" data-allow="'+t.id+'">permitir</button></div></div>';
+}
+function loadTasks(){ api('/api/tasks').then(renderApprove).catch(function(){}); }
+loadTasks();setInterval(loadTasks,10000);
+document.addEventListener('click',function(e){
+  var id=e.target.getAttribute('data-allow')||e.target.getAttribute('data-deny');
+  if(!id)return;
+  api('/api/task/'+encodeURIComponent(id)+'/approve',{method:'POST',body:JSON.stringify({approved:!!e.target.getAttribute('data-allow')})}).then(loadTasks);
+});
+
+// --- status ao vivo (pensando/ocioso) via SSE, zero polling extra ----------
+var bit=document.getElementById('bit');
+try{
+  var es=new EventSource('http://127.0.0.1:'+PORT+'/api/events?token='+encodeURIComponent(TOKEN));
+  es.onmessage=function(e){ try{ var k=JSON.parse(e.data).kind; if(k==='busy'){ setTimeout(loadTasks,1500) } }catch(_){} };
+}catch(_){}
+(function blinkLoop(){ setTimeout(function(){ bit.classList.add('blink'); setTimeout(function(){bit.classList.remove('blink')},120); blinkLoop(); },2200+Math.random()*3200); })();
+
+// --- navegação entre páginas -------------------------------------------
+function goto(name){
+  ['list','pair','proj'].forEach(function(k){ document.getElementById('pg-'+k).classList.toggle('hidden',k!==name) });
+}
+document.querySelectorAll('[data-back]').forEach(function(b){b.onclick=function(){goto('list')}});
+document.getElementById('wpair').onclick=function(){
+  goto('pair');
   api('/api/mesh').then(function(devices){
-    Promise.all(devices.map(function(d){
-      return d.self?api('/api/stats'):api('/api/stats?machine='+encodeURIComponent(d.dnsName||d.hostname)).catch(function(){return {desktop:false}});
-    })).then(function(stats){
-      var desktops={};devices.forEach(function(d,i){desktops[d.self?'local':(d.dnsName||d.hostname)]=!!stats[i].desktop});
-      render(devices,desktops);
-    });
-  }).catch(function(){});
-}
-load();setInterval(load,8000);
-document.addEventListener('click',function(e){if(e.target&&e.target.id==='close') window.close()});
+    var self=devices.find(function(d){return d.self}) || devices[0];
+    var link='https://'+(self&&self.dnsName?self.dnsName:'')+'/#t='+TOKEN;
+    document.getElementById('pairlink').value=link;
+    var qr=qrcode(0,'M');qr.addData(link);qr.make();
+    document.getElementById('qrbox').innerHTML=qr.createSvgTag(4);
+  });
+};
+document.getElementById('copylink').onclick=function(){
+  var v=document.getElementById('pairlink').value;
+  navigator.clipboard.writeText(v).then(function(){
+    var b=document.getElementById('copylink');b.textContent='✓ copiado';setTimeout(function(){b.textContent='copiar'},1500);
+  });
+};
+document.getElementById('wproj').onclick=function(){goto('proj')};
+document.getElementById('pcreate').onclick=function(){
+  var name=document.getElementById('pname').value.trim(),git=document.getElementById('pgit').value.trim();
+  if(!name)return;
+  api('/api/projects',{method:'POST',body:JSON.stringify({name:name,git:git})}).then(function(r){
+    if(r&&r.ok){goto('list');document.getElementById('pname').value='';document.getElementById('pgit').value=''}
+  });
+};
 </script></body></html>`
 let barWin: BrowserWindow | null = null
 
@@ -113,7 +270,10 @@ function openBar(): void {
   }
   const info = getPairingInfo()
   const width = screen.getPrimaryDisplay().workAreaSize.width
-  const w = 640, h = 80
+  // alto o bastante pra caber a lista expandida + ações -- "colapsado" é só
+  // CSS (ver .widget.expanded no HTML), a janela em si fica desse tamanho
+  // sempre, mas o fundo transparente esconde a sobra quando fechado.
+  const w = 300, h = 460
   barWin = new BrowserWindow({
     width: w,
     height: h,
@@ -128,7 +288,10 @@ function openBar(): void {
     webPreferences: { contextIsolation: true, webSecurity: false },
   })
   barWin.setAlwaysOnTop(true, "screen-saver")
-  const html = BAR_HTML.replace("__TOKEN__", JSON.stringify(info.token || "")).replace("__PORT__", JSON.stringify(info.port || "7777"))
+  const port = info.port || "7777"
+  const html = BAR_HTML.replaceAll("__TOKEN__", JSON.stringify(info.token || ""))
+    .replaceAll("__PORT__", JSON.stringify(port))
+    .replaceAll("__PORT_RAW__", port)
   void barWin.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html))
   barWin.on("closed", () => { barWin = null })
 }
