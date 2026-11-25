@@ -110,6 +110,7 @@ body{font:13px/1.4 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var
 .widget.expanded .whead .chev{transform:rotate(180deg)}
 .wctl{width:18px;height:18px;border-radius:5px;border:none;background:transparent;color:var(--mu);font-size:10px;cursor:pointer}
 .wctl:hover{background:#ffffff1a;color:var(--tx)}
+.widget:not(.expanded) .wctl,.widget:not(.expanded) .chev{display:none}
 .wbody{display:none;flex-direction:column;max-height:380px}
 .widget.expanded .wbody{display:flex}
 .page{display:flex;flex-direction:column}
@@ -124,6 +125,12 @@ body{font:13px/1.4 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var
 .node .role{font:8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--blue);border:1px solid #3ef0d84a;border-radius:9px;padding:1px 5px}
 .node .role.bot{color:#6a7493;border-color:#1f2436}
 .node.off{opacity:.45}
+.node .act{display:flex;align-items:center;gap:5px;margin-top:4px;font-size:10px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node .act b{color:var(--tx);font-weight:600}
+.node .think{width:4px;height:4px;border-radius:50%;background:var(--pink);flex:none;animation:think 1s ease-in-out infinite}
+@keyframes think{0%,100%{transform:scale(.7);opacity:.4}50%{transform:scale(1.15);opacity:1}}
+.bit.thinking{animation:thinkpulse 1.1s ease-in-out infinite}
+@keyframes thinkpulse{0%,100%{box-shadow:0 0 8px #3ef0d84d}50%{box-shadow:0 0 16px #3ef0d8a0}}
 .wactions{display:flex;gap:7px;padding:8px}
 .wa{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 0;border-radius:9px;border:1px solid #1f2436;background:#161a2a;color:var(--tx);cursor:pointer;font-size:10.5px;font-weight:700}
 .wa:hover{border-color:var(--blue)}
@@ -156,6 +163,7 @@ body{font:13px/1.4 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var
     <div class="bit" id="bit"><div class="eyes"><span class="eye"></span><span class="eye"></span></div></div>
     <b id="wtitle">carregando...</b>
     <span class="chev">▾</span>
+    <button class="wctl" id="wmin" title="minimizar">﹘</button>
     <button class="wctl" id="wclose" title="fechar (continua rodando em segundo plano)">✕</button>
   </div>
   <div class="wbody">
@@ -199,12 +207,22 @@ document.getElementById('whead').addEventListener('click',function(e){
   widget.classList.toggle('expanded');
 });
 document.getElementById('wclose').onclick=function(e){e.stopPropagation();window.close()};
+document.getElementById('wmin').onclick=function(e){e.stopPropagation();widget.classList.remove('expanded')};
 
 // --- lista de PCs + aprovação pendente -------------------------------------
+// activeLabel: pra cada PC, se tem um Pedido running/queued mirando ele,
+// mostra o texto do pedido em vez de "ocioso" -- mesmo dado que a tela
+// Pedidos do PWA já mostra, só reaproveitado aqui (sem endpoint novo).
+var lastTasks=[],thinking=false;
+function activeLabel(d){
+  var t=lastTasks.find(function(x){return (x.status==='running'||x.status==='queued')&&x.machine&&(x.machine.toLowerCase()===((d.hostname||'').toLowerCase())||x.machine.toLowerCase()===((d.dnsName||'').toLowerCase()))});
+  return t ? t.text : null;
+}
 function renderList(devices){
+  lastDevices=devices;
   var list=document.getElementById('wlist');
   var online=devices.filter(function(d){return d.online}).length;
-  document.getElementById('wtitle').textContent=online+'/'+devices.length+' online';
+  if(!thinking)document.getElementById('wtitle').textContent=online+'/'+devices.length+' online';
   var pilots=devices.filter(function(d){return d.pilot}),bots=devices.filter(function(d){return !d.pilot});
   var html='';
   if(pilots.length)html+='<div class="lbl">pilotos</div>'+pilots.map(nodeHtml).join('');
@@ -212,14 +230,19 @@ function renderList(devices){
   list.innerHTML=html||'<div class="empty">nenhum PC conhecido ainda</div>';
 }
 function nodeHtml(d){
-  return '<div class="node'+(d.online?'':' off')+'"><div class="nh"><span class="d'+(d.online?' on':' off')+'"></span><span class="nm">'+esc(d.hostname||d.dnsName)+'</span><span class="role'+(d.pilot?'':' bot')+'">'+(d.pilot?'piloto':'bot')+'</span></div></div>';
+  var act=d.online?activeLabel(d):null;
+  var actHtml=!d.online?'':act?'<div class="act"><span class="think"></span>executando: <b>"'+esc(act.length>42?act.slice(0,42)+'…':act)+'"</b></div>':'<div class="act">ocioso</div>';
+  return '<div class="node'+(d.online?'':' off')+'"><div class="nh"><span class="d'+(d.online?' on':' off')+'"></span><span class="nm">'+esc(d.hostname||d.dnsName)+'</span><span class="role'+(d.pilot?'':' bot')+'">'+(d.pilot?'piloto':'bot')+'</span></div>'+actHtml+'</div>';
 }
+var lastDevices=[];
 function loadMesh(){ api('/api/mesh').then(renderList).catch(function(){}); }
 loadMesh();setInterval(loadMesh,15000);
 
 function renderApprove(tasks){
+  lastTasks=tasks||[];
+  if(lastDevices.length)renderList(lastDevices); // reflete tarefa nova na lista sem esperar o próximo ciclo do mesh
   var slot=document.getElementById('approveSlot');
-  var t=(tasks||[]).find(function(x){return x.status==='waiting_approval'});
+  var t=lastTasks.find(function(x){return x.status==='waiting_approval'});
   widget.classList.toggle('needs',!!t);
   if(!t){slot.innerHTML='';return}
   slot.innerHTML='<div class="approve"><div class="ah">⏸ esperando você</div><div class="aq">'+esc(t.question||t.text)+'</div><div class="arow"><button data-deny="'+t.id+'">negar</button><button class="allow" data-allow="'+t.id+'">permitir</button></div></div>';
@@ -236,9 +259,17 @@ document.addEventListener('click',function(e){
 var bit=document.getElementById('bit');
 try{
   var es=new EventSource('http://127.0.0.1:'+PORT+'/api/events?token='+encodeURIComponent(TOKEN));
-  es.onmessage=function(e){ try{ var k=JSON.parse(e.data).kind; if(k==='busy'){ setTimeout(loadTasks,1500) } }catch(_){} };
+  es.onmessage=function(e){
+    try{
+      var k=JSON.parse(e.data).kind;
+      thinking=(k==='busy'||k==='retry');
+      bit.classList.toggle('thinking',thinking);
+      document.getElementById('wtitle').textContent=thinking?(k==='retry'?'tentando de novo...':'pensando...'):(lastDevices.filter(function(d){return d.online}).length+'/'+lastDevices.length+' online');
+      if(k==='idle')setTimeout(loadTasks,1200); // pode ter terminado algo -- atualiza sem esperar o poll de 10s
+    }catch(_){}
+  };
 }catch(_){}
-(function blinkLoop(){ setTimeout(function(){ bit.classList.add('blink'); setTimeout(function(){bit.classList.remove('blink')},120); blinkLoop(); },2200+Math.random()*3200); })();
+(function blinkLoop(){ setTimeout(function(){ if(!thinking){bit.classList.add('blink');setTimeout(function(){bit.classList.remove('blink')},120)} blinkLoop(); },2200+Math.random()*3200); })();
 
 // --- navegação entre páginas -------------------------------------------
 function goto(name){
