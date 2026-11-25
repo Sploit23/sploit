@@ -104,6 +104,9 @@ const getDeviceName = () => { try { return fs.readFileSync(NAME_FILE, 'utf8').tr
 // `opencode serve`, que é o único dos dois com API HTTP programável.
 const CLI_FILE = path.join(__dirname, 'coordinator-cli.txt');
 const getCoordinatorCli = () => { try { const v = fs.readFileSync(CLI_FILE, 'utf8').trim(); return v === 'claude' ? 'claude' : 'opencode' } catch { return 'opencode' } };
+// por enquanto a malha mostra só o projeto produto; os outros ficam
+// registrados na máquina, mas fora da lista compartilhada.
+const MESH_PROJECTS = (process.env.FORGE_MESH_PROJECTS || 'sploit').split(',').map(s => s.trim()).filter(Boolean);
 // Coordenador só aparece em PCs com o app de bandeja instalado (desktop
 // de verdade na frente, não um PC controlado só remotamente). Detecta pela
 // presença do electron.exe que o instalador baixa -- mesmo truque de
@@ -733,7 +736,8 @@ const srv = http.createServer(async (req, res) => {
         // ao vivo que list_projects do MCP já faz (local + /api/known-devices
         // + /api/projects de cada um), reusada daqui pra não duplicar lógica
         // entre "o Coordenador fala sozinho" e "a pessoa toca num ícone".
-        return J(await mcpCoordinator.listAllProjects({ token: TOKEN, port: PORT }));
+        const all = await mcpCoordinator.listAllProjects({ token: TOKEN, port: PORT });
+        return J(all.filter(e => MESH_PROJECTS.includes(e.name) || MESH_PROJECTS.includes(e.alias)));
       }
       if (u.pathname === '/api/coordinator/prompt' && req.method === 'POST') {
         // ponte pro dispatch remoto: outra máquina do mesh chama isso quando
@@ -1246,7 +1250,7 @@ const srv = http.createServer(async (req, res) => {
       // máquina (getCoordinatorCli()); antes o Pedido sempre rodava via
       // opencode, ignorando até a config do próprio Coordenador.
       const engine = b.engine === 'claude' || b.engine === 'opencode' ? b.engine : getCoordinatorCli();
-      const t = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: Date.now(), text, machine: String(b.machine || '').trim().slice(0, 64), engine, status: 'queued' };
+      const t = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: Date.now(), text, machine: String(b.machine || '').trim().slice(0, 64), project: String(b.project || '').trim().slice(0, 64), engine, status: 'queued' };
       TASKS.push(t);
       if (TASKS.length > 30) TASKS = TASKS.slice(-30);
       saveTasks();
@@ -1749,6 +1753,7 @@ async function operatorPrompt(t) {
     `Pedido do usuário: "${t.text}"`,
     'Máquinas: ' + devices.map(d => d.hostname + (d.self ? ' (este PC)' : d.pilot ? ' [piloto]' : ' [bot]')).join(', ') + '. Bots só respondem run_command/read_file/write_file/edit_file/list_dir -- não têm sessão de agente própria (dispatch só funciona em projetos, não direto num bot).',
     hit ? `O pedido parece ser sobre "${hit.hostname}" (${hit.dnsName}) -- use machine="${hit.hostname}" nas ferramentas.` : '',
+    t.project ? `Projeto atual fixado: "${t.project}" -- continue esse projeto, não comece outro; use list_projects pra achar o caminho e a máquina dele.` : '',
     'Se o pedido for sobre continuar/trabalhar num projeto específico: use list_projects pra achar o caminho e a máquina certa; leia "<caminho>/.sploit-handoff.md" com read_file (se existir) pra saber onde a última sessão parou; se o projeto for um repositório git com remote configurado, dê um `git pull` nele via run_command antes de agir.',
     'Ao terminar um trabalho que mudou código num projeto com git+remote: comite e dê `git push`, e reescreva o ".sploit-handoff.md" dele (data/hora, o que foi feito, estado atual, próximo passo) via write_file -- é assim que a pessoa continua o mesmo projeto de outro PC/engine depois.',
     'Regras: execute as ferramentas de verdade antes de responder; pra diagnóstico use comandos de leitura (serviços, logs, fila de impressão, eventos); corrija quando for seguro.',

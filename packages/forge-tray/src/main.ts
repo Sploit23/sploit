@@ -25,8 +25,8 @@ html,body{margin:0;background:transparent;overflow:hidden;-webkit-user-select:no
 *{box-sizing:border-box}
 body{font:13px/1.4 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--tx);display:flex;justify-content:center;align-items:flex-start;padding-top:8px}
 .widget{width:272px;border:1px solid #2a3350;background:#0d1120d9;backdrop-filter:blur(14px);box-shadow:0 20px 50px -14px #000000b0, inset 0 1px 0 #ffffff0f;border-radius:18px;overflow:hidden;transition:height .25s}
-.whead{display:flex;align-items:center;gap:8px;height:40px;padding:0 8px 0 10px;cursor:pointer;-webkit-app-region:drag}
-.whead button{-webkit-app-region:no-drag}
+.whead{display:flex;align-items:center;gap:8px;height:40px;padding:0 8px 0 10px;cursor:pointer}
+.wgrip{-webkit-app-region:drag;width:14px;height:100%;flex:none;display:flex;align-items:center;justify-content:center;color:#5a6485;font-size:13px;cursor:move}
 .bit{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--blue),var(--purple));flex:none;position:relative;box-shadow:0 0 8px #3ef0d84d;transition:background .4s,box-shadow .4s}
 .bit .eyes{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);display:flex;gap:4px}
 .bit .eye{width:3px;height:3px;border-radius:50%;background:#06101a;transition:height .12s}
@@ -89,6 +89,7 @@ body{font:13px/1.4 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var
 </style></head><body>
 <div class="widget" id="widget">
   <div class="whead" id="whead">
+    <span class="wgrip" title="arrastar">≡</span>
     <div class="bit" id="bit"><div class="eyes"><span class="eye"></span><span class="eye"></span></div></div>
     <b id="wtitle">verificando PCs...</b>
     <span class="chev">▾</span>
@@ -132,7 +133,7 @@ function api(p,opts){return fetch('http://127.0.0.1:'+PORT+p,Object.assign({head
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 var widget=document.getElementById('widget');
 document.getElementById('whead').addEventListener('click',function(e){
-  if(e.target.closest('.wctl'))return;
+  if(e.target.closest('.wctl,.wgrip'))return;
   widget.classList.toggle('expanded');
 });
 document.getElementById('wclose').onclick=function(e){e.stopPropagation();window.close()};

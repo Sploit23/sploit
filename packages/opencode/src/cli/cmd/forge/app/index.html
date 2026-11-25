@@ -201,6 +201,16 @@ button.dg{border-color:#ef444466;color:var(--er)}button.dg:disabled{opacity:.35}
 #pvport{width:92px;flex:none}#pvf{flex:1;border:0;width:100%;background:#fff}
 .scw{flex:1;overflow:auto}#scimg{display:block;width:100%;height:auto}#scmsg{padding:14px;color:var(--mu)}
 
+/* ---------- Bit: a mesma carinha da faixinha do PC, agora no PWA ---------- */
+.bitpwa{width:24px;height:24px;border-radius:8px;flex:none;position:relative;background:linear-gradient(135deg,#3ef0d8,#a855f7);box-shadow:0 0 9px #3ef0d84d;transition:background .3s}
+.bitpwa .biteyes{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);display:flex;gap:4px}
+.bitpwa i{width:3px;height:3px;border-radius:50%;background:#06101a;transition:height .12s}
+.bitpwa.blink i{height:1px;border-radius:1px}
+.bitpwa.thinking{animation:bitpulse 1s ease-in-out infinite}
+.bitpwa.needs{background:linear-gradient(135deg,#ef4fd8,#ff8a3d);box-shadow:0 0 12px #ef4fd8a0}
+@keyframes bitpulse{0%,100%{box-shadow:0 0 8px #3ef0d84d}50%{box-shadow:0 0 16px #3ef0d8a0}}
+.botrow{padding:10px 0;border-bottom:1px solid var(--ln);display:flex;flex-direction:column;gap:6px}
+
 /* ---------- nav: sidebar fixa (largo) / barra inferior (estreito) ---------- */
 #nav{display:none;position:fixed;z-index:30;background:var(--panel);border-color:var(--ln)}
 body.with-nav #nav{display:flex}
@@ -260,18 +270,17 @@ body.with-nav #nav{display:flex}
 <nav id="nav">
   <div class="navbrand brand"><b>Sploit-Forge</b></div>
   <button class="navitem" data-go="home">🏠 Central</button>
-  <button class="navitem" data-go="orders">⚡ Pedidos</button>
-  <button class="navitem" data-go="projects">📁 Projetos</button>
-  <button class="navitem" data-go="browse" id="navexplorer">🗂️ Arquivos</button>
-  <button class="navitem" data-go="devices">📲 Pareamento</button>
+  <button class="navitem" data-go="bots">🤖 Bots</button>
+  <button class="navitem" data-go="settings">⚙️ Ajustes</button>
   <div class="navspacer"></div>
 </nav>
 
 <div class="screen" id="home">
   <span id="selficon" style="display:none"></span><small id="host" style="display:none"></small>
   <div class="top">
+    <div class="bitpwa" id="pbit"><span class="biteyes"><i></i><i></i></span></div>
     <div class="brand tappable" id="centralbrand"><b>Central</b><span class="chev">▾</span></div>
-    <div class="hd"><span class="tag" id="mode">● link ok</span><button id="pushbtn" title="notificações">🔕</button><button id="newp" title="novo projeto">+ projeto</button></div>
+    <div class="hd"><span class="tag" id="mode">● link ok</span><button id="centralorders" title="Pedidos">⚡</button><button id="pushbtn" title="notificações">🔕</button><button id="newp" title="novo projeto">+ projeto</button></div>
   </div>
   <div class="devstrip" id="devstrip"></div>
   <div class="central-body" id="centralbody">
@@ -281,6 +290,7 @@ body.with-nav #nav{display:flex}
       <div class="m"><i>RAM</i><b id="vm">–</b><u><s id="bm"></s></u></div>
       <div class="m"><i>UPTIME</i><b id="vu">–</b><u><s id="bu" style="width:100%;opacity:.25"></s></u></div>
     </div>
+    <div><button class="go" id="centralcont" style="width:100%">⚡ Pedidos — continuar no PC selecionado</button></div>
     <div>
       <div class="lbl">Projetos <a id="centralallprojects">ver todos</a></div>
       <div class="projrow" id="centralprojects"></div>
@@ -301,6 +311,29 @@ body.with-nav #nav{display:flex}
       <a id="centralmicfb" href="#" target="_blank" style="display:none" title="o iOS bloqueia o microfone dentro do app instalado -- abre a mesma tela num navegador normal pra ditar">🌐</a>
       <button id="centralsend" class="go">➤</button>
     </div>
+  </div>
+</div>
+
+<div class="screen" id="bots">
+  <div class="top"><div class="brand"><b>Bots</b></div><span class="tag" id="botscount">–</span></div>
+  <div class="card" id="botlist"></div>
+</div>
+
+<div class="screen" id="settings">
+  <div class="top"><div class="brand"><b>Ajustes</b></div></div>
+  <div class="card">
+    <div class="lbl">Projeto fixado na malha</div>
+    <select id="setproject" style="width:100%"></select>
+    <div class="mu" id="setmachinelabel" style="margin-top:8px"></div>
+    <div class="lbl" style="margin-top:14px">Motor dos Pedidos</div>
+    <button id="setengine" class="tag"></button>
+    <div class="lbl" style="margin-top:14px">Nome deste PC</div>
+    <div class="inrow"><input id="setname" placeholder="nome deste PC"><button id="setnamesave">salvar</button></div>
+    <div class="lbl" style="margin-top:14px">Atualização</div>
+    <button id="setupdate" class="tag">verificar atualizações</button>
+    <div class="mu" id="setupdatelog" style="margin-top:8px"></div>
+    <div class="lbl" style="margin-top:14px">Coordenador</div>
+    <button id="setcli" class="tag"></button>
   </div>
 </div>
 
@@ -387,16 +420,18 @@ body.with-nav #nav{display:flex}
 <script>
 const $=s=>document.querySelector(s);
 let DEEP_LINK_VIEW='';
-(function(){const h=location.hash;const m=h.match(/t=([^&]+)/);if(m){localStorage.forge_token=decodeURIComponent(m[1])}const v=h.match(/view=([^&]+)/);if(v)DEEP_LINK_VIEW=decodeURIComponent(v[1]);if(m||v)history.replaceState(null,'',location.pathname+location.search)})();
+(function(){const h=location.hash;const m=h.match(/t=([^&]+)/);if(m){localStorage.forge_token=decodeURIComponent(m[1])}const v=h.match(/view=([^&]+)/);if(v)DEEP_LINK_VIEW=decodeURIComponent(v[1]);const p=h.match(/project=([^&]+)/);if(p)localStorage.forge_project=decodeURIComponent(p[1]);if(m||v||p)history.replaceState(null,'',location.pathname+location.search)})();
 let TOKEN=localStorage.forge_token||'',DEMO=false,term,fit,ws,timer,thinkTimer,booted=false,ordTimer=null;
 const h=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
-const NAV_SCREENS=['home','projects','browse','devices','orders'];
+const NAV_SCREENS=['home','bots','settings','projects','browse','devices','orders'];
 const show=id=>{
   document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));
   document.body.classList.toggle('with-nav',NAV_SCREENS.includes(id));
   document.body.classList.toggle('on-central',id==='home');
   document.querySelectorAll('.navitem').forEach(b=>b.classList.toggle('on',b.dataset.go===id));
-  if(id==='orders'){refreshOrders();renderOrdChips();connectEvents()}
+  if(id==='bots')renderBots();
+  if(id==='settings')renderSettings();
+  if(id==='orders'||id==='home'){refreshOrders();renderOrdChips();connectEvents()}
   else disconnectEvents();
 };
 const ago=t=>{const s=Math.max(0,Date.now()/1e3-t);return s<60?'agora':s<3600?Math.floor(s/60)+' min':s<86400?Math.floor(s/3600)+' h':Math.floor(s/86400)+' d'};
@@ -621,13 +656,17 @@ function openCentralMenu(){
   sheet(
     h('b',0,'Central'),
     mk('🏠 Central — onde você está agora',closeSheet),
-    mk('📁 Projetos — grade completa, todos os PCs',()=>{closeSheet();show('projects');refresh()}),
-    mk('🗂️ Arquivos — navegar/mover arquivo entre PCs',()=>{closeSheet();openExplorer()}),
-    mk('📲 Pareamento — QR pra adicionar um aparelho novo',()=>{closeSheet();show('devices');openPairing()}),
+    mk('⚡ Pedidos — continuar o projeto no PC selecionado',()=>{closeSheet();show('orders')}),
+    mk('🤖 Bots — quem está na malha',()=>{closeSheet();show('bots')}),
+    mk('⚙️ Ajustes — projeto fixado, motor e atualização',()=>{closeSheet();show('settings')}),
+    mk('📁 Projetos — grade completa',()=>{closeSheet();show('projects');refresh()}),
+    mk('🗂️ Arquivos — navegar entre PCs',()=>{closeSheet();openExplorer()}),
+    mk('📲 Pareamento — QR pra outro aparelho',()=>{closeSheet();show('devices');openPairing()}),
     mk('cancelar',closeSheet)
   );
 }
 $('#centralbrand').onclick=openCentralMenu;
+$('#centralorders').onclick=$('#centralcont').onclick=()=>show('orders');
 $('#chatback').onclick=closeChat;
 $('#chatsend').onclick=sendChat;
 $('#chatinput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat()}});
@@ -652,7 +691,7 @@ function pollThink(){
 const DEV_ICON='<svg class="dicon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.5" y="4" width="19" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 20h8M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 const loadDevices=()=>{try{return JSON.parse(localStorage.forge_devices||'[]')}catch{return[]}};
 const saveDevices=arr=>localStorage.forge_devices=JSON.stringify(arr);
-const openDevice=d=>location.href='https://'+d.dnsName+'/#t='+encodeURIComponent(d.token);
+const openDevice=d=>location.href='https://'+d.dnsName+'/#t='+encodeURIComponent(d.token)+'&project='+encodeURIComponent(localStorage.forge_project||'sploit');
 function renameDevice(d){
   if(!d.token){sheet(h('b',0,'sem token salvo'),h('div','mu','pareie com o token deste dispositivo primeiro (abaixo) antes de renomear.'),mk('cancelar',closeSheet));return}
   const i=h('input');i.value=d.hostname||d.dnsName;i.placeholder='nome deste dispositivo';
@@ -763,7 +802,7 @@ async function openPilotPicker(){
       if(isHere)return closeSheet();
       if(!d.token)return alert('sem token salvo pra este PC');
       closeSheet();
-      location.href='https://'+d.dnsName+'/#t='+encodeURIComponent(d.token);
+      location.href='https://'+d.dnsName+'/#t='+encodeURIComponent(d.token)+'&project='+encodeURIComponent(localStorage.forge_project||'sploit');
     },isHere?'':'go');
     if(d.online===false){b.disabled=true;b.textContent+=' (offline)'}
     rows.push(b);
@@ -786,6 +825,7 @@ const ORD_LABEL={queued:'na fila',running:'executando',waiting_approval:'aguarda
 async function refreshOrders(){
   const feed=$('#ordfeed');if(!feed||DEMO)return;
   let list=[];try{list=await api('/api/tasks')}catch{return}
+  if(pbit)pbit.classList.toggle('needs',list.some(t=>t.status==='waiting_approval'));
   const near=feed.scrollHeight-feed.scrollTop-feed.clientHeight<120;
   feed.replaceChildren();
   if(!list.length)feed.append(h('div','mu','nenhum pedido ainda — escreva abaixo ou toque num chip/atalho. O piloto executa e te avisa quando terminar.'));
@@ -819,9 +859,10 @@ async function refreshOrders(){
 // Central já mantêm quentes (PRJ_ALL, KNOWN_DEVICES), sem fetch novo.
 function renderOrdChips(){
   const box=$('#ordchips');if(!box)return;
-  const items=[];
+  const items=[],seen=new Set();
+  const pinned=localStorage.forge_project||'sploit';
+  if(pinned){seen.add(pinned);items.push({label:'📌 '+pinned,ins:'projeto '+pinned})}
   (KNOWN_DEVICES||[]).forEach(d=>{const n=d.hostname||d.dnsName;if(n)items.push({label:'🖥️ '+n,ins:n})});
-  const seen=new Set();
   (PRJ_ALL||[]).forEach(p=>{if(p.name&&!seen.has(p.name)){seen.add(p.name);items.push({label:'📁 '+p.name,ins:'projeto '+p.name})}});
   box.replaceChildren();
   if(!items.length){box.append(h('span','mu','sem dispositivos/projetos ainda'));return}
@@ -833,14 +874,16 @@ function renderOrdChips(){
 }
 const ORD_ENGINES=['opencode','claude'];
 let ordEngine=localStorage.forge_ord_engine||'opencode';
-function paintOrdEngine(){const b=$('#ordengine');if(b)b.textContent=ordEngine}
-$('#ordengine').onclick=()=>{ordEngine=ORD_ENGINES[(ORD_ENGINES.indexOf(ordEngine)+1)%ORD_ENGINES.length];localStorage.forge_ord_engine=ordEngine;paintOrdEngine()};
+function paintOrdEngine(){const b=$('#ordengine');if(b)b.textContent=ordEngine;const s=$('#setengine');if(s)s.textContent='Motor: '+ordEngine}
+function toggleEngine(){ordEngine=ORD_ENGINES[(ORD_ENGINES.indexOf(ordEngine)+1)%ORD_ENGINES.length];localStorage.forge_ord_engine=ordEngine;paintOrdEngine()}
+$('#ordengine').onclick=toggleEngine;
+$('#setengine').onclick=toggleEngine;
 paintOrdEngine();
 function sendOrder(text){
   const v=String(text!==undefined?text:($('#ordinput')||{}).value||'').trim();
   if(!v)return;
   if(text===undefined&&$('#ordinput'))$('#ordinput').value='';
-  call('POST','/api/task',{text:v,engine:ordEngine}).then(()=>refreshOrders()).catch(e=>alert(e.message||e));
+  call('POST','/api/task',{text:v,engine:ordEngine,machine:devMachine==='local'?(SELF_NAME||''):devMachine,project:localStorage.forge_project||'sploit'}).then(()=>refreshOrders()).catch(e=>alert(e.message||e));
 }
 $('#ordsend').onclick=()=>sendOrder();
 $('#ordinput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendOrder()}});
@@ -856,6 +899,7 @@ function connectEvents(){
     ordEvt.onmessage=e=>{
       try{
         const{kind}=JSON.parse(e.data);
+        paintBit(kind);
         const live=$('#ordlive');if(!live)return;
         live.className='tag'+(kind==='busy'?' busy':kind==='retry'?' retry':'');
         live.title='piloto: '+kind;
@@ -866,6 +910,45 @@ function connectEvents(){
   }catch{}
 }
 function disconnectEvents(){if(ordEvt){ordEvt.close();ordEvt=null}}
+/* ---------- Bit no PWA + telas Bots/Ajustes ---------- */
+const pbit=$('#pbit');
+setInterval(()=>{if(pbit&&!document.hidden){pbit.classList.add('blink');setTimeout(()=>pbit.classList.remove('blink'),120)}},3200);
+function paintBit(kind){if(pbit)pbit.classList.toggle('thinking',kind==='busy'||kind==='retry')}
+let appliedSavedMachine=false;
+function renderBots(){
+  const L=$('#botlist');if(!L)return;L.replaceChildren();
+  const all=KNOWN_DEVICES||[];
+  const c=$('#botscount');if(c)c.textContent=all.filter(d=>d.online).length+'/'+all.length+' online';
+  if(!all.length){L.append(h('div','mu','nenhum PC conhecido ainda'));return}
+  all.forEach(d=>{
+    const row=h('div','botrow');
+    row.append(h('b',0,(d.hostname||d.dnsName)+(d.pilot?' · piloto':' · bot')));
+    row.append(h('div','mu',d.online?'online':'offline'));
+    const work=h('button','tag','trabalhar aqui');
+    work.onclick=()=>{if(d.token&&d.pilot){openDevice(d)}else{switchDevice(d.dnsName);show('home')}};
+    const order=h('button','tag','fazer pedido');
+    order.onclick=()=>{switchDevice(d.dnsName);show('orders')};
+    row.append(work,order);L.append(row);
+  });
+}
+async function paintCli(){try{const c=await api('/api/coordinator-cli');const b=$('#setcli');if(b)b.textContent='CLI: '+(c.cli||'opencode')}catch{}}
+function renderSettings(){
+  const sel=$('#setproject');if(!sel)return;sel.replaceChildren();
+  const pinned=localStorage.forge_project||'sploit',seen=new Set();
+  (PRJ_ALL||[]).forEach(p=>{
+    if(!p.name||seen.has(p.name))return;
+    seen.add(p.name);const o=document.createElement('option');o.value=p.name;o.textContent=p.name+' · '+(p.machine||'local');sel.append(o);
+  });
+  if(!seen.has(pinned)){const o=document.createElement('option');o.value=pinned;o.textContent=pinned;sel.append(o)}
+  sel.value=pinned;
+  const ml=$('#setmachinelabel');if(ml)ml.textContent='PC selecionado: '+(devMachine==='local'?(SELF_NAME||'este PC'):devMachine);
+  const nm=$('#setname');if(nm&&SELF_NAME&&!nm.value)nm.value=SELF_NAME;
+  paintCli();
+}
+$('#setproject').onchange=e=>{localStorage.forge_project=e.target.value;refresh()};
+$('#setnamesave').onclick=async()=>{const v=$('#setname').value.trim();if(!v)return;try{await call('PUT','/api/device-name',{name:v});refreshDevices()}catch(e){alert(e.message||e)}};
+$('#setupdate').onclick=async()=>{const b=$('#setupdate');b.disabled=true;b.textContent='verificando…';try{const r=await call('POST','/api/check-updates',{});$('#setupdatelog').textContent=JSON.stringify(r)}catch(e){$('#setupdatelog').textContent=e.message||e}b.disabled=false;b.textContent='verificar atualizações'};
+$('#setcli').onclick=async()=>{try{const c=await api('/api/coordinator-cli');const cli=c.cli==='claude'?'opencode':'claude';await call('PUT','/api/coordinator-cli',{cli});paintCli()}catch(e){alert(e.message||e)}};
 let KNOWN_DEVICES=[]; // cache pro dock de arrastar-e-soltar (Fase 5) -- não refaz fetch a cada gesto
 async function refreshDevices(){
   let online=[],known=[];
@@ -878,6 +961,13 @@ async function refreshDevices(){
   renderDeviceStrip(all);
   renderPcBar(all);
   renderPrjDevices();
+  renderBots();
+  renderSettings();
+  if(!appliedSavedMachine){
+    appliedSavedMachine=true;
+    const saved=localStorage.forge_machine;
+    if(saved&&saved!=='local'&&all.some(d=>d.dnsName===saved))switchDevice(saved);
+  }
 }
 // qual PC está sendo mostrado no topo (CPU/RAM/uptime) -- trocar não navega
 // pra lugar nenhum, só busca via proxy, igual Arquivos/Projetos já fazem.
@@ -911,7 +1001,7 @@ async function stats(m){
 }
 function switchDevice(m){
   if(m===devMachine)return;
-  devMachine=m;
+  devMachine=m;localStorage.forge_machine=m;
   stats(m);
   renderDeviceStrip(KNOWN_DEVICES);
   renderPcBar(KNOWN_DEVICES);

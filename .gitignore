@@ -38,3 +38,6 @@ tsconfig.tsbuildinfo
 # forge-tray: JS compilado de src/*.ts por `bun run build:main`, nao versionado
 packages/forge-tray/src/*.js
 packages/forge-tray/src/*.cjs
+
+# Sploit-Forge: contém token local de acesso ao MCP da máquina
+.mcp.json
