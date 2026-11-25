@@ -34,6 +34,10 @@ if (!HEADLESS) {
 }
 const TOKEN = process.env.FORGE_TOKEN || '';
 if (TOKEN.length < 24) { console.error('Defina FORGE_TOKEN com 24+ caracteres'); process.exit(1); }
+// Um timeout de fetch em qualquer fire-and-forget (announce/notify/checkin)
+// virava unhandledRejection e o Node 22 encerrava o gateway -- a PWA via
+// todos os PCs como offline mesmo com a malha inteira de pé. Loga e segue.
+process.on('unhandledRejection', e => console.error('[forge] promessa não tratada:', e && e.message ? e.message : e));
 // processos filhos (shell do /api/exec, sessões de terminal, xdotool) não precisam
 // do token pra nada -- sem isso ele aparece em claro em todo scrollback/log deles.
 const CHILD_ENV = { ...process.env }; delete CHILD_ENV.FORGE_TOKEN;
