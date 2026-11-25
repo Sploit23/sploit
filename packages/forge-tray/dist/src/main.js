@@ -94,7 +94,7 @@ var BAR_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
 :root{--bg:#05070d;--panel:#11131f;--ln:#1f2436;--mu:#7b85a3;--tx:#eef1fb;--blue:#3ef0d8;--purple:#a855f7;--ok:#2dd4a5;--off:#4a5568;--pink:#ef4fd8}
 html,body{margin:0;background:transparent;overflow:hidden;-webkit-user-select:none;user-select:none;height:100%}
 *{box-sizing:border-box}
-body{font:13px/1.4 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--tx);display:flex;justify-content:center;padding-top:8px}
+body{font:13px/1.4 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--tx);display:flex;justify-content:center;align-items:flex-start;padding-top:8px}
 .widget{width:272px;border:1px solid #2a3350;background:#0d1120d9;backdrop-filter:blur(14px);box-shadow:0 20px 50px -14px #000000b0, inset 0 1px 0 #ffffff0f;border-radius:18px;overflow:hidden;transition:height .25s}
 .whead{display:flex;align-items:center;gap:8px;height:40px;padding:0 8px 0 10px;cursor:pointer;-webkit-app-region:drag}
 .whead button{-webkit-app-region:no-drag}
@@ -161,7 +161,7 @@ body{font:13px/1.4 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var
 <div class="widget" id="widget">
   <div class="whead" id="whead">
     <div class="bit" id="bit"><div class="eyes"><span class="eye"></span><span class="eye"></span></div></div>
-    <b id="wtitle">carregando...</b>
+    <b id="wtitle">verificando PCs...</b>
     <span class="chev">▾</span>
     <button class="wctl" id="wmin" title="minimizar">﹘</button>
     <button class="wctl" id="wclose" title="fechar (continua rodando em segundo plano)">✕</button>
