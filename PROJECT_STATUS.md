@@ -527,3 +527,60 @@ link daquele PC específico (token/origem diferentes).
   Primeira coisa a confirmar depois do deploy: abrir ▶ opencode num
   projeto que vive no Escritório estando em Casa (ou vice-versa) e ver se
   o terminal conecta sem navegar pro outro link.
+
+## Pedidos com engine opencode — bug real e lote de 50 melhorias — 26/11
+
+Pedido do usuário: economizar crédito do Claude delegando trabalho pro
+opencode (via Pedidos) em vez do Claude fazer tudo na mão; autorização
+explícita pra rodar sem supervisão durante a madrugada.
+
+- **Bug real encontrado**: `opencode serve` (API HTTP, usada por
+  Pedidos/`dispatch` com engine opencode) respondia 500 "UnknownError" em
+  QUALQUER mensagem, em qualquer diretório, com qualquer modelo — testado
+  isolando cada variável. `opencode run` (modo não-interativo, equivalente
+  ao `claude -p`) funciona normal com o mesmo modelo na mesma pasta. Era
+  por isso que Pedidos/dispatch com engine opencode sempre voltavam
+  `"(sem resposta)"` sem nunca reportar erro (o `/session` de criar sessão
+  tinha sucesso, só o `/message` quebrava).
+- **Corrigido**: `runTask`/`resumeTask` (Pedidos) e `promptProject`
+  (dispatch) agora usam `opencodeHeadlessPrompt()` — `opencode run
+  --format json --auto` via STDIN, mesmo molde do `claudeHeadlessPrompt`
+  já existente. `--auto` autorizado pelo usuário em 26/11, mesma categoria
+  do `--dangerously-skip-permissions` do Claude.
+- **Dois problemas operacionais achados testando isso em produção**:
+  1. `git push` rodado pelo Serviço (LocalSystem) não acha o Git
+     Credential Manager do usuário e **trava** esperando credencial em vez
+     de falhar — travaria a fila inteira (serial). Corrigido com
+     `GIT_TERMINAL_PROMPT=0` no `CHILD_ENV`. Commit ainda funciona local;
+     push de um Pedido precisa ser publicado por uma sessão com
+     credencial de verdade (ex: esta aqui).
+  2. Um restart (auto-update aplicado por QUALQUER Pedido que mude
+     server.js/index.html/etc — o que é esperado numa noite de várias
+     melhorias) **matava a `taskQueue` em memória**, deixando tudo
+     'queued' preso pra sempre, sem nada nunca re-encadear. Corrigido: no
+     boot, todo item 'queued'/'running' salvo em `tasks.json` é
+     re-encadeado na `taskQueue` nova. Limite de itens em memória/arquivo
+     subiu de 30 pra 200 (`TASKS_CAP`) — 30 era pensado só pra "cards
+     recentes na tela", não pra profundidade de fila, e um lote grande
+     enchia isso e descartava os mais antigos antes de rodar.
+- **Lote de 50 melhorias disparado** (ver `GET /api/tasks` pra
+  acompanhar) — cada uma roda via engine opencode, instrução pedindo
+  explicitamente: validar (`node --check`/`bun typecheck`/regenerar
+  `assets.ts` se mudar algo em `app/`) antes de comitar, não comitar se
+  falhar, preferir mudança aditiva. Cobre: endpoints novos (versão,
+  health detalhado, selftest, métricas, logs), documentação (API.md,
+  ONBOARDING.md, TOKEN_ROTATION.md, CHANGELOG.md), testes automatizados,
+  melhorias de PWA (tema claro/escuro, busca, acessibilidade, miniaturas
+  de imagem, seleção em lote no Explorer), robustez (rate limit,
+  compressão, backup de JSON, dry-run do auto-update) e revisões pontuais
+  (CHILD_ENV duplicado, backoff do announce, mensagens de confirmação).
+  Cada Pedido comita local mas o **push de cada um ainda depende de uma
+  sessão com credencial de verdade** (ver item 1 acima) — os commits vão
+  se acumulando em `dev` local nesta máquina até alguém (ou uma sessão
+  com git configurado) dar `git push`.
+- **Risco aceito conscientemente**: isso é um lote grande rodando sem
+  supervisão numa máquina de produção real. Mitigação: cada tarefa é
+  atômica (uma mudança por vez, fácil de isolar/reverter via git se algo
+  sair errado) e nada chega às OUTRAS máquinas da malha via auto-update
+  até alguém publicar os commits locais — o lote fica contido nesta
+  máquina até revisão.
