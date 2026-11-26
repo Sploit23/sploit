@@ -66,6 +66,13 @@ if (WIN) {
     OS: 'Windows_NT',
   });
 }
+// achado em 26/11: `git push` rodado por uma sessão de agente (Pedido/
+// dispatch) quando o Serviço é LocalSystem não acha o Git Credential
+// Manager do usuário -- sem isso, o git TRAVA esperando prompt de
+// usuário/senha em vez de falhar rápido, o que travaria a taskQueue
+// inteira (serial, um Pedido preso nunca libera o próximo). Força o git a
+// falhar rápido em vez de esperar input que nunca vai vir.
+CHILD_ENV.GIT_TERMINAL_PROMPT = '0';
 const PS_EXE = WIN ? path.join(CHILD_ENV.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : '';
 const NPM_BIN = WIN ? path.join(path.dirname(process.execPath), 'npm.cmd') : 'npm';
 // achado em 25/11: rodando como o Serviço do Windows (LocalSystem), o
