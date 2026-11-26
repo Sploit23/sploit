@@ -1404,13 +1404,48 @@ function ensureProjectContinuity(dir) {
     '- Nunca pule esses dois passos -- é assim que a pessoa consegue continuar',
     '  o mesmo projeto de outro PC ou do celular depois.',
   ].join('\n');
+  appendConventionBlock(dir, HANDOFF_MARKER, block);
+  appendConventionBlock(dir, MESH_MEMORY_MARKER, meshMemoryBlock());
+}
+// idempotente (via marcador) em AGENTS.md (opencode) + CLAUDE.md (Claude
+// Code) -- os dois lidos automaticamente por cada CLI, nunca apaga nada
+// que a pessoa já tenha escrito ali.
+function appendConventionBlock(dir, marker, block) {
   for (const fname of ['AGENTS.md', 'CLAUDE.md']) {
     try {
       const p = path.join(dir, fname);
       const existing = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
-      if (!existing.includes(HANDOFF_MARKER)) fs.writeFileSync(p, (existing ? existing.replace(/\s+$/, '') + '\n\n' : '') + block + '\n');
+      if (!existing.includes(marker)) fs.writeFileSync(p, (existing ? existing.replace(/\s+$/, '') + '\n\n' : '') + block + '\n');
     } catch {}
   }
+}
+// Memória da malha: diferente do .sploit-handoff.md (que é POR projeto),
+// isso é um fato/decisão que vale pra QUALQUER projeto da malha --
+// convenção, limitação de API, peculiaridade de hardware de algum PC
+// específico, etc. Vive dentro do projeto "sploit" (MESH_MEMORY.md, na
+// raiz do repo) porque esse já é o primeiro projeto registrado e já
+// sincroniza sozinho via git -- nenhuma infraestrutura nova, só mais uma
+// convenção em cima do read_file/write_file que o MCP já tem.
+const MESH_MEMORY_MARKER = 'Memória da malha (Sploit-Forge)';
+function meshMemoryBlock() {
+  return [
+    `## ${MESH_MEMORY_MARKER}`,
+    '',
+    'Além do bilhete deste projeto (.sploit-handoff.md), existe uma memória',
+    'COMPARTILHADA entre TODOS os projetos da malha: `MESH_MEMORY.md`, na raiz',
+    'do projeto "sploit" (ache o caminho/máquina dele com a ferramenta MCP',
+    'list_projects -- pode estar neste PC ou em outro).',
+    '',
+    '- No INÍCIO de um trabalho que pareça não ser específico só deste projeto',
+    '  (ex: uma API externa, uma peculiaridade de algum PC/hardware, uma',
+    '  convenção de equipe): leia esse `MESH_MEMORY.md` (via read_file, com',
+    '  `machine` se o projeto sploit estiver em outro PC) antes de agir.',
+    '- Se aprender algo que vale pra qualquer projeto/PC da malha (não só',
+    '  este): adicione uma linha curta lá (via edit_file, só acrescentando --',
+    '  nunca reescreva o arquivo inteiro nem apague o que já tem).',
+    '- Só vale a pena registrar ali o que é genuinamente reaproveitável fora',
+    '  deste projeto -- detalhe específico demais fica só no handoff local.',
+  ].join('\n');
 }
 
 function attach(ws) {
@@ -1760,6 +1795,7 @@ async function operatorPrompt(t) {
     t.project ? `Projeto atual fixado: "${t.project}" -- continue esse projeto, não comece outro; use list_projects pra achar o caminho e a máquina dele.` : '',
     'Se o pedido for sobre continuar/trabalhar num projeto específico: use list_projects pra achar o caminho e a máquina certa; leia "<caminho>/.sploit-handoff.md" com read_file (se existir) pra saber onde a última sessão parou; se o projeto for um repositório git com remote configurado, dê um `git pull` nele via run_command antes de agir.',
     'Ao terminar um trabalho que mudou código num projeto com git+remote: comite e dê `git push`, e reescreva o ".sploit-handoff.md" dele (data/hora, o que foi feito, estado atual, próximo passo) via write_file -- é assim que a pessoa continua o mesmo projeto de outro PC/engine depois.',
+    'Existe também uma memória da malha, compartilhada entre TODOS os projetos (não só um): "MESH_MEMORY.md" na raiz do projeto "sploit" (ache com list_projects). Antes de agir em algo que pareça uma convenção/limitação/peculiaridade que vale além deste pedido específico (API externa, hardware de algum PC, etc.), dá uma olhada lá; se aprender algo assim, acrescenta uma linha curta nele via edit_file (nunca reescreva o arquivo inteiro).',
     'Regras: execute as ferramentas de verdade antes de responder; pra diagnóstico use comandos de leitura (serviços, logs, fila de impressão, eventos); corrija quando for seguro.',
     'Se pra completar o pedido você precisar fazer algo IRREVERSÍVEL numa máquina real (apagar, reinstalar, reiniciar, mexer em rede/senha, ou qualquer coisa difícil de desfazer): NÃO faça -- em vez disso, termine sua resposta com uma linha exatamente assim: "AGUARDA_APROVACAO: <pergunta objetiva de sim/não sobre o que você quer fazer>". Isso pausa o pedido e pede autorização da pessoa antes de continuar (ela recebe push e aprova/nega do celular). Use isso só quando for de verdade irreversível; pra tudo que for seguro (diagnóstico, configuração, correção, leitura), já execute sem perguntar.',
     'No fim (quando não precisar de aprovação), responda em no máximo 6 linhas: o que encontrou, o que fez e o que falta.',
