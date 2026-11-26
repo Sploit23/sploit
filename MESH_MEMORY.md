@@ -13,13 +13,25 @@ malha (Sploit-Forge)").
 
 ## Convenções gerais
 
-- (ainda vazio — a primeira sessão que aprender algo reaproveitável
-  entre projetos escreve aqui.)
+- `opencode mcp add`/`claude mcp add --header` exige o formato
+  `CHAVE=VALOR` (igual), não `Chave: Valor` (dois pontos) — o erro de
+  sintaxe errada pode ecoar o valor do header de volta em texto puro na
+  mensagem de erro, então nunca testar essa sintaxe com um segredo real
+  sem necessidade.
+- Git Bash/MSYS mangla path Windows (`C:\...`) quando vai dentro de um
+  argumento de linha de comando (ex: JSON pro `curl -d`) — usar barra
+  normal (`C:/...`) ou escrever o JSON num arquivo e mandar com
+  `curl -d @arquivo.json`.
 
 ## Peculiaridades de hardware/PC conhecidas
 
-- (idem)
+- Tailscale SSH (`tailscale set --ssh`) não é suportado no Windows —
+  só em Linux/ARM. Confirmado testando direto (erro explícito do
+  próprio `tailscale`), não é só falta de permissão/ACL de conta.
 
 ## APIs/serviços externos usados em mais de um projeto
 
-- (idem)
+- `raw.githubusercontent.com` (GitHub raw) serve versão em cache antiga
+  às vezes — sempre anexar um query param anti-cache (`?v=<timestamp>`)
+  e `Cache-Control: no-cache` em qualquer fetch que precise do conteúdo
+  mais recente de verdade.

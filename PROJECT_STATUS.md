@@ -486,10 +486,10 @@ Claude em Casa) — sem perder contexto nem ter que reexplicar tudo.
 - **O que NÃO foi feito** (de propósito, fora do escopo desta sessão):
   nenhuma UI pra escolher remote git na hora de criar um projeto (a
   convenção é agnóstica — funciona com GitHub privado, self-hosted, ou
-  nenhum, mas configurar o remote em si ainda é manual); nenhuma
-  simplificação de navegação do PWA (5 abas continuam 5 — a ideia
-  discutida de reduzir pra Central/Bots/Ajustes ficou só em mockup,
-  nunca entrou no `index.html` real); o Coordenador terminal
+  nenhum, mas configurar o remote em si ainda é manual); a
+  simplificação de navegação do PWA (Central/Bots/Ajustes) foi feita
+  depois disso, na sessão do Escritório de 25/11 (ver `.sploit-handoff.md`
+  daquele dia) — já está em produção; o Coordenador terminal
   (`sessions-native.js`/modo `coordinator` do WS) continua só opencode/
   Claude interativo, sem o engine-por-pedido que os Pedidos ganharam.
 
