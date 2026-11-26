@@ -28,6 +28,11 @@ malha (Sploit-Forge)").
 - Tailscale SSH (`tailscale set --ssh`) não é suportado no Windows —
   só em Linux/ARM. Confirmado testando direto (erro explícito do
   próprio `tailscale`), não é só falta de permissão/ACL de conta.
+- O Serviço do Windows do FORGE roda como `LocalSystem` e não enxerga o
+  Git Credential Manager do usuário: `git push` HTTPS pra GitHub trava
+  esperando credencial (ou falha com "could not read Username") quando
+  disparado pelo agente. Commit local funciona; push tem que ser feito
+  no terminal do próprio usuário (ou com token explícito).
 
 ## APIs/serviços externos usados em mais de um projeto
 
