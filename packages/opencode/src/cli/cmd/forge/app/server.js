@@ -485,6 +485,12 @@ const srv = http.createServer(async (req, res) => {
   if (u.pathname === '/icon.svg') return send('image/svg+xml', ICON_ANY_SVG);
   // sem token: só pra outro FORGE na mesma rede Tailscale se reconhecer (ver /api/peers)
   if (u.pathname === '/health') return send('application/json', JSON.stringify({ forge: true, name: getDeviceName(), pilot: isDesktopInstalled() }));
+  // sem token, igual /health: só diz o commit do repo que este server.js veio.
+  if (u.pathname === '/api/version' && req.method === 'GET') {
+    let commit = '';
+    try { commit = execSync('git rev-parse --short HEAD', { cwd: path.resolve(__dirname, '../..'), encoding: 'utf8' }).trim(); } catch {}
+    return send('application/json', JSON.stringify({ commit }));
+  }
   // sem token de propósito -- ver comentário em KNOWN_FILE acima. Só grava
   // "existo, meu token é X"; nunca devolve nada, nunca lê o registro (isso é
   // /api/known-devices, autenticado).
