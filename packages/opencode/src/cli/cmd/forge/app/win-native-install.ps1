@@ -467,6 +467,13 @@ if (-not $st -or $st.BackendState -ne 'Running') {
     Write-Host "  Tailscale conectado: $((($st.Self.DNSName) -replace '\.$',''))"
 }
 
+# Tailscale SSH (ver bootstrap.sh) não existe no Windows -- "The Tailscale
+# SSH server is not supported on windows" (testado na mão em 25/11). Não
+# tem gambiarra de código que resolva isso, é limitação da própria
+# plataforma -- por isso NÃO tentamos habilitar aqui. O terminal via
+# navegador (já existe, PWA) é o equivalente "de qualquer lugar" pros
+# PCs Windows (Casa/Escritório).
+
 Write-Host "==> Habilitando Tailscale Serve na porta $PORT..."
 $serveOut = ''
 if ($st -and $st.BackendState -eq 'Running') {

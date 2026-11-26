@@ -141,6 +141,13 @@ if ! tailscale status --json 2>/dev/null | grep -q '"BackendState":[[:space:]]*"
   tailscale up --qr --accept-routes=false
 fi
 
+# Tailscale SSH: shell de verdade neste PC a partir de QUALQUER outro
+# aparelho logado na mesma conta Tailscale -- sem chave, sem porta, sem
+# config nenhuma ("tailscale ssh <nome-do-pc>" de lá). Idempotente e
+# não-fatal -- se o ACL da conta ainda não permitir, só avisa e segue.
+echo "==> Habilitando Tailscale SSH (shell remoto de qualquer aparelho seu)..."
+tailscale set --ssh 2>&1 || true
+
 echo "==> Habilitando Tailscale Serve na porta $PORT..."
 SERVE_OUT="$(tailscale serve --bg "$PORT" 2>&1)" && SERVE_OK=1 || SERVE_OK=0
 if [ "$SERVE_OK" -ne 1 ]; then
