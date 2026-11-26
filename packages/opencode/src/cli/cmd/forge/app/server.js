@@ -581,6 +581,39 @@ const srv = http.createServer(async (req, res) => {
     const J = (o, c) => send('application/json', JSON.stringify(o), c);
     try {
       if (u.pathname === '/api/projects' && req.method === 'GET') return J(PROJECTS.map(projectInfo));
+      // diagnóstico detalhado (autenticado): saúde do opencode serve interno,
+      // do fmm-api (se FMM_ENGINE_DIR configurado), espaço livre no FORGE_ROOT
+      // e a última linha do update.log. Só leitura -- nunca sobe processo nem
+      // altera nada, de propósito (nada de ensureOpenCodeServe/ensureFmmApi).
+      if (u.pathname === '/api/health/detailed' && req.method === 'GET') {
+        const detailed = { opencodeServe: { responding: false }, fmmApi: { configured: !!FMM_ENGINE_DIR, responding: null }, disk: null, updateLogLastLine: null };
+        try {
+          const auth = 'Basic ' + Buffer.from('opencode:' + OPENCODE_SERVE_PASSWORD).toString('base64');
+          const r = await fetch(`http://127.0.0.1:${OPENCODE_SERVE_PORT}/doc`, { headers: { Authorization: auth }, signal: AbortSignal.timeout(1500) });
+          detailed.opencodeServe = { responding: r.ok || r.status < 500, status: r.status };
+        } catch (e) { detailed.opencodeServe = { responding: false, error: String(e.message || e) }; }
+        if (FMM_ENGINE_DIR) {
+          try {
+            const r = await fetch(`http://127.0.0.1:${FMM_API_PORT}/health`, { signal: AbortSignal.timeout(1500) });
+            detailed.fmmApi = { configured: true, responding: r.ok, status: r.status };
+          } catch (e) { detailed.fmmApi = { configured: true, responding: false, error: String(e.message || e) }; }
+        }
+        try {
+          if (typeof fs.statfsSync === 'function') {
+            const s = fs.statfsSync(ROOT);
+            detailed.disk = { root: ROOT, freeBytes: s.bavail * s.bsize, totalBytes: s.blocks * s.bsize };
+          } else {
+            detailed.disk = { root: ROOT, freeBytes: null, error: 'statfsSync indisponível nesta versão do Node' };
+          }
+        } catch (e) { detailed.disk = { root: ROOT, freeBytes: null, error: String(e.message || e) }; }
+        try {
+          if (fs.existsSync(UPDATE_LOG)) {
+            const lines = fs.readFileSync(UPDATE_LOG, 'utf8').split(/\r?\n/).filter(Boolean);
+            detailed.updateLogLastLine = lines.length ? lines[lines.length - 1] : null;
+          }
+        } catch (e) { detailed.updateLogLastLine = null; }
+        return J(detailed);
+      }
       if (u.pathname === '/api/exec' && req.method === 'POST') {
         // canal "limpo" pra rodar um comando e ja receber stdout/stderr/code de
         // volta, sem precisar anexar no tmux interativo (que e pensado pra
@@ -1269,7 +1302,7 @@ const srv = http.createServer(async (req, res) => {
       const engine = b.engine === 'claude' || b.engine === 'opencode' ? b.engine : getCoordinatorCli();
       const t = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: Date.now(), text, machine: String(b.machine || '').trim().slice(0, 64), project: String(b.project || '').trim().slice(0, 64), engine, status: 'queued' };
       TASKS.push(t);
-      if (TASKS.length > 30) TASKS = TASKS.slice(-30);
+      if (TASKS.length > TASKS_CAP) TASKS = TASKS.slice(-TASKS_CAP);
       saveTasks();
       // fila serial: dois pedidos ao mesmo tempo disputariam o mesmo diretório
       // de sessão e o mesmo `opencode serve`/processo `claude` -- um de cada
@@ -1807,9 +1840,31 @@ const TASKS_FILE = path.join(__dirname, 'tasks.json');
 function loadTasks() {
   try { const j = JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8')); return Array.isArray(j) ? j : [] } catch { return [] }
 }
-let TASKS = loadTasks().slice(-30);
-const saveTasks = () => { try { fs.writeFileSync(TASKS_FILE, JSON.stringify(TASKS.slice(-30), null, 2)) } catch {} };
+// achado em 26/11: 30 era pensado só pra "cards recentes na tela", não pra
+// profundidade de fila -- um lote grande de Pedidos (ex: várias melhorias
+// numa noite só) enchia isso e descartava os mais antigos da lista/arquivo
+// antes mesmo de rodar, junto com o fix de resumo no boot (ver taskQueue
+// abaixo), pra nenhum ficar de fora.
+const TASKS_CAP = 200;
+let TASKS = loadTasks().slice(-TASKS_CAP);
+const saveTasks = () => { try { fs.writeFileSync(TASKS_FILE, JSON.stringify(TASKS.slice(-TASKS_CAP), null, 2)) } catch {} };
 let taskQueue = Promise.resolve();
+// achado em 26/11: um restart (auto-update aplicado por QUALQUER Pedido
+// que mude server.js/index.html/etc, ou update manual) mata a taskQueue
+// em memória -- sem isso, toda tarefa 'queued' (ou presa em 'running' no
+// momento exato em que o processo morreu) ficava perdida pra sempre no
+// boot seguinte, porque nada nunca re-encadeava o que já estava salvo em
+// tasks.json. Problema real: um Pedido que termina mudando código e dando
+// push pode disparar o auto-update desta própria máquina ~1min depois,
+// reiniciando o processo que está rodando a fila -- fica ainda mais
+// provável numa sequência longa de Pedidos (ex: várias melhorias numa
+// noite). 'running' volta pra 'queued' (sessionId antigo pode não servir
+// pra um processo novo, mais seguro recomeçar do zero que arriscar
+// resumir errado); reencadeia na ordem salva.
+for (const t of TASKS) {
+  if (t.status === 'running') t.status = 'queued';
+  if (t.status === 'queued') taskQueue = taskQueue.then(() => runTask(t));
+}
 
 async function operatorPrompt(t) {
   const selfDns = await getSelfDns();
