@@ -1763,6 +1763,10 @@ async function waitFmmApi(tries = 40) {
   return false;
 }
 async function promptProject(directory, instruction) {
+  // acha a sessão mais recente dessa pasta pra continuar (em vez de abrir
+  // uma nova a cada dispatch) -- essa listagem em si (GET /session) nunca
+  // teve o bug do /message (ver opencodeHeadlessPrompt), então continua
+  // usando o `opencode serve` só pra isso.
   ensureOpenCodeServe();
   await waitOpenCodeServe();
   let sessionId;
@@ -1773,20 +1777,8 @@ async function promptProject(directory, instruction) {
       if (Array.isArray(list) && list.length) sessionId = list.toSorted((a, b) => (b.time?.updated || 0) - (a.time?.updated || 0))[0].id;
     }
   } catch {}
-  if (!sessionId) {
-    const createRes = await openCodeServeFetch('/session', directory, { method: 'POST', body: JSON.stringify({ title: 'Coordenador: ' + instruction.slice(0, 60) }) });
-    if (!createRes.ok) throw new Error('não consegui criar sessão: ' + createRes.status);
-    sessionId = (await createRes.json()).id;
-  }
-  const msgRes = await openCodeServeFetch(`/session/${sessionId}/message`, directory, {
-    method: 'POST',
-    body: JSON.stringify({ parts: [{ type: 'text', text: instruction }] }),
-  });
-  if (!msgRes.ok) throw new Error('prompt falhou: ' + msgRes.status + ' ' + (await msgRes.text()).slice(0, 200));
-  const result = await msgRes.json();
-  const parts = result.parts || result.info?.parts || [];
-  const textPart = [...parts].reverse().find(p => p.type === 'text');
-  return textPart ? textPart.text : '(sem resposta)';
+  const { text } = await opencodeHeadlessPrompt(directory, instruction, sessionId);
+  return text;
 }
 // lazy -- só sobe o `opencode serve` no primeiro dispatch de verdade (ver
 // promptProject acima), não em todo boot de todo PC instalado. Evita um
@@ -1868,6 +1860,56 @@ function claudeHeadlessPrompt(directory, instruction, resumeId) {
   });
 }
 
+// --- engine opencode, modo headless, via CLI em vez de HTTP --------------
+// achado em 26/11: a API HTTP do `opencode serve` (/session/:id/message)
+// responde 500 "UnknownError" pra QUALQUER mensagem -- testado isolando
+// modelo, diretório e config (até pasta limpa sem nenhum opencode.json),
+// sempre o mesmo erro genérico; `opencode run` (modo não-interativo,
+// equivalente ao `claude -p` acima) funciona normal com o MESMO modelo na
+// MESMA pasta. Bug da versão instalada do `opencode serve`/API, não do
+// modelo nem da nossa config -- por isso Pedidos/dispatch com engine
+// opencode iam sempre pra `(sem resposta)` sem nunca dar erro (o `!mr.ok`
+// nunca disparava porque o POST pro /session de criar sessão tinha
+// sucesso, só o /message é que quebrava). Mesmo padrão do claudeHeadlessPrompt
+// acima: prompt via STDIN, resume via --session explícito (nunca
+// --continue, mesmo motivo documentado ali). --auto: autorizado pelo
+// usuário em 26/11 pra essa automação, mesma categoria do
+// --dangerously-skip-permissions do Claude -- testado à mão nesta máquina
+// antes de entrar aqui.
+function opencodeHeadlessPrompt(directory, instruction, resumeId) {
+  if (resumeId && !/^[\w-]+$/.test(resumeId)) return Promise.reject(new Error('sessionId inválido'));
+  return new Promise((resolve, reject) => {
+    const bin = process.env.OPENCODE_BIN || 'opencode';
+    const resumeArg = resumeId ? ` --session '${resumeId}'` : '';
+    const child = spawn('powershell.exe', [
+      '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
+      `& '${bin}' run --format json --auto${resumeArg}`,
+    ], { cwd: directory, env: CHILD_ENV, windowsHide: true });
+    let out = '', err = '';
+    child.stdout.on('data', d => out += d);
+    child.stderr.on('data', d => err += d);
+    const timer = setTimeout(() => { try { child.kill() } catch {} ; reject(new Error('opencode headless: timeout (10min)')) }, 10 * 60 * 1000);
+    child.on('error', e => { clearTimeout(timer); reject(e) });
+    child.on('exit', code => {
+      clearTimeout(timer);
+      if (code !== 0) return reject(new Error('opencode saiu com código ' + code + ': ' + err.slice(0, 300)));
+      // --format json devolve NDJSON (um evento por linha), não um objeto só
+      // -- junta todo part de texto na ordem e pega o sessionID de qualquer
+      // evento (todos trazem o mesmo).
+      let sessionId, text = '';
+      for (const line of out.split('\n')) {
+        if (!line.trim()) continue;
+        let ev; try { ev = JSON.parse(line) } catch { continue }
+        if (ev.sessionID) sessionId = ev.sessionID;
+        if (ev.type === 'text' && ev.part && typeof ev.part.text === 'string') text += ev.part.text;
+      }
+      resolve({ text: text || '(sem resposta)', sessionId });
+    });
+    child.stdin.write(instruction);
+    child.stdin.end();
+  });
+}
+
 const APPROVAL_RE = /AGUARDA_APROVACAO:\s*(.+)/i;
 function applyTaskReply(t, reply) {
   const m = reply.match(APPROVAL_RE);
@@ -1901,16 +1943,7 @@ async function runTask(t) {
     if (t.engine === 'claude') {
       ({ text: reply, sessionId } = await claudeHeadlessPrompt(COORD_DIR, prompt, null));
     } else {
-      ensureOpenCodeServe();
-      await waitOpenCodeServe();
-      const cr = await openCodeServeFetch('/session', COORD_DIR, { method: 'POST', body: JSON.stringify({ title: 'Pedido: ' + t.text.slice(0, 60) }) });
-      if (!cr.ok) throw new Error('não consegui criar sessão: ' + cr.status);
-      sessionId = (await cr.json()).id;
-      const mr = await openCodeServeFetch(`/session/${sessionId}/message`, COORD_DIR, { method: 'POST', body: JSON.stringify({ parts: [{ type: 'text', text: prompt }] }) });
-      if (!mr.ok) throw new Error('o piloto falhou: ' + mr.status + ' ' + (await mr.text()).slice(0, 200));
-      const res = await mr.json();
-      const parts = res.parts || res.info?.parts || [];
-      reply = ([...parts].reverse().find(p => p.type === 'text') || {}).text || '(sem resposta)';
+      ({ text: reply, sessionId } = await opencodeHeadlessPrompt(COORD_DIR, prompt, null));
     }
     t.sessionId = sessionId;
     applyTaskReply(t, reply);
@@ -1938,13 +1971,7 @@ async function resumeTask(t, approved) {
     if (t.engine === 'claude') {
       ({ text: reply } = await claudeHeadlessPrompt(COORD_DIR, followup, t.sessionId));
     } else {
-      ensureOpenCodeServe();
-      await waitOpenCodeServe();
-      const mr = await openCodeServeFetch(`/session/${t.sessionId}/message`, COORD_DIR, { method: 'POST', body: JSON.stringify({ parts: [{ type: 'text', text: followup }] }) });
-      if (!mr.ok) throw new Error('o piloto falhou: ' + mr.status + ' ' + (await mr.text()).slice(0, 200));
-      const res = await mr.json();
-      const parts = res.parts || res.info?.parts || [];
-      reply = ([...parts].reverse().find(p => p.type === 'text') || {}).text || '(sem resposta)';
+      ({ text: reply } = await opencodeHeadlessPrompt(COORD_DIR, followup, t.sessionId));
     }
     applyTaskReply(t, reply);
   } catch (e) {
