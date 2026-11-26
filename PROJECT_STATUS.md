@@ -492,3 +492,38 @@ Claude em Casa) — sem perder contexto nem ter que reexplicar tudo.
   nunca entrou no `index.html` real); o Coordenador terminal
   (`sessions-native.js`/modo `coordinator` do WS) continua só opencode/
   Claude interativo, sem o engine-por-pedido que os Pedidos ganharam.
+
+## Relay de WebSocket entre PCs (terminal remoto sem trocar de link) — 25/11
+
+Lacuna que ficava documentada desde 23/11: tudo em projeto remoto já era
+proxied por HTTP (chat/mover/apagar/arquivos) sem precisar trocar de
+link, **exceto** abrir terminal de verdade (▶ opencode/claude/shell) —
+isso é uma sessão ao vivo via WebSocket presa à máquina que roda o pty
+(`sessions-native.js`/`sessions-tmux.js`), então só dava navegando pro
+link daquele PC específico (token/origem diferentes).
+
+- `attach(ws)` em `server.js`: se o frame de auth (`{t:'a',...}`) vier
+  com `machine`, não tenta achar projeto local — chama `relayWs(ws, a)`.
+- `relayWs(ws, a)`: resolve o device via `KNOWN` (mesmo padrão de sempre,
+  `dnsName`/`hostname`), abre uma **segunda** conexão WebSocket pro `/ws`
+  daquele device (`wss://<dnsName>/ws`) autenticando com o **token
+  daquele device** (nunca o nosso), e só espelha mensagens dos dois lados
+  (`ws.on('message', raw => up.send(raw))` e vice-versa) sem entender o
+  conteúdo — o protocolo já era simples o bastante pra isso: cliente manda
+  JSON (`{t:'i',d}` input, `{t:'r',cols,rows}` resize), pty manda string
+  crua de volta. Erro de conexão/auth do lado de lá aparece no terminal
+  como uma linha vermelha (mesmo padrão de erro que `sessions-native.js`
+  já usa pro spawn local falhar), fecha os dois lados.
+- `index.html`: `connectTermWs` manda `machine` no frame de auth quando o
+  projeto é remoto (`p.machine`); `openMenu` não esconde mais
+  opencode/claude/shell pra projeto remoto (antes só mostrava pra local,
+  com comentário explicando a limitação — removido, limitação resolvida).
+- Precisa de `require('ws')` exportar também a classe cliente (`WSClient`,
+  ao lado do `WebSocketServer` que já existia) — mesmo pacote, só mais um
+  uso dele.
+- **Não testado em produção ainda** (precisa de duas máquinas reais pra
+  validar handshake completo) — validado localmente: `node --check`,
+  `new Function()` no `<script>` de `index.html`, `bun typecheck` limpo.
+  Primeira coisa a confirmar depois do deploy: abrir ▶ opencode num
+  projeto que vive no Escritório estando em Casa (ou vice-versa) e ver se
+  o terminal conecta sem navegar pro outro link.

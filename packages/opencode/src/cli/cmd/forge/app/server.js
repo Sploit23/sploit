@@ -3,7 +3,7 @@
 const http = require('http'), fs = require('fs'), os = require('os'), path = require('path'), net = require('net');
 const crypto = require('crypto'), { execFileSync, execFile, execSync, spawn } = require('child_process');
 const { Readable } = require('stream');
-const { WebSocketServer } = require('ws');
+const { WebSocketServer, WebSocket: WSClient } = require('ws');
 
 // Linux/WSL usa tmux (sessão sobrevive a updates do FORGE, processo
 // separado); Windows nativo usa um motor em memória próprio via ConPTY
@@ -1448,12 +1448,37 @@ function meshMemoryBlock() {
   ].join('\n');
 }
 
+// Terminal de verdade (opencode/claude/shell) é um WebSocket preso à
+// máquina que roda o pty (sessions-native.js/sessions-tmux.js) -- antes,
+// abrir isso num projeto de OUTRO device só dava navegando pro link
+// daquele PC (trocar de token/origem). Aqui esta própria máquina abre uma
+// SEGUNDA conexão WS pro /ws de lá (com o token DAQUELE device, nunca o
+// nosso) e só repassa as mensagens dos dois lados sem entender o
+// conteúdo -- mesmo protocolo client->server (JSON {t:'i'|'r'}) e
+// server->client (string crua) de sempre, então repassar é só espelhar
+// `message` de um lado pro outro.
+function relayWs(ws, a) {
+  const dev = KNOWN.find(k => k.dnsName === a.machine || k.hostname === a.machine);
+  if (!dev || !dev.token) { ws.send('\r\n\x1b[31m[relay: dispositivo não conhecido]\x1b[0m\r\n'); return ws.close(); }
+  let up;
+  try { up = new WSClient('wss://' + dev.dnsName + '/ws'); }
+  catch (e) { ws.send('\r\n\x1b[31m[relay: ' + String(e.message || e).slice(0, 200) + ']\x1b[0m\r\n'); return ws.close(); }
+  const closeBoth = () => { try { up.close() } catch {}; try { ws.close() } catch {} };
+  up.on('open', () => up.send(JSON.stringify({ t: 'a', token: dev.token, project: a.project, mode: a.mode, cols: a.cols, rows: a.rows })));
+  up.on('message', raw => ws.readyState === 1 && ws.send(raw));
+  up.on('error', e => { if (ws.readyState === 1) ws.send('\r\n\x1b[31m[relay: ' + String(e.message || e).slice(0, 200) + ']\x1b[0m\r\n'); closeBoth(); });
+  up.on('close', closeBoth);
+  ws.on('message', raw => up.readyState === 1 && up.send(raw));
+  ws.on('close', closeBoth);
+  ws.on('error', closeBoth);
+}
 function attach(ws) {
   const timeout = setTimeout(() => ws.close(), 5000);
   ws.once('message', m => {
     clearTimeout(timeout);
     let a; try { a = JSON.parse(m); } catch { return ws.close(); }
     if (a.t !== 'a' || !ok(a.token)) return ws.close();
+    if (a.machine) return relayWs(ws, a);
     if (a.mode === 'coordinator') {
       if (!isDesktopInstalled()) return ws.close();
       fs.mkdirSync(COORD_DIR, { recursive: true });

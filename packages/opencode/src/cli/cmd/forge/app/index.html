@@ -1049,11 +1049,10 @@ function openMenu(p){
   const title=remote?p.name+'  ['+p.machine+']':p.name;
   const nodes=[h('b',0,title),h('div','mu',p.path+(p.dirty?'\n⚠ '+p.dirty+' arquivo(s) sem commit':''))];
   // terminal de verdade (opencode/claude/shell) é uma sessão ao vivo via
-  // WebSocket desta própria máquina (ver openTerm) -- não dá pra abrir a
-  // sessão de OUTRO device por aqui, só o que já é proxied por HTTP
-  // (chat/sessão/mover/apagar, tudo via mcpCoordinator.listAllProjects no
-  // server.js) funciona sem precisar trocar de PC.
-  if(!remote)nodes.push(
+  // WebSocket -- pra projeto remoto, esta máquina abre uma segunda conexão
+  // WS pro device dono (com o token dele) e só repassa (ver relayWs no
+  // server.js), então funciona igual local, sem trocar de link.
+  nodes.push(
     mk('▶ opencode',()=>{closeSheet();openTerm(p,'continue')},'go'),
     mk('▶ claude',()=>{closeSheet();openTerm(p,'claude')}),
     mk('▶ shell',()=>{closeSheet();openTerm(p,'shell')}),
@@ -1393,7 +1392,8 @@ function openTerm(p,mode){
 function connectTermWs(p,mode,mySeq,attempt){
   if(mySeq!==termSeq)return; // usuário já saiu dessa tela -- não reconecta à toa
   ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
-  ws.onopen=()=>{if(attempt>0&&term)term.write('\r\n\x1b[32m[reconectado]\x1b[0m\r\n');ws.send(JSON.stringify({t:'a',token:TOKEN,project:p.name,mode,cols:term.cols,rows:term.rows}))};
+  const remote=p.machine&&p.machine!=='local';
+  ws.onopen=()=>{if(attempt>0&&term)term.write('\r\n\x1b[32m[reconectado]\x1b[0m\r\n');ws.send(JSON.stringify({t:'a',token:TOKEN,project:p.name,mode,cols:term.cols,rows:term.rows,machine:remote?p.machine:undefined}))};
   ws.onmessage=e=>term&&term.write(e.data);
   ws.onclose=()=>{
     if(mySeq!==termSeq)return;
