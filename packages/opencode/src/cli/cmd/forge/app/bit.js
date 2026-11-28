@@ -196,8 +196,15 @@ function maybeSelfUpdate() {
   let m = 0;
   try { m = fs.statSync(SELF).mtimeMs } catch { return }
   if (m <= bootMtime) return;
-  console.log('\n' + C.blue + '  versão nova detectada, reiniciando...' + C.reset);
-  const child = spawn(process.execPath, [SELF], { detached: true, stdio: 'inherit', cwd: DIR });
+  console.log('\n' + C.blue + '  versão nova detectada, abrindo janela nova...' + C.reset);
+  // achado em 28/11 (Escritório): `stdio: 'inherit'` aqui fazia o processo
+  // novo tentar herdar o console do processo VELHO, que está pra sumir no
+  // `process.exit()` logo abaixo -- a janela fechava e não reabria
+  // sozinha, só reabrindo manualmente resolvia. `stdio: 'ignore'` (sem
+  // herdar nada) faz o Windows abrir um console PRÓPRIO pro processo
+  // novo, independente do destino do processo velho -- testado na mão,
+  // reabre certinho sozinho agora.
+  const child = spawn(process.execPath, [SELF], { detached: true, stdio: 'ignore', cwd: DIR });
   child.unref();
   process.exit(0);
 }
