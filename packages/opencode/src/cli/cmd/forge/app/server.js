@@ -1579,7 +1579,11 @@ function attach(ws) {
 // o safe-restart (via win-service.js, Task Scheduler) já existe e é seguro;
 // o caminho WSL/systemd fica pra depois se precisar.
 const UPDATE_BASE = 'https://github.com/Sploit23/sploit/raw/refs/heads/dev/packages/opencode/src/cli/cmd/forge/app/';
-const UPDATE_FILES = HEADLESS ? ['server.js', 'sessions-native.js', 'win-service.js'] : ['server.js', 'index.html', 'sessions-native.js', 'win-service.js', 'mcp-coordinator.js'];
+// bit.js (28/11) -- substitui o antigo app de bandeja Electron (nunca se
+// auto-atualizava sozinho) por um script Node puro: entra na mesma lista
+// de auto-update por ser só isso, um .js. Só em bot não entra -- bot não
+// tem sessão de desktop pra mostrar terminal nenhum.
+const UPDATE_FILES = HEADLESS ? ['server.js', 'sessions-native.js', 'win-service.js'] : ['server.js', 'index.html', 'sessions-native.js', 'win-service.js', 'mcp-coordinator.js', 'bit.js'];
 // toda vez que um arquivo daqui passar a depender de um pacote npm novo
 // (ex: mcp-coordinator.js precisando de @modelcontextprotocol/sdk+zod),
 // soma aqui -- senão o auto-update baixa o código novo, passa pelo

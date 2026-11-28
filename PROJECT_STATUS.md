@@ -112,7 +112,8 @@ construído ainda.
   ```
   Não embute `bootstrap.sh`/`win-native-install.ps1`/`*.ps1` — esses são
   buscados em tempo real do GitHub raw pelos próprios instaladores.
-- `packages/forge-tray/` — app Electron de bandeja (só Windows).
+- `app/bit.js` — Bit, status ao vivo em terminal (substituiu
+  `packages/forge-tray/`, removido em 28/11 — ver seção própria abaixo).
 - `README.md` — **comando de instalação canônico**. Sempre atualizar aqui
   primeiro; não repassar o comando de cabeça numa conversa.
 
@@ -584,3 +585,73 @@ explícita pra rodar sem supervisão durante a madrugada.
   sair errado) e nada chega às OUTRAS máquinas da malha via auto-update
   até alguém publicar os commits locais — o lote fica contido nesta
   máquina até revisão.
+
+## "atualizado há X" por PC (PWA + Bit) + indicador na PWA — 28/11
+
+Pedido do usuário: um jeito simples de ver, olhando pra Casa ou
+Escritório, se aquele PC já pegou a versão mais recente — não precisa
+ser número de versão.
+
+- `getUpdatedAt()` em `server.js` — mtime do próprio `server.js`
+  (resetado sozinho pelo auto-update a cada `fs.writeFileSync`). Fonte
+  única usada em `/health`, `/api/version`, `/api/stats` e `/api/mesh`.
+  Corrigido de caminho: `/api/version` (criado numa tentativa anterior,
+  sem sucesso, de Pedido automatizado) dependia de `git rev-parse`, que
+  só existe no repo-fonte — numa instalação real
+  (`ProgramData/SploitForge`) não tem `.git` nenhum, sempre devolvia
+  vazio.
+- PWA: 4º indicador ("ATUALIZADO") na tela Central, ao lado de CPU/RAM/
+  UPTIME, funciona pra qualquer PC selecionado (grid virou 4 colunas no
+  desktop, 2x2 no celular pra não espremer o texto).
+- Bit (ver seção abaixo): mesma informação, linha extra sob
+  "ocioso"/"executando" de cada PC.
+
+## Bit em terminal substitui o app de bandeja Electron — 28/11
+
+Pedido do usuário: o app de bandeja (Electron) nunca se auto-atualizava
+sozinho — instalado uma vez, congelado pra sempre, só um
+`win-native-install.ps1` manual trazia versão nova. Perguntou se dava
+pra fazer isso em terminal, sem build, pra se livrar do peso do
+Electron e ganhar auto-update de verdade. Resposta: sim, e a troca foi
+feita.
+
+- **`packages/opencode/src/cli/cmd/forge/app/bit.js`** (novo) — Node
+  puro (`fetch`/`readline`/`fs`, zero dependência nova), roda num
+  console comum (não é Serviço, é processo do usuário logado). Mostra
+  a mesma coisa que o Bit Electron mostrava: lista de PCs (piloto/bot,
+  online/offline, ocioso/executando, atualizado há X), pareamento
+  (mostra o link — sem QR gráfico, essa é a perda real aceita na
+  troca), criar projeto, aprovar/negar Pedido pendente. Atalhos:
+  `[p]` parear, `[n]` novo projeto, `[r]` atualizar, `[a]`/`[d]`
+  aprovar/negar, `[q]` sair.
+- **Auto-update de verdade**: por ser só um `.js`, entra na mesma lista
+  `UPDATE_FILES` do `server.js` (não entra em bot/headless — bot não
+  tem sessão de desktop). Como é um processo separado do `server.js`
+  (não é supervisionado por ele), tem o próprio mecanismo de
+  auto-respawn: a cada 60s compara o mtime do próprio arquivo com o que
+  tinha no boot; se mudou (o auto-update do `server.js` sobrescreveu),
+  dá `spawn` de si mesmo e sai — seguro aqui porque é processo comum do
+  usuário, não LocalSystem (não tem a mesma pegadinha do
+  Serviço/Task Scheduler que o `server.js` tem).
+- **`win-native-install.ps1`**: trocado o bloco inteiro do app de
+  bandeja (download de 9 arquivos + zip do Electron de ~115MB) por um
+  atalho de Startup rodando `node bit.js` numa janela de console
+  visível. Limpeza de resquícios do Electron (processo, atalhos,
+  `%LOCALAPPDATA%\SploitForgeTray`) roda sempre agora (antes só em
+  `-Headless`), pra qualquer PC que tinha a instalação antiga migrar
+  sozinho na próxima vez que o instalador rodar.
+- **`packages/forge-tray/` removido do repositório** — zero Electron
+  no projeto agora. `bun install` confirmou remoção do lockfile,
+  typecheck do monorepo inteiro passou limpo (14 pacotes, antes 16).
+- **Testado ao vivo na Casa** antes de publicar: copiado manualmente
+  pra `C:\ProgramData\SploitForge\bit.js`, rodado num console de
+  verdade, confirmado por print de tela — lista de PCs, atualizado há
+  X, tela de pareamento (mostra o link com o token — mesmo
+  comportamento do Electron antigo, não é regressão nova) tudo
+  funcionando.
+- **Pendente**: migrar a Casa e o Escritório de verdade pro atalho de
+  Startup novo (hoje só têm o `bit.js` rodando manualmente, lançado por
+  mim nesta sessão) — rodar o instalador de novo (ou configurar o
+  atalho na mão) formaliza isso. O Bit Electron antigo pode continuar
+  rodando em paralelo até alguém fechar manualmente; os dois não
+  conflitam (só leem a mesma API).

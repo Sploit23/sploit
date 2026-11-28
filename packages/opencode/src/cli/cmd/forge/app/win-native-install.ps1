@@ -179,7 +179,7 @@ function Get-Asset($name, $dest) {
     }
 }
 $assets = @("server.js", "sessions-native.js", "win-service.js")
-if (-not $HEADLESS) { $assets += @("sessions-tmux.js", "index.html", "mcp-coordinator.js") }
+if (-not $HEADLESS) { $assets += @("sessions-tmux.js", "index.html", "mcp-coordinator.js", "bit.js") }
 Write-Host "==> Baixando $($assets -join ', ')..."
 foreach ($f in $assets) { Get-Asset $f (Join-Path $FORGE_DIR $f) }
 if (-not $HEADLESS) {
@@ -213,19 +213,23 @@ try {
     Pop-Location
 }
 
+# restos do antigo app de bandeja Electron (substituído pelo bit.js em
+# 28/11 -- Electron nunca se auto-atualizava sozinho, bit.js sim, por ser
+# só um .js igual o server.js) -- roda sempre, headless ou não, pra limpar
+# qualquer PC que já teve a versão antiga instalada antes.
+Write-Host "==> Removendo restos do antigo app de bandeja (Electron), se houver..."
+Get-CimInstance Win32_Process -Filter "Name = 'electron.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.ExecutablePath -like "*$env:LOCALAPPDATA\SploitForgeTray*" } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+foreach ($p in @(
+    (Join-Path $env:USERPROFILE "Desktop\Sploit-Forge.lnk"),
+    (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup\Sploit-Forge.lnk"),
+    (Join-Path $env:LOCALAPPDATA "SploitForgeTray")
+)) {
+    if (Test-Path $p) { Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue }
+}
 if ($HEADLESS) {
-    Write-Host "==> Modo BOT -- removendo restos de UI/bandeja de instalação anterior..."
-    Get-CimInstance Win32_Process -Filter "Name = 'electron.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.ExecutablePath -like "*$env:LOCALAPPDATA\SploitForgeTray*" } |
-        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-    foreach ($p in @(
-        (Join-Path $env:USERPROFILE "Desktop\Sploit-Forge.lnk"),
-        (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup\Sploit-Forge.lnk"),
-        (Join-Path $env:LOCALAPPDATA "SploitForgeTray")
-    )) {
-        if (Test-Path $p) { Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue }
-    }
-    foreach ($f in @("index.html", "mcp-coordinator.js", "sessions-tmux.js", ".push-vapid.json", "push-subscriptions.json")) {
+    foreach ($f in @("index.html", "mcp-coordinator.js", "sessions-tmux.js", "bit.js", ".push-vapid.json", "push-subscriptions.json")) {
         $p = Join-Path $FORGE_DIR $f
         if (Test-Path $p) { Remove-Item $p -Force -ErrorAction SilentlyContinue }
     }
@@ -279,63 +283,30 @@ try {
 }
 Start-Sleep -Seconds 2
 
-# --- App de bandeja (ícone + janela nativa) -- roda como o usuário logado,
-# não como o Serviço (LocalSystem não tem sessão de desktop pra mostrar
-# ícone nenhum). -Headless pula isso de propósito, pra PCs que só
-# vão ser controlados remotamente (shell/`/api/exec`), sem nada visível.
+# --- Bit (status ao vivo + pareamento + aprovar Pedido, em terminal) --
+# roda como o usuário logado, não como o Serviço (LocalSystem não tem
+# sessão de desktop pra abrir janela nenhuma). -Headless pula isso de
+# propósito, pra PCs que só vão ser controlados remotamente, sem nada
+# visível. Substituiu o app de bandeja Electron em 28/11 -- esse nunca se
+# auto-atualizava sozinho (instalado uma vez, congelado pra sempre); bit.js
+# é só um .js, então entra na mesma lista de auto-update do server.js e se
+# atualiza sozinho pra sempre, sem precisar rodar este instalador de novo.
 if ($HEADLESS) {
-    Write-Host "==> Modo BOT -- pulando o app de bandeja (só o serviço, controlado remotamente)."
+    Write-Host "==> Modo BOT -- pulando o Bit (só o serviço, controlado remotamente)."
 } else {
     Write-Host ""
-    Write-Host "==> Instalando o app de bandeja..."
-    $TRAY_DIR = Join-Path $env:LOCALAPPDATA "SploitForgeTray"
-    New-Item -ItemType Directory -Force -Path (Join-Path $TRAY_DIR "src") | Out-Null
-    New-Item -ItemType Directory -Force -Path (Join-Path $TRAY_DIR "assets") | Out-Null
-    $trayBase = "https://github.com/Sploit23/sploit/raw/refs/heads/dev/packages/forge-tray/dist"
-    $trayOk = $true
-    try {
-        # mesmo cache-bust de Get-Asset acima -- o GitHub já serviu versão em
-        # cache pra esses raw/refs/heads/dev/... (achado em 24/11), e aqui não
-        # tinha a proteção ainda.
-        $trayCacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-        foreach ($f in @("package.json", "src/main.js", "src/pairing.js", "launch-tray.vbs", "assets/tray-icon-16.png", "assets/tray-icon-32.png", "assets/tray-icon-64.png", "assets/tray-icon-128.png", "assets/forge-tray.ico")) {
-            Invoke-WebRequest -Uri "$trayBase/${f}?v=$trayCacheBust" -OutFile (Join-Path $TRAY_DIR $f) -UseBasicParsing -Headers @{ 'Cache-Control' = 'no-cache' }
-        }
-        # electron.exe vem do zip oficial direto, não via `npm install electron`
-        # -- confirmado nesta mesma sessão de testes que a extração via
-        # node_modules/extract-zip trava em silêncio (sem erro, sem completar,
-        # exit 0) nesta máquina; Expand-Archive nativo do Windows extrai o
-        # mesmo zip sem problema nenhum. Menos uma dependência (npm) também.
-        if (-not (Test-Path (Join-Path $TRAY_DIR "electron\electron.exe"))) {
-            Write-Host "==> Baixando o runtime do Electron (~115MB, só na primeira vez)..."
-            $electronZip = Join-Path $env:TEMP "sploit-forge-electron.zip"
-            Invoke-WebRequest -Uri "https://github.com/electron/electron/releases/download/v33.2.1/electron-v33.2.1-win32-x64.zip" -OutFile $electronZip -UseBasicParsing
-            Expand-Archive -Path $electronZip -DestinationPath (Join-Path $TRAY_DIR "electron") -Force
-            Remove-Item $electronZip -Force
-        }
-    } catch {
-        $trayOk = $false
-        Write-Host "AVISO: instalação do app de bandeja falhou ($($_.Exception.Message)) -- o FORGE continua funcionando normal, só sem o ícone na bandeja nesta máquina. Rode o script de novo pra tentar de novo só essa parte."
-    }
-
-    if ($trayOk -and (Test-Path (Join-Path $TRAY_DIR "electron\electron.exe"))) {
-        $WshShell = New-Object -ComObject WScript.Shell
-        $desktop = [Environment]::GetFolderPath("Desktop")
-        $startupDir = [Environment]::GetFolderPath("Startup")
-        $shortcutPath = Join-Path $desktop "Sploit-Forge.lnk"
-        $Shortcut = $WshShell.CreateShortcut($shortcutPath)
-        $Shortcut.TargetPath = "$env:WINDIR\System32\wscript.exe"
-        $Shortcut.Arguments = "`"$(Join-Path $TRAY_DIR 'launch-tray.vbs')`""
-        $Shortcut.IconLocation = Join-Path $TRAY_DIR "assets\forge-tray.ico"
-        $Shortcut.WorkingDirectory = $TRAY_DIR
-        $Shortcut.Description = "Abre o app de bandeja do Sploit-Forge"
-        $Shortcut.Save()
-        # Área de Trabalho pra abrir na hora + Startup pra abrir sozinho no login
-        # seguinte (sem precisar de admin -- é a pasta Startup do usuário, não a
-        # de todo mundo).
-        Copy-Item $shortcutPath (Join-Path $startupDir "Sploit-Forge.lnk") -Force
-        Write-Host "==> App de bandeja instalado -- ícone 'Sploit-Forge' na Área de Trabalho, abre sozinho no próximo login."
-    }
+    Write-Host "==> Configurando o Bit pra abrir sozinho no login..."
+    $WshShell = New-Object -ComObject WScript.Shell
+    $startupDir = [Environment]::GetFolderPath("Startup")
+    $shortcutPath = Join-Path $startupDir "Sploit-Forge-Bit.lnk"
+    $Shortcut = $WshShell.CreateShortcut($shortcutPath)
+    $Shortcut.TargetPath = "$env:WINDIR\System32\cmd.exe"
+    $Shortcut.Arguments = "/k title Sploit Forge - Bit && `"$nodeExe`" `"$(Join-Path $FORGE_DIR 'bit.js')`""
+    $Shortcut.WorkingDirectory = $FORGE_DIR
+    $Shortcut.Description = "Status ao vivo da malha Sploit-Forge, em terminal"
+    $Shortcut.Save()
+    Write-Host "==> Bit configurado -- abre sozinho (janela de terminal) no próximo login. Pra abrir agora:"
+    Write-Host "    cd `"$FORGE_DIR`"; node bit.js"
 }
 
 Write-Host ""

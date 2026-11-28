@@ -19,11 +19,11 @@
 
 Não existe servidor central — cada PC roda seu próprio FORGE
 independente (mesh via Tailscale, cada um com seu token). Mas isso não
-significa que todo PC precisa de ícone, atalho ou app de bandeja
-aparecendo: o jeito recomendado de montar a rede é
+significa que todo PC precisa de uma janela de status aparecendo: o
+jeito recomendado de montar a rede é
 
-- **um PC "base"**, com a instalação gráfica completa (app de
-  bandeja, atalho na Área de Trabalho, opencode/Claude Code
+- **um PC "base"**, com a instalação gráfica completa (Bit, o status
+  ao vivo em terminal, abrindo sozinho no login; opencode/Claude Code
   instalados) — é o link que a pessoa de fato abre no celular/PWA
   pra ver e gerenciar tudo;
 - **os demais PCs como "bots"**, instalados com `-Headless` no Windows
@@ -33,27 +33,25 @@ aparecendo: o jeito recomendado de montar a rede é
   conectado via MCP).
 
 Gerenciar projeto, apagar, mover, conversar, navegar/baixar/enviar
-arquivo e checar atualização já funcionam em qualquer PC bot sem
-precisar abrir o link dele — tudo isso é repassado pela malha usando
-o token de cada device (ver `/api/projects/:alias`, `/api/browse`,
-`/api/files/send`, `/api/check-updates` em
-`packages/opencode/src/cli/cmd/forge/app/server.js`). A única coisa
-que ainda exige trocar pro link de um PC bot é abrir uma sessão de
-terminal de verdade (▶ opencode/▶ claude/▶ shell) nele — isso depende
-de WebSocket preso à origem daquele PC especificamente.
+arquivo, checar atualização e abrir terminal de verdade (▶ opencode/
+▶ claude/▶ shell) já funcionam em qualquer PC bot sem precisar abrir o
+link dele — tudo isso é repassado pela malha usando o token de cada
+device (ver `/api/projects/:alias`, `/api/browse`, `/api/files/send`,
+`/api/check-updates` em `packages/opencode/src/cli/cmd/forge/app/server.js`;
+terminal via `relayWs`, que abre uma segunda conexão WS pro device dono
+e só repassa as mensagens).
 
-Se um PC já foi instalado "cheio" (com app de bandeja) e você decidir
-depois que ele deveria ser só um bot, dá pra remover a parte visual
-sem reinstalar nada: mata o processo do app de bandeja, apaga o
-atalho da Área de Trabalho e o de Startup, e apaga a pasta
-`%LOCALAPPDATA%\SploitForgeTray` daquele PC. O serviço do FORGE
-continua rodando normalmente durante e depois disso.
+Se um PC já foi instalado "cheio" (com Bit) e você decidir depois que
+ele deveria ser só um bot, dá pra remover a parte visual sem
+reinstalar nada: feche a janela do Bit e apague o atalho de Startup
+(`Sploit-Forge-Bit.lnk`). O serviço do FORGE continua rodando
+normalmente durante e depois disso.
 
 ### Como falar com os PCs (MCP no `opencode`)
 
-A barra flutuante do app de bandeja é **só visual**: azul = PC
-principal (controlador), verde = bot, bolinha acesa = online. Não muda
-nada no comando — **o MCP é o mesmo para os dois**. O agente resolve o
+O Bit (status ao vivo em terminal) é **só visual**: mostra cada PC
+como piloto ou bot, online/offline. Não muda nada no comando — **o
+MCP é o mesmo para os dois**. O agente resolve o
 PC pelo nome que aparece na barra (`Escritorio`, `Casa`, `Servidor`,
 `raspberrypi`), então você não precisa saber IP, token ou tipo.
 
@@ -135,15 +133,16 @@ enquanto essa janela do PowerShell estiver aberta. A 2ª linha força TLS
 o GitHub recusa, e o download falha silenciosamente)
 
 Instala Node/Tailscale/opencode/claude via `winget`/`npm`, registra o
-FORGE como Serviço do Windows (`node-windows`) e também instala o **app
-de bandeja** (ícone + janela nativa, `packages/forge-tray/`) com atalho
-na Área de Trabalho e autostart no login -- imprime o link de pareamento
-no final. Idempotente -- seguro rodar de novo. Detalhes em
+FORGE como Serviço do Windows (`node-windows`) e também configura o
+**Bit** (`bit.js`, status ao vivo em terminal -- sem build, sem
+Electron, se auto-atualiza igual o `server.js`) com autostart no login
+-- imprime o link de pareamento no final. Idempotente -- seguro rodar
+de novo. Detalhes em
 `packages/opencode/src/cli/cmd/forge/app/win-native-install.ps1`.
 
 Pra um PC que só vai ser controlado remotamente (sem IA rodando local
-nele, sem ícone nenhum visível -- só shell/`/api/exec`), `-Headless` pula
-tudo o que o bot não usa: opencode/Claude Code, app de bandeja, UI web
+nele, sem terminal nenhum visível -- só shell/`/api/exec`), `-Headless` pula
+tudo o que o bot não usa: opencode/Claude Code, Bit, UI web
 (`index.html` + `vendor/`), `sessions-tmux.js`, `mcp-coordinator.js` e as
 dependências npm `web-push`/`@modelcontextprotocol/sdk`/`zod`. O instalador
 também grava `FORGE_HEADLESS=1` no `.env`, então o próprio `server.js`
@@ -151,7 +150,7 @@ continua enxergando o modo bot depois do restart e o auto-update só baixa
 `server.js`, `sessions-native.js` e `win-service.js` (nada de UI/MCP/push).
 
 Num PC que já tinha a instalação completa, rerodar com `-Headless` remove
-`index.html`/`vendor/`, `mcp-coordinator.js`, a bandeja e os atalhos; a raiz
+`index.html`/`vendor/`, `mcp-coordinator.js`, o Bit e o atalho de Startup; a raiz
 passa a servir `/hub` mesmo que algum `index.html` antigo tenha sobrado:
 
 ```powershell

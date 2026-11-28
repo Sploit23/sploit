@@ -28,6 +28,10 @@ export const FORGE_XTERM_CSS = ${JSON.stringify(read("vendor/xterm.min.css"))}
 export const FORGE_XTERM_FIT_JS = ${JSON.stringify(read("vendor/xterm-addon-fit.min.js"))}
 
 export const FORGE_QRCODE_JS = ${JSON.stringify(read("vendor/qrcode.min.js"))}
+
+// bit.js (terminal, substituiu o antigo app de bandeja Electron em 28/11) --
+// puro Node (fetch/readline/fs), não depende de nada Windows-específico.
+export const FORGE_BIT_JS = ${JSON.stringify(read("bit.js"))}
 `
 
 fs.writeFileSync(path.join(root, "assets.ts"), out)
