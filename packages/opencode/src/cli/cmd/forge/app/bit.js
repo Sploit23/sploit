@@ -209,8 +209,26 @@ function maybeSelfUpdate() {
   process.exit(0);
 }
 
+// achado em 28/11: o atalho (Startup/Área de Trabalho) e o auto-respawn
+// abrem `node bit.js` DIRETO agora, sem passar por `cmd.exe /k` -- esse
+// `/k` existia só pra manter a janela aberta mesmo depois do node sair
+// (pra dar tempo de ler um erro), mas como efeito colateral a janela
+// ANTIGA nunca fechava sozinha depois de um auto-update (ficava um
+// prompt vazio pra trás). Sem o `cmd /k`, a janela fecha sozinha quando
+// o processo termina -- certo pro caso comum, mas agora o PRÓPRIO
+// bit.js precisa pausar antes de sair num erro de verdade, senão a
+// janela pisca e some antes da pessoa conseguir ler o que aconteceu.
+function pauseAndExit(code) {
+  console.log(C.dim + '\n[pressione enter pra fechar]' + C.reset);
+  try { process.stdin.setRawMode(false) } catch {}
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  rl.question('', () => { rl.close(); process.exit(code) });
+}
+process.on('uncaughtException', e => { console.error(C.red + 'erro inesperado: ' + (e && e.message || e) + C.reset); pauseAndExit(1) });
+process.on('unhandledRejection', e => { console.error(C.red + 'erro inesperado: ' + (e && e.message || e) + C.reset); pauseAndExit(1) });
+
 function main() {
-  if (!TOKEN) { console.error('FORGE_TOKEN não encontrado (.env ausente?) -- rode a partir da pasta do FORGE.'); process.exit(1); }
+  if (!TOKEN) { console.error('FORGE_TOKEN não encontrado (.env ausente?) -- rode a partir da pasta do FORGE.'); return pauseAndExit(1); }
   process.title = 'Sploit Forge - Bit';
   readline.emitKeypressEvents(process.stdin);
   if (process.stdin.isTTY) process.stdin.setRawMode(true);

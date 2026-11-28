@@ -299,11 +299,17 @@ if ($HEADLESS) {
     $WshShell = New-Object -ComObject WScript.Shell
     $desktop = [Environment]::GetFolderPath("Desktop")
     $startupDir = [Environment]::GetFolderPath("Startup")
-    $bitArgs = "/k title Sploit Forge - Bit && `"$nodeExe`" `"$(Join-Path $FORGE_DIR 'bit.js')`""
+    # node.exe direto, sem passar por `cmd.exe /k` -- esse `/k` existia só
+    # pra manter a janela aberta mesmo depois do node sair, mas isso fazia
+    # a janela ANTIGA nunca fechar sozinha depois de um auto-update (ficava
+    # um prompt vazio pra trás). bit.js agora pausa e espera Enter nele
+    # mesmo quando dá erro de verdade, então não precisa mais do `/k` só
+    # pra isso -- e sem ele, a janela fecha sozinha de novo quando o
+    # processo termina (achado em 28/11).
     $shortcutPath = Join-Path $desktop "Sploit-Forge-Bit.lnk"
     $Shortcut = $WshShell.CreateShortcut($shortcutPath)
-    $Shortcut.TargetPath = "$env:WINDIR\System32\cmd.exe"
-    $Shortcut.Arguments = $bitArgs
+    $Shortcut.TargetPath = $nodeExe
+    $Shortcut.Arguments = "`"$(Join-Path $FORGE_DIR 'bit.js')`""
     $Shortcut.WorkingDirectory = $FORGE_DIR
     $Shortcut.Description = "Status ao vivo da malha Sploit-Forge, em terminal"
     $Shortcut.Save()
