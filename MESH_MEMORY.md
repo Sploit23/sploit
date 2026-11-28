@@ -40,3 +40,13 @@ malha (Sploit-Forge)").
   às vezes — sempre anexar um query param anti-cache (`?v=<timestamp>`)
   e `Cache-Control: no-cache` em qualquer fetch que precise do conteúdo
   mais recente de verdade.
+
+## Espelhamento de projetos nos pilotos
+
+- Todo projeto usado em operação deve existir **idêntico nos dois PCs pilotos** (Escritorio e Casa). O git remoto é a fonte da verdade; nenhum piloto é singular.
+- Cada piloto registra sua cópia com **alias próprio**: `Natal_Kiosk` no Escritorio e `Natal_Kiosk_Casa` na Casa. Nunca usar o mesmo alias nas duas máquinas — a resolução do Coordenador fica ambígua.
+- Antes de qualquer trabalho: `git pull --rebase` na pasta do projeto. Depois: atualizar `.sploit-handoff.md`, `git add`, `git commit` e `git push`.
+- Se um piloto estiver fora, o outro assume sem depender dele. Nunca editar as duas cópias ao mesmo tempo sem sincronizar antes.
+- `transfer_project` serve apenas para semear a cópia inicial; **não é sincronização contínua**.
+- Arquivos com token (`.env`, `.mcp.json`, `opencode.json`) são locais por PC e nunca entram no git. Use `opencode.example.json` como modelo e copie para `opencode.json` em cada piloto, trocando o placeholder pelo token daquela máquina.
+- Projetos na malha (PWA): `FORGE_MESH_PROJECTS` de cada piloto deve listar todos os aliases que ele deve ver, incluindo as cópias espelhadas.
