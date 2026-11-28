@@ -53,7 +53,7 @@ input:focus{outline:none;border-color:var(--blue)}
 .cur{color:var(--blue);animation:bl 1s steps(2) infinite}@keyframes bl{50%{opacity:0}}
 .noise{color:#44506a;font-size:10px;letter-spacing:1px;opacity:.7}
 .card{border:1px solid var(--ln);border-radius:14px;background:var(--panel);padding:16px}
-#stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+#stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .m{border:1px solid var(--ln);border-radius:12px;padding:12px;background:var(--panel)}
 .m i{font-style:normal;font-size:10px;color:var(--mu);letter-spacing:1px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .m b{display:block;font-size:19px;margin:3px 0 7px;font-weight:700}
@@ -232,6 +232,9 @@ body.with-nav #nav{display:flex}
      Pareamento (tocar no nome "Central ▾") -- a barra de abas fixa só
      faz sentido nas outras 3 telas, pra voltar fácil sem gesto do SO. */
   body.on-central #nav{display:none}
+  /* 4 métricas lado a lado fica apertado no celular (UPTIME/ATUALIZADO
+     têm texto maior) -- 2x2 cabe melhor que 4 numa coluna só estreita. */
+  #stats{grid-template-columns:repeat(2,1fr)}
 }
 
 /* ---------- explorer em tabela ---------- */
@@ -291,6 +294,7 @@ body.with-nav #nav{display:flex}
       <div class="m"><i>CPU</i><b id="vc">–</b><u><s id="bc"></s></u></div>
       <div class="m"><i>RAM</i><b id="vm">–</b><u><s id="bm"></s></u></div>
       <div class="m"><i>UPTIME</i><b id="vu">–</b><u><s id="bu" style="width:100%;opacity:.25"></s></u></div>
+      <div class="m"><i>ATUALIZADO</i><b id="vat">–</b><u><s id="bat" style="width:100%;opacity:.25"></s></u></div>
     </div>
     <div><button class="go" id="centralcont" style="width:100%">⚡ Pedidos — continuar no PC selecionado</button></div>
     <div>
@@ -978,14 +982,19 @@ async function refreshDevices(){
 // agora (que pode estar mostrando outro device) -- "renomear este PC"
 // precisa saber qual é "este PC" independente do que está na tela.
 let devMachine='local',SELF_NAME='',IS_MAIN_PC=false;
+// "atualizado há X" por PC -- não é número de versão, é só uma forma
+// simples de ver que o auto-update passou por ali recentemente (mtime do
+// próprio server.js, resetado sozinho sempre que ele é reescrito).
+const fmtAgo=ms=>{const s=(Date.now()-ms)/1000;if(s<90)return'agora';if(s<3600)return Math.floor(s/60)+'min';if(s<86400)return Math.floor(s/3600)+'h';return Math.floor(s/86400)+'d'};
 async function stats(m){
   m=m===undefined?devMachine:m;
   try{
     const qs=m!=='local'?('?machine='+encodeURIComponent(m)):'';
-    const s=DEMO?{cpu:15+Math.random()*30,mem:62,up:196000,host:'forge-node-01',screen:true,desktop:true}:await api('/api/stats'+qs);
+    const s=DEMO?{cpu:15+Math.random()*30,mem:62,up:196000,host:'forge-node-01',screen:true,desktop:true,updatedAt:Date.now()-3600000}:await api('/api/stats'+qs);
     $('#vc').textContent=Math.round(s.cpu)+'%';$('#bc').style.width=Math.min(100,s.cpu)+'%';
     $('#vm').textContent=Math.round(s.mem)+'%';$('#bm').style.width=s.mem+'%';
     const d=Math.floor(s.up/86400),hr=Math.floor(s.up%86400/3600);$('#vu').textContent=d+'d '+hr+'h';
+    if($('#vat'))$('#vat').textContent=s.updatedAt?fmtAgo(s.updatedAt):'–';
     $('#host').textContent=s.host;
     $('#selficon').innerHTML=DEV_ICON;
     if(m==='local'){

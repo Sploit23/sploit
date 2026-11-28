@@ -513,11 +513,15 @@ const srv = http.createServer(async (req, res) => {
   if (u.pathname === '/icon.svg') return send('image/svg+xml', ICON_ANY_SVG);
   // sem token: só pra outro FORGE na mesma rede Tailscale se reconhecer (ver /api/peers)
   if (u.pathname === '/health') return send('application/json', JSON.stringify({ forge: true, name: getDeviceName(), pilot: isDesktopInstalled() }));
-  // sem token, igual /health: só diz o commit do repo que este server.js veio.
+  // sem token, igual /health: quando e quando esse server.js foi escrito.
+  // achado em 28/11: `git rev-parse` só funciona no repo-fonte (dev) --
+  // uma instalação real (ProgramData/SploitForge) é só os arquivos
+  // copiados, sem pasta .git nenhuma, então isso sempre devolvia vazio em
+  // produção. mtime do próprio arquivo funciona nos dois casos.
   if (u.pathname === '/api/version' && req.method === 'GET') {
     let commit = '';
-    try { commit = execSync('git rev-parse --short HEAD', { cwd: path.resolve(__dirname, '../..'), encoding: 'utf8' }).trim(); } catch {}
-    return send('application/json', JSON.stringify({ commit }));
+    try { commit = execSync('git rev-parse --short HEAD', { cwd: path.resolve(__dirname, '../..'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch {}
+    return send('application/json', JSON.stringify({ commit, updatedAt: fs.statSync(__filename).mtimeMs }));
   }
   // sem token de propósito -- ver comentário em KNOWN_FILE acima. Só grava
   // "existo, meu token é X"; nunca devolve nada, nunca lê o registro (isso é
@@ -1380,7 +1384,13 @@ const srv = http.createServer(async (req, res) => {
         cpu: cpuPercent(),
         mem: (1 - os.freemem() / os.totalmem()) * 100, up: os.uptime(), host: getDeviceName(),
         screen: !WIN, // tela remota (Xvfb/xdotool) so existe no motor Linux por enquanto
-        desktop: isDesktopInstalled() // Coordenador só aparece quando isso é true
+        desktop: isDesktopInstalled(), // Coordenador só aparece quando isso é true
+        // pedido do usuário em 28/11: mostrar na PWA "atualizado há X" por
+        // PC, sem precisar ser número de versão -- mtime do próprio
+        // server.js já serve (o auto-update sobrescreve o arquivo, o que
+        // reseta o mtime pra "agora" sozinho, sem precisar de git/commit
+        // hash, que nem existe na instalação real -- só no repo-fonte).
+        updatedAt: fs.statSync(__filename).mtimeMs,
       }));
     }
   }
