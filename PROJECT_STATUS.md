@@ -316,6 +316,17 @@ crédito de nuvem), pergunta complexa continua indo pro Coordenador
   máquina atual.
 - Testado e confirmado funcionando via PWA e via MCP (resposta real do
   Qwen2.5-3B, sem gastar crédito de agente remoto).
+- Ciclo de vida: o motor **não sobe no boot**. `ensureFmmApi()` só spawn o
+  `api/server.py` na primeira requisição, e um timer dorme o processo
+  depois de 10 min sem uso (respeitando geração em andamento). Se o
+  `/health` local falhar, a rota mata o processo preso e tenta acordar de
+  novo antes de devolver 504 — serve pra máquina com GPU ser usada por
+  outra pessoa sem ficar com o modelo ocupando tudo.
+- Ponte: qualquer PC sem `FMM_ENGINE_DIR` já repassa
+  `/api/llm/v1/chat/completions` pra um device conhecido que tenha. O
+  Servidor (sempre-on, headless) é o endpoint estável: apontar o
+  opencode/Claude Code pra ele com modelo `fmm-local`, sem depender de
+  qual piloto está acordado.
 
 ## Coordenador (terminal cross-PC, via MCP)
 

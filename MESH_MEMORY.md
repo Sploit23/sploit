@@ -50,3 +50,5 @@ malha (Sploit-Forge)").
 - `transfer_project` serve apenas para semear a cópia inicial; **não é sincronização contínua**.
 - Arquivos com token (`.env`, `.mcp.json`, `opencode.json`) são locais por PC e nunca entram no git. Use `opencode.example.json` como modelo e copie para `opencode.json` em cada piloto, trocando o placeholder pelo token daquela máquina.
 - Projetos na malha (PWA): `FORGE_MESH_PROJECTS` de cada piloto deve listar todos os aliases que ele deve ver, incluindo as cópias espelhadas.
+- Alias canônico do motor local na malha: `FMM` (path `D:/FMM_MASTER_STABLE_V5.4_SLIM` no Escritorio), incluído no `FORGE_MESH_PROJECTS` dos pilotos e do Servidor.
+- Ponte do modelo: usar o Servidor como endpoint OpenAI-compatible fixo (`/api/llm/v1/chat/completions`, modelo `fmm-local`); ele repassa a inferência pra máquina com GPU. O motor acorda só na primeira pergunta e dorme após 10 min parado, pra não atrapalhar o uso normal do PC.

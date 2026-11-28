@@ -872,7 +872,11 @@ const srv = http.createServer(async (req, res) => {
           return J({ error: 'motor local não configurado nesta máquina (nem achado na malha)' }, 501);
         }
         ensureFmmApi();
-        if (!(await waitFmmApi())) return J({ error: 'motor local não respondeu a tempo' }, 504);
+        if (!(await waitFmmApi())) {
+          ensureFmmApi(true);
+          if (!(await waitFmmApi())) return J({ error: 'motor local não respondeu a tempo' }, 504);
+        }
+        fmmInFlight++;
         try {
           const { relayed, ...body } = b;
           const r = await fetch(`http://127.0.0.1:${FMM_API_PORT}/v1/chat/completions`, {
@@ -885,6 +889,7 @@ const srv = http.createServer(async (req, res) => {
           if (!r.ok) return J({ error: j.error || ('motor respondeu ' + r.status) }, 502);
           return J(j);
         } catch (e) { return J({ error: String(e.message || e).slice(0, 200) }, 500) }
+        finally { fmmInFlight--; fmmLastUsed = Date.now(); }
       }
       if (u.pathname === '/api/llm/v1/models' && req.method === 'GET') {
         return J({ object: 'list', data: [{ id: 'fmm-local', object: 'model', owned_by: 'fmm' }] });
@@ -1843,9 +1848,16 @@ function filterRelevantTools(messages, tools) {
 // com GPU que configurar isso passa a valer, sem código novo).
 const FMM_ENGINE_DIR = process.env.FMM_ENGINE_DIR || '';
 const FMM_API_PORT = 8383;
+const FMM_IDLE_MS = 10 * 60 * 1000;
 let fmmApiProc = null;
-function ensureFmmApi() {
+let fmmInFlight = 0;
+let fmmLastUsed = 0;
+function ensureFmmApi(force = false) {
   if (!WIN || !FMM_ENGINE_DIR) return;
+  if (force && fmmApiProc) {
+    try { fmmApiProc.kill(); } catch {}
+    fmmApiProc = null;
+  }
   if (fmmApiProc && !fmmApiProc.killed) return;
   try {
     const py = path.join(FMM_ENGINE_DIR, 'venv_fmm', 'Scripts', 'python.exe');
@@ -1858,8 +1870,15 @@ function ensureFmmApi() {
     child.on('exit', () => { if (fmmApiProc === child) fmmApiProc = null; });
     child.on('error', () => { if (fmmApiProc === child) fmmApiProc = null; });
     fmmApiProc = child;
+    fmmLastUsed = Date.now();
   } catch (e) { console.error('[fmm] falha ao iniciar api/server.py:', e.message); }
 }
+setInterval(() => {
+  if (!fmmApiProc || fmmInFlight > 0) return;
+  if (Date.now() - fmmLastUsed < FMM_IDLE_MS) return;
+  try { fmmApiProc.kill(); } catch {}
+  fmmApiProc = null;
+}, 60000).unref();
 // retry mais longo que waitOpenCodeServe -- esse processo carrega um
 // modelo de verdade na GPU no startup, não é só um servidor Node leve.
 async function waitFmmApi(tries = 40) {
