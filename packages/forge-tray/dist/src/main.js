@@ -127,6 +127,7 @@ body{font:13px/1.4 Inter,"Segoe UI",system-ui,-apple-system,sans-serif;color:var
 .node.off{opacity:.45}
 .node .act{display:flex;align-items:center;gap:5px;margin-top:4px;font-size:10px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .node .act b{color:var(--tx);font-weight:600}
+.node .upd{margin-top:3px;font-size:9.5px;color:#5a6485}
 .node .think{width:4px;height:4px;border-radius:50%;background:var(--pink);flex:none;animation:think 1s ease-in-out infinite}
 @keyframes think{0%,100%{transform:scale(.7);opacity:.4}50%{transform:scale(1.15);opacity:1}}
 .bit.thinking{animation:thinkpulse 1.1s ease-in-out infinite}
@@ -230,10 +231,16 @@ function renderList(devices){
   if(bots.length)html+='<div class="lbl">bots</div>'+bots.map(nodeHtml).join('');
   list.innerHTML=html||'<div class="empty">nenhum PC conhecido ainda</div>';
 }
+// "atualizado há X" por PC -- não é número de versão, só mostra que o
+// auto-update passou por ali recentemente (mesmo dado que o PWA mostra na
+// tela Central, ver fmtAgo lá; duplicado aqui porque Bit e PWA são
+// frontends separados, sem código compartilhado entre os dois).
+function fmtAgo(ms){var s=(Date.now()-ms)/1000;if(s<90)return'agora';if(s<3600)return Math.floor(s/60)+'min';if(s<86400)return Math.floor(s/3600)+'h';return Math.floor(s/86400)+'d'}
 function nodeHtml(d){
   var act=d.online?activeLabel(d):null;
   var actHtml=!d.online?'':act?'<div class="act"><span class="think"></span>executando: <b>"'+esc(act.length>42?act.slice(0,42)+'…':act)+'"</b></div>':'<div class="act">ocioso</div>';
-  return '<div class="node'+(d.online?'':' off')+'"><div class="nh"><span class="d'+(d.online?' on':' off')+'"></span><span class="nm">'+esc(d.hostname||d.dnsName)+'</span><span class="role'+(d.pilot?'':' bot')+'">'+(d.pilot?'piloto':'bot')+'</span></div>'+actHtml+'</div>';
+  var updHtml=d.online&&d.updatedAt?'<div class="upd">atualizado '+fmtAgo(d.updatedAt)+'</div>':'';
+  return '<div class="node'+(d.online?'':' off')+'"><div class="nh"><span class="d'+(d.online?' on':' off')+'"></span><span class="nm">'+esc(d.hostname||d.dnsName)+'</span><span class="role'+(d.pilot?'':' bot')+'">'+(d.pilot?'piloto':'bot')+'</span></div>'+actHtml+updHtml+'</div>';
 }
 var lastDevices=[];
 function loadMesh(){ api('/api/mesh').then(renderList).catch(function(){}); }

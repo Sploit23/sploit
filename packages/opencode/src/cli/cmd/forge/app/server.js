@@ -130,6 +130,10 @@ const save = () => fs.writeFileSync(DB, JSON.stringify(PROJECTS, null, 2));
 // de verdade (/health, /api/peers). Puramente cosmético.
 const NAME_FILE = path.join(__dirname, 'device-name.txt');
 const getDeviceName = () => { try { return fs.readFileSync(NAME_FILE, 'utf8').trim() || os.hostname() } catch { return os.hostname() } };
+// "atualizado há X" (PWA e Bit) -- mtime do próprio server.js, resetado
+// sozinho sempre que o auto-update sobrescreve o arquivo. Mesma fonte em
+// /health, /api/stats, /api/version e /api/mesh, pra nunca desencontrar.
+const getUpdatedAt = () => { try { return fs.statSync(__filename).mtimeMs } catch { return null } };
 // qual CLI a pessoa quer como coordenador (opencode oficial ou Claude Code)
 // -- puramente o que ela digita no terminal; o motor que executa a
 // instrução num projeto-alvo (promptProject) continua sendo sempre o
@@ -512,7 +516,7 @@ const srv = http.createServer(async (req, res) => {
   // precisa de um <link rel="apple-touch-icon"> explícito apontando pra isso.
   if (u.pathname === '/icon.svg') return send('image/svg+xml', ICON_ANY_SVG);
   // sem token: só pra outro FORGE na mesma rede Tailscale se reconhecer (ver /api/peers)
-  if (u.pathname === '/health') return send('application/json', JSON.stringify({ forge: true, name: getDeviceName(), pilot: isDesktopInstalled() }));
+  if (u.pathname === '/health') return send('application/json', JSON.stringify({ forge: true, name: getDeviceName(), pilot: isDesktopInstalled(), updatedAt: getUpdatedAt() }));
   // sem token, igual /health: quando e quando esse server.js foi escrito.
   // achado em 28/11: `git rev-parse` só funciona no repo-fonte (dev) --
   // uma instalação real (ProgramData/SploitForge) é só os arquivos
@@ -521,7 +525,7 @@ const srv = http.createServer(async (req, res) => {
   if (u.pathname === '/api/version' && req.method === 'GET') {
     let commit = '';
     try { commit = execSync('git rev-parse --short HEAD', { cwd: path.resolve(__dirname, '../..'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch {}
-    return send('application/json', JSON.stringify({ commit, updatedAt: fs.statSync(__filename).mtimeMs }));
+    return send('application/json', JSON.stringify({ commit, updatedAt: getUpdatedAt() }));
   }
   // sem token de propósito -- ver comentário em KNOWN_FILE acima. Só grava
   // "existo, meu token é X"; nunca devolve nada, nunca lê o registro (isso é
@@ -686,7 +690,7 @@ const srv = http.createServer(async (req, res) => {
           // esta máquina é sempre "online" (é ela que está respondendo o
           // /api/mesh) -- sondar o próprio https://<dns> só diria se o
           // Tailscale HTTPS está de pé, o que não é a pergunta do painel.
-          if (d.self) return { ...d, online: true, ms: 0 };
+          if (d.self) return { ...d, online: true, ms: 0, updatedAt: getUpdatedAt() };
           if (!d.dnsName) return { ...d, online: false, ms: null };
           const t0 = Date.now();
           try {
@@ -694,9 +698,11 @@ const srv = http.createServer(async (req, res) => {
             if (r.ok) {
               // pilot vem ao vivo do /health -- a cópia salva em KNOWN pode
               // estar velha (o PC instalou/desinstalou a bandeja depois do
-              // último anúncio).
+              // último anúncio). updatedAt também: só existe em PCs que já
+              // receberam esse campo no /health (atualização anterior) --
+              // fica undefined nos outros, a tela trata como "–".
               const j = await r.json().catch(() => ({}));
-              return { ...d, online: true, ms: Date.now() - t0, pilot: j.pilot === true || d.pilot };
+              return { ...d, online: true, ms: Date.now() - t0, pilot: j.pilot === true || d.pilot, updatedAt: j.updatedAt };
             }
           } catch {}
           if (d.lanIp) {
@@ -1390,7 +1396,7 @@ const srv = http.createServer(async (req, res) => {
         // server.js já serve (o auto-update sobrescreve o arquivo, o que
         // reseta o mtime pra "agora" sozinho, sem precisar de git/commit
         // hash, que nem existe na instalação real -- só no repo-fonte).
-        updatedAt: fs.statSync(__filename).mtimeMs,
+        updatedAt: getUpdatedAt(),
       }));
     }
   }
