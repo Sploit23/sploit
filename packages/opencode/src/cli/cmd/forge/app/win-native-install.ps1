@@ -295,18 +295,23 @@ if ($HEADLESS) {
     Write-Host "==> Modo BOT -- pulando o Bit (só o serviço, controlado remotamente)."
 } else {
     Write-Host ""
-    Write-Host "==> Configurando o Bit pra abrir sozinho no login..."
+    Write-Host "==> Configurando o Bit (ícone na Área de Trabalho + abre sozinho no login)..."
     $WshShell = New-Object -ComObject WScript.Shell
+    $desktop = [Environment]::GetFolderPath("Desktop")
     $startupDir = [Environment]::GetFolderPath("Startup")
-    $shortcutPath = Join-Path $startupDir "Sploit-Forge-Bit.lnk"
+    $bitArgs = "/k title Sploit Forge - Bit && `"$nodeExe`" `"$(Join-Path $FORGE_DIR 'bit.js')`""
+    $shortcutPath = Join-Path $desktop "Sploit-Forge-Bit.lnk"
     $Shortcut = $WshShell.CreateShortcut($shortcutPath)
     $Shortcut.TargetPath = "$env:WINDIR\System32\cmd.exe"
-    $Shortcut.Arguments = "/k title Sploit Forge - Bit && `"$nodeExe`" `"$(Join-Path $FORGE_DIR 'bit.js')`""
+    $Shortcut.Arguments = $bitArgs
     $Shortcut.WorkingDirectory = $FORGE_DIR
     $Shortcut.Description = "Status ao vivo da malha Sploit-Forge, em terminal"
     $Shortcut.Save()
-    Write-Host "==> Bit configurado -- abre sozinho (janela de terminal) no próximo login. Pra abrir agora:"
-    Write-Host "    cd `"$FORGE_DIR`"; node bit.js"
+    # Área de Trabalho pra abrir na hora (ex: se a pessoa fechar sem querer) +
+    # Startup pra abrir sozinho no login seguinte -- mesmo par que o app de
+    # bandeja Electron já fazia antes.
+    Copy-Item $shortcutPath (Join-Path $startupDir "Sploit-Forge-Bit.lnk") -Force
+    Write-Host "==> Bit instalado -- ícone 'Sploit-Forge-Bit' na Área de Trabalho, abre sozinho no próximo login."
 }
 
 Write-Host ""
