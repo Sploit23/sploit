@@ -7,10 +7,8 @@
 // arquivo se auto-detecta mudado e se reinicia sozinho (ver
 // maybeSelfUpdate), sem precisar de Serviço/Task Scheduler (é um processo
 // comum do usuário, não do LocalSystem -- respawn direto é seguro aqui).
-// Custo aceito conscientemente: perde o visual rico do Electron (mascote,
-// QR gráfico, arrastar janela) -- vira tudo texto/teclado.
 'use strict';
-const fs = require('fs'), path = require('path'), os = require('os');
+const fs = require('fs'), path = require('path');
 const { spawn } = require('child_process');
 const readline = require('readline');
 
@@ -43,8 +41,25 @@ const fmtAgo = ms => {
   if (s < 86400) return Math.floor(s / 3600) + 'h';
   return Math.floor(s / 86400) + 'd';
 };
-const C = { reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m', green: '\x1b[32m', gray: '\x1b[90m', cyan: '\x1b[36m', yellow: '\x1b[33m', red: '\x1b[31m' };
+
+// --- paleta -- mesmas cores do PWA (void/cyan/violeta), truecolor ANSI em
+// vez dos 16 básicos pra bater exatamente com o visual de lá.
+const rgb = (r, g, b) => `\x1b[38;2;${r};${g};${b}m`;
+const bgrgb = (r, g, b) => `\x1b[48;2;${r};${g};${b}m`;
+const C = {
+  reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',
+  blue: rgb(0x3e, 0xf0, 0xd8), purple: rgb(0xa8, 0x55, 0xf7), pink: rgb(0xef, 0x4f, 0xd8),
+  ok: rgb(0x2d, 0xd4, 0xa5), gray: rgb(0x5a, 0x64, 0x85), red: rgb(0xef, 0x44, 0x44), yellow: rgb(0xf5, 0xc5, 0x42),
+};
 const clear = () => process.stdout.write('\x1b[2J\x1b[H');
+
+// mascote simples (óculos de hacker, cores do acento) -- cabe em qualquer
+// terminal pequeno, sem depender de fonte com emoji/glyph exótico.
+const BIT_FACE = [
+  C.purple + '  ╭─────────╮' + C.reset,
+  C.purple + '  │ ' + C.reset + C.blue + '▄▄' + C.reset + '  ' + C.blue + '▄▄' + C.reset + C.purple + ' │' + C.reset,
+  C.purple + '  ╰─────────╯' + C.reset,
+];
 
 let devices = [], tasks = [], lastErr = '', paused = false;
 
@@ -60,29 +75,63 @@ function render() {
   if (paused) return;
   clear();
   const online = devices.filter(d => d.online).length;
-  console.log(C.bold + C.cyan + '  Sploit-Forge — Bit' + C.reset + C.dim + '  (terminal)' + C.reset);
-  console.log(C.dim + '  ' + online + '/' + devices.length + ' online' + (lastErr ? '  ' + C.red + 'erro: ' + lastErr + C.reset : '') + C.reset);
+  BIT_FACE.forEach(l => console.log(l));
+  console.log('  ' + C.bold + C.blue + 'Sploit-Forge' + C.reset + C.dim + ' · Bit (terminal)' + C.reset);
+  console.log('  ' + C.ok + online + '/' + devices.length + ' online' + C.reset + (lastErr ? '  ' + C.red + 'erro: ' + lastErr + C.reset : ''));
   console.log('');
   const waiting = tasks.find(t => t.status === 'waiting_approval');
   if (waiting) {
-    console.log(C.yellow + C.bold + '  ⏸ PEDIDO ESPERANDO APROVAÇÃO' + C.reset);
+    console.log('  ' + C.yellow + C.bold + '⏸ PEDIDO ESPERANDO APROVAÇÃO' + C.reset);
     console.log('  ' + waiting.question);
-    console.log(C.dim + '  [a] aprovar    [d] negar' + C.reset);
+    console.log('  ' + C.dim + '[a] aprovar    [d] negar' + C.reset);
     console.log('');
   }
   const pilots = devices.filter(d => d.pilot), bots = devices.filter(d => !d.pilot);
   const line = d => {
-    const dot = d.online ? C.green + '●' : C.gray + '○';
-    const name = (d.hostname || d.dnsName || '?').padEnd(14);
-    const role = d.pilot ? C.cyan + 'piloto' : C.gray + 'bot   ';
+    const dot = d.online ? C.ok + '●' : C.gray + '○';
+    const name = C.reset + (d.hostname || d.dnsName || '?').padEnd(14);
+    const role = d.pilot ? C.purple + 'piloto' : C.gray + 'bot   ';
     const upd = d.online && d.updatedAt ? C.dim + '  atualizado ' + fmtAgo(d.updatedAt) + C.reset : '';
     const running = tasks.find(t => (t.status === 'running' || t.status === 'queued') && t.machine && (t.machine.toLowerCase() === (d.hostname || '').toLowerCase() || t.machine.toLowerCase() === (d.dnsName || '').toLowerCase()));
-    const act = !d.online ? '' : running ? C.dim + '  ' + (running.text || '').slice(0, 50) + C.reset : C.dim + '  ocioso' + C.reset;
-    return '  ' + dot + C.reset + ' ' + name + '  ' + role + C.reset + act + upd;
+    const act = !d.online ? '' : running ? C.pink + '  ' + (running.text || '').slice(0, 50) + C.reset : C.dim + '  ocioso' + C.reset;
+    return '  ' + dot + name + '  ' + role + C.reset + act + upd;
   };
-  if (pilots.length) { console.log(C.dim + '  PILOTOS' + C.reset); pilots.forEach(d => console.log(line(d))); console.log(''); }
-  if (bots.length) { console.log(C.dim + '  BOTS' + C.reset); bots.forEach(d => console.log(line(d))); console.log(''); }
-  console.log(C.dim + '  [p] parear   [n] novo projeto   [r] atualizar   [q] sair' + C.reset);
+  if (pilots.length) { console.log('  ' + C.dim + 'PILOTOS' + C.reset); pilots.forEach(d => console.log(line(d))); console.log(''); }
+  if (bots.length) { console.log('  ' + C.dim + 'BOTS' + C.reset); bots.forEach(d => console.log(line(d))); console.log(''); }
+  console.log('  ' + C.pink + '[p]' + C.reset + ' parear   ' + C.pink + '[n]' + C.reset + ' novo projeto   ' + C.pink + '[r]' + C.reset + ' atualizar   ' + C.pink + '[q]' + C.reset + ' sair');
+}
+
+// --- QR no próprio terminal -- reaproveita o mesmo gerador que o PWA usa
+// (vendor/qrcode.min.js, puro JS, já `module.exports`-ável -- não precisa
+// de nenhuma dependência npm nova). 2 módulos do QR por linha de terminal
+// via meio-bloco Unicode (▀▄█), preto-no-branco de propósito (cores
+// forçadas via truecolor, não o tema do terminal) pra escanear igual com
+// qualquer app de câmera, do jeito que QR code de verdade é.
+let qrGen = null;
+try { qrGen = require('./vendor/qrcode.min.js'); } catch {}
+function renderQr(text) {
+  if (!qrGen) return null;
+  let qr = null;
+  for (let type = 2; type <= 20 && !qr; type++) {
+    try { const q = qrGen(type, 'L'); q.addData(text); q.make(); qr = q; } catch {}
+  }
+  if (!qr) return null;
+  const n = qr.getModuleCount(), quiet = 2, size = n + quiet * 2;
+  const dark = (r, c) => r >= quiet && r < quiet + n && c >= quiet && c < quiet + n && qr.isDark(r - quiet, c - quiet);
+  const WHITE = bgrgb(255, 255, 255) + rgb(255, 255, 255), BLACK = rgb(0, 0, 0);
+  const lines = [];
+  for (let y = 0; y < size; y += 2) {
+    let line = '';
+    for (let x = 0; x < size; x++) {
+      const top = dark(y, x), bottom = dark(y + 1, x);
+      if (top && bottom) line += BLACK + bgrgb(255, 255, 255) + '█';
+      else if (top && !bottom) line += BLACK + bgrgb(255, 255, 255) + '▀';
+      else if (!top && bottom) line += BLACK + bgrgb(255, 255, 255) + '▄';
+      else line += WHITE + ' ';
+    }
+    lines.push('  ' + line + C.reset);
+  }
+  return lines;
 }
 
 // --- ações que precisam de teclado "normal" (sair do raw mode um instante) --
@@ -103,13 +152,16 @@ async function doPair() {
     if (!self || !self.dnsName) { console.log(C.red + 'dnsName ainda não resolvido -- tenta de novo em alguns segundos.' + C.reset); await new Promise(r => setTimeout(r, 1500)); return; }
     const link = 'https://' + self.dnsName + '/#t=' + TOKEN;
     clear();
-    console.log(C.bold + C.cyan + '  Pareamento' + C.reset);
+    console.log('  ' + C.bold + C.blue + 'Pareamento' + C.reset);
     console.log('');
-    console.log('  Abra esse link no celular (mesma conta Tailscale):');
+    const qr = renderQr(link);
+    if (qr) { qr.forEach(l => console.log(l)); console.log(''); }
+    console.log('  Abra a câmera do celular (mesma conta Tailscale) e escaneie,');
+    console.log('  ou digite o link direto:');
     console.log('');
-    console.log('  ' + C.bold + link + C.reset);
+    console.log('  ' + C.bold + C.pink + link + C.reset);
     console.log('');
-    console.log(C.dim + '  [enter] voltar' + C.reset);
+    console.log('  ' + C.dim + '[enter] voltar' + C.reset);
     await new Promise(resolve => { const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout }); rl2.question('', () => { rl2.close(); resolve(); }); });
   });
 }
@@ -121,7 +173,7 @@ async function doNewProject() {
     const git = await new Promise(r => rl.question('url git pra clonar (opcional, enter pra pular): ', r));
     console.log(C.dim + 'criando...' + C.reset);
     await api('/api/projects', { method: 'POST', body: JSON.stringify({ name: name.trim(), git: (git || '').trim() }) });
-    console.log(C.green + 'criado.' + C.reset);
+    console.log(C.ok + 'criado.' + C.reset);
     await new Promise(r => setTimeout(r, 1000));
   });
 }
@@ -144,7 +196,7 @@ function maybeSelfUpdate() {
   let m = 0;
   try { m = fs.statSync(SELF).mtimeMs } catch { return }
   if (m <= bootMtime) return;
-  console.log('\n' + C.cyan + '  versão nova detectada, reiniciando...' + C.reset);
+  console.log('\n' + C.blue + '  versão nova detectada, reiniciando...' + C.reset);
   const child = spawn(process.execPath, [SELF], { detached: true, stdio: 'inherit', cwd: DIR });
   child.unref();
   process.exit(0);
