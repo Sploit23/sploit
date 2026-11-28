@@ -179,7 +179,7 @@ function Get-Asset($name, $dest) {
     }
 }
 $assets = @("server.js", "sessions-native.js", "win-service.js")
-if (-not $HEADLESS) { $assets += @("sessions-tmux.js", "index.html", "mcp-coordinator.js", "bit.js") }
+if (-not $HEADLESS) { $assets += @("sessions-tmux.js", "index.html", "mcp-coordinator.js", "bit.js", "bit.ico") }
 Write-Host "==> Baixando $($assets -join ', ')..."
 foreach ($f in $assets) { Get-Asset $f (Join-Path $FORGE_DIR $f) }
 if (-not $HEADLESS) {
@@ -312,6 +312,11 @@ if ($HEADLESS) {
     $Shortcut.Arguments = "`"$(Join-Path $FORGE_DIR 'bit.js')`""
     $Shortcut.WorkingDirectory = $FORGE_DIR
     $Shortcut.Description = "Status ao vivo da malha Sploit-Forge, em terminal"
+    # sem isso o atalho usa o ícone genérico do node.exe -- some no meio de
+    # uma Área de Trabalho cheia (achado em 28/11, Escritório: a pessoa não
+    # achava mais o ícone entre as outras dezenas de atalhos/arquivos).
+    $bitIcon = Join-Path $FORGE_DIR "bit.ico"
+    if (Test-Path $bitIcon) { $Shortcut.IconLocation = $bitIcon }
     $Shortcut.Save()
     # Área de Trabalho pra abrir na hora (ex: se a pessoa fechar sem querer) +
     # Startup pra abrir sozinho no login seguinte -- mesmo par que o app de
