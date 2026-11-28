@@ -1594,11 +1594,23 @@ function logUpdate(msg) {
 // raw.githubusercontent.com (ver histórico); dessa vez foi na variante
 // github.com/.../raw/. Query param único + no-cache nos dois fetches do
 // auto-update, pra nunca mais depender de sorte de CDN.
-const fetchFresh = url => fetch(url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now(), { headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } });
+const fetchFresh = url => fetch(url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now(), { headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }, signal: AbortSignal.timeout(15000) });
+// achado em 28/11 (Escritório ficou 13h sem conseguir checar atualização):
+// o `fetch()` de um processo que roda há muito tempo pode degradar e
+// passar a falhar sempre pra internet pública, mesmo com rede/DNS normais
+// -- confirmado na hora: um processo Node NOVO, na mesma máquina, buscando
+// o MESMO arquivo, funcionou de primeira. Sem isso, o PC fica preso
+// "checagem falhou" pra sempre (nunca chega atualização nenhuma, nem essa
+// correção) e só alguém de fora reinicia o serviço na mão pra sanar.
+// Depois de falhar muitas vezes seguidas por tempo suficiente (não só um
+// blip passageiro de rede), reinicia sozinho pelo mesmo caminho seguro de
+// sempre -- processo novo já resolve o problema.
+let updateFailStreak = 0, updateFailSince = 0;
 async function checkForUpdates() {
   if (!WIN) return;
   try {
     const remote = await (await fetchFresh(UPDATE_BASE + 'server.js')).text();
+    updateFailStreak = 0;
     const local = fs.readFileSync(__filename, 'utf8');
     if (remote === local) return; // já atualizado
     logUpdate('versão nova encontrada, validando antes de aplicar...');
@@ -1639,7 +1651,15 @@ async function checkForUpdates() {
     for (const f of UPDATE_FILES) fs.writeFileSync(path.join(__dirname, f), await (await fetchFresh(UPDATE_BASE + f)).text());
     logUpdate('arquivos atualizados, reiniciando com segurança...');
     spawn(process.execPath, [path.join(__dirname, 'win-service.js'), 'safe-restart'], { detached: true, stdio: 'ignore' }).unref();
-  } catch (e) { logUpdate('checagem falhou: ' + e.message); }
+  } catch (e) {
+    logUpdate('checagem falhou: ' + e.message);
+    if (updateFailStreak === 0) updateFailSince = Date.now();
+    updateFailStreak++;
+    if (updateFailStreak >= 15 && Date.now() - updateFailSince > 10 * 60 * 1000) {
+      logUpdate('checagem falhando há mais de 10min (' + updateFailStreak + 'x seguidas) -- reiniciando sozinho pra tentar sanar');
+      spawn(process.execPath, [path.join(__dirname, 'win-service.js'), 'safe-restart'], { detached: true, stdio: 'ignore' }).unref();
+    }
+  }
 }
 // de 24h pra poucos minutos -- o pedido era "quando a gente subir uma
 // atualização os PCs já atualizam", sem precisar do botão manual (🔄 /
