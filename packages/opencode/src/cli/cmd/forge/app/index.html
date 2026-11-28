@@ -247,6 +247,8 @@ body.with-nav #nav{display:flex}
 .crumb button{background:none;border:none;padding:2px 4px;color:var(--mu);font-size:12px;font-family:inherit}
 .crumb button:last-child{color:var(--tx)}
 .crumb span{color:var(--blue)}
+/* filtro local da pasta atual: so esconde/mostra o que ja veio do /api/browse */
+.exfilter{margin:0 0 10px;padding:8px 12px;font-size:13px}
 @media (max-width:899px){.exwrap{flex-direction:column}.exside{width:100%;flex-direction:row;overflow-x:auto;gap:6px}.exside button{width:auto;white-space:nowrap}}
 
 /* ---------- pareamento ---------- */
@@ -406,6 +408,7 @@ body.with-nav #nav{display:flex}
     <div class="exmain">
       <div class="exdevs" id="exdevs"></div>
       <div class="crumb" id="crumb"></div>
+      <input id="brfilter" class="exfilter" autocomplete="off" placeholder="filtrar nesta pasta…">
       <div class="icongrid" id="brlist"></div>
       <div class="keys" style="justify-content:flex-end;border:0;background:none;padding:14px 0 0"><button id="bruse" class="go">usar esta pasta como projeto</button></div>
     </div>
@@ -1136,7 +1139,7 @@ function openSelfMenu(){
 }
 
 /* ---------- explorer: navegar, usar como projeto, baixar ---------- */
-let brCur='',brMachine='local';
+let brCur='',brMachine='local',brDirs=[],brFiles=[];
 const EX_ICONS={home:'🏠',desktop:'🖥️',documents:'📄',downloads:'⬇️',pictures:'🖼️',music:'🎵',videos:'🎬',drive:'💾'};
 const fmtSize=n=>n<1024?n+'B':n<1048576?(n/1024).toFixed(1)+'KB':(n/1048576).toFixed(1)+'MB';
 const fmtDate=ts=>{
@@ -1213,11 +1216,19 @@ async function brGo(p){
   let j; try{j=await api('/api/browse'+(qs?'?'+qs:''))}catch(e){alert('erro ao listar: '+(e.message||e));return}
   if(j.error){alert(j.error);return}
   brCur=j.path;
+  brDirs=j.dirs||[];brFiles=j.files||[];
+  $('#brfilter').value='';
   $('#bruse').style.display=brMachine==='local'?'':'none';
   $('#bruse').disabled=!brCur;
   renderCrumb();
+  renderBrList();
+}
+// filtra so os itens ja carregados (brDirs/brFiles) pelo nome -- sem rede.
+function renderBrList(){
   const L=$('#brlist');L.replaceChildren();
-  (j.dirs||[]).forEach(d=>{
+  const q=($('#brfilter').value||'').trim().toLowerCase();
+  const match=x=>!q||String(x.name||'').toLowerCase().includes(q);
+  brDirs.filter(match).forEach(d=>{
     const btn=h('button','icon'),ig=h('span','ig');
     ig.innerHTML=FOLDER_SVG;ig.style.background='linear-gradient(135deg,#64748b,#3f4a5c)';
     btn.append(ig,h('b',0,d.name));
@@ -1226,7 +1237,7 @@ async function brGo(p){
     else wireHold(btn,()=>openFileMenu(d,true));
     L.append(btn);
   });
-  (j.files||[]).forEach(f=>{
+  brFiles.filter(match).forEach(f=>{
     const btn=h('button','icon'),ig=h('span','ig');
     ig.innerHTML=FILE_SVG;ig.style.background='linear-gradient(135deg,#475569,#2f3a47)';
     btn.append(ig,h('b',0,f.name));
@@ -1235,6 +1246,7 @@ async function brGo(p){
     else wireHold(btn,()=>openFileMenu(f,false));
     L.append(btn);
   });
+  if(q&&!L.childElementCount)L.append(h('div','mu',0,'nada encontrado nesta pasta'));
 }
 async function renderShortcuts(){
   let root;try{root=await api('/api/browse'+(brMachine!=='local'?'?machine='+encodeURIComponent(brMachine):''))}catch{return}
@@ -1277,6 +1289,7 @@ async function openExplorer(){
 }
 function openBrowse(){closeSheet();openExplorer()}
 $('#bruse').onclick=()=>{if(brCur&&brMachine==='local')useAsProject(brCur)};
+$('#brfilter').oninput=renderBrList;
 
 /* ---------- menu lateral / nav ---------- */
 $('#nav').addEventListener('click',e=>{
