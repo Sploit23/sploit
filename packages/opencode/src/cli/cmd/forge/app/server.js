@@ -5,6 +5,27 @@ const crypto = require('crypto'), { execFileSync, execFile, execSync, spawn } = 
 const { Readable } = require('stream');
 const { WebSocketServer, WebSocket: WSClient } = require('ws');
 
+// achado em 28/11 (investigando o Escritório mostrando a Casa como
+// offline no PWA): o resolvedor de DNS do Node (c-ares) NÃO respeita o
+// NRPT do Windows -- a tabela que a Tailscale usa pra rotear nomes
+// `*.ts.net` pro resolvedor dela (100.100.100.100) só vale pra
+// ferramentas que passam pelo resolvedor nativo do SO (`Resolve-DnsName`,
+// `Invoke-WebRequest`/.NET) -- `nslookup`/`dns.resolve*` do Node ignoram
+// isso e usam os servidores DNS "normais" da interface de rede
+// (ex: o roteador Wi-Fi), que nunca ouviram falar de `.ts.net`. Resultado:
+// todo `fetch('https://<dnsName>/...')` pra outro PC da malha (online
+// check, proxy, tudo) falha com ENOTFOUND sempre que o adaptador
+// Tailscale não tiver um DNS server explícito (comum -- a Tailscale usa
+// NRPT em vez de popular isso, então acontece na maioria das instalações
+// Windows). Prepende 100.100.100.100 na lista do Node sem descartar os
+// servidores que já tinha (fallback se esse não responder); essa é a
+// mesma faixa 100.64.0.0/10 em qualquer tailnet, então é seguro sempre.
+try {
+  const dns = require('dns');
+  const current = dns.getServers();
+  if (!current.includes('100.100.100.100')) dns.setServers(['100.100.100.100', ...current]);
+} catch {}
+
 // Linux/WSL usa tmux (sessão sobrevive a updates do FORGE, processo
 // separado); Windows nativo usa um motor em memória próprio via ConPTY
 // (node-pty), sem tmux no meio -- ver sessions-native.js pro trade-off.
